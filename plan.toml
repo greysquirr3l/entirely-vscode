@@ -54,6 +54,17 @@ max_retries = 2
 on_failure  = "pause"
 require_evaluator = true
 gates = []
+# Model pinning. The label is the exact string shown in the VS Code Copilot
+# Chat model picker, in the form "Model Name (Vendor)". Wiggum cannot enforce
+# a picker choice from a prompt file — `model` renders as a recommendation
+# header in orchestrator.prompt.md, and `subagent_model` is passed as the
+# `model:` argument on every runSubagent dispatch.
+#
+# This is a BYOK model, so the picker entry only exists on a machine with the
+# MiniMax provider registered. The string must still match the picker exactly
+# or the recommendation points at a model the user cannot select.
+model          = "M3.1 Flash Preview (MiniMax)"
+subagent_model = "M3.1 Flash Preview (MiniMax)"
 rules = [
     "TypeScript strict mode is already on. Do not weaken it, and do not add `any` to make a type error go away — model the shape instead.",
     "Keep `src/lib/` free of any `vscode` import. Everything there is plain TypeScript and must be unit-testable without an extension host.",

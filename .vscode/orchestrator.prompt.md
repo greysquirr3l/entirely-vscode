@@ -3,6 +3,10 @@ agent: agent
 description: Orchestrator for dependency-aware implementation loops — drives subagents to implement all entirely tasks
 ---
 
+> **Recommended model:** `M3.1 Flash Preview (MiniMax)` — select this in the VS Code Copilot
+> Chat model picker before running this prompt. Wiggum cannot enforce the model choice
+> from a prompt file; this is a recommendation, not a guarantee.
+
 <PLAN>/Users/ncampbell/Projects/vscode-plugins/entirely/IMPLEMENTATION_PLAN.md</PLAN>
 
 <TASKS>/Users/ncampbell/Projects/vscode-plugins/entirely/tasks</TASKS>
@@ -45,6 +49,8 @@ Repeat until all tasks (T01–T14) in PROGRESS.md are `[x]`:
 6. Start a subagent with the SUBAGENT_PROMPT below, **prepending the extracted
    Accumulated Learnings and Codebase State content at the top of the dispatch message**
    so the subagent receives it as live context, not a file reference.
+   When invoking `#tool:agent/runSubagent`, pass `model: "M3.1 Flash Preview (MiniMax)"` so the
+   implementation subagent runs on the configured model regardless of your own session model.
 7. Wait for the subagent to complete.
 8. **Independently verify** — run the preflight yourself before trusting the subagent's `[x]`:
    ```bash
@@ -95,6 +101,7 @@ If this tool is not available, fail immediately with:
 Tasks in the same group have no intra-group dependencies and may be dispatched
 to concurrent subagents. Run groups sequentially; within each group, launch all
 tasks simultaneously using separate `runSubagent` calls.
+Pass `model: "M3.1 Flash Preview (MiniMax)"` on every concurrent dispatch.
 
 Group 1 (1 task(s)): project-scaffold
 
