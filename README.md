@@ -1,71 +1,90 @@
-# greysquirr3l.entirely README
+# Entirely
 
-This is the README for your extension "greysquirr3l.entirely". After writing up a brief description, we recommend including the following sections.
+A Visual Studio Code extension for [Entire](https://entire.com) — the Git
+forge built for agent-human collaboration.
 
-## Features
+Entire records what coding agents did as **sessions**, freezes them into
+**checkpoints**, and publishes that history so a team can see what every
+agent did and why. The CLI does the work. Entirely is the editor-side
+surface for it.
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+```
+Entirely (this extension)
+   └── entire CLI  (the source of truth — never re-implemented here)
+         └── git refs, session state, the Entire API
+```
 
-For example if there is an image subfolder under your extension project workspace:
+## What it will do
 
-\!\[feature X\]\(images/feature-x.png\)
+| Surface | What it shows |
+|---|---|
+| **Status bar** | Whether the workspace is tracked by Entire, and whether an agent session is live right now |
+| **Entire view** | Every session Entire tracks for the repository — across all worktrees, not just the open folder |
+| **Checkpoint history** | Recorded checkpoints, opening straight into the native diff editor |
+| **Why this line** | Which agent edit introduced the line under the cursor, and why |
+| **Hook bridge** | Reports the editor's own agent activity to Entire, so editor work lands in the same session history |
+| **Doctor** | A copyable diagnostic report: CLI version, repository state, effective settings, last error |
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+The extension never re-implements Entire. It discovers the installed CLI,
+reads its JSON output, and shells out for anything mutating. If the CLI is
+missing, the extension degrades quietly rather than failing obscurely.
+
+## Status
+
+**Planned.** The implementation plan is `plan.toml`; the generated task
+files are in `tasks/`.
+
+| Phase | Tasks | |
+|---|---|---|
+| Foundations | 2 | manifest and build, CLI process runner with discovery |
+| Data Model | 1 | the CLI's JSON types and decoders |
+| Editor Surface | 3 | status bar, session tree, checkpoint history |
+| Agent Integration | 2 | Copilot CLI hook bridge, why-this-line |
+| Polish and Release | 3 | settings, diagnostics, packaging and CI |
+| Hardening | 3 | security audit, wiring audit, scaffold cleanup |
+
+The scaffold compiles, lints and passes its extension-host test. The plan
+validates against `wiggum` at 9/10 with a valid DAG and 8 parallelisable
+groups.
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+* The [Entire CLI](https://docs.entire.com/installation) — `entire version`
+  must run. Without it the extension stays dormant.
+* VS Code 1.96 or newer.
 
-## Extension Settings
+## Development
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+```sh
+npm install
+npm run compile     # type check, lint, bundle
+npm test            # extension-host tests
+npm run watch       # rebuild on change
+```
 
-For example:
+### Working on the plan
 
-This extension contributes the following settings:
+```sh
+wiggum validate plan.toml          # schema + lint
+wiggum check plan.toml              # quality score
+wiggum generate plan.toml           # regenerate tasks/ and prompts
+```
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+Generated artifacts: `tasks/`, `capabilities/`, `AGENTS.md`,
+`IMPLEMENTATION_PLAN.md`, `PROGRESS.md`, `features.json` and the prompts in
+`.vscode/`. `plan.toml` is the source of truth — edit it and regenerate
+rather than editing the generated files.
 
-## Known Issues
+## Research
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+`research/CLI-SURFACE.md` documents the Entire CLI's integration surface, as
+recovered by installing CLI v0.12.2 and exercising it against a real Git
+repository. It is the factual basis for this plan: the command surface, the
+exact JSON shapes, what `entire enable` installs, the Copilot CLI hook
+protocol, the on-disk session data model, and the settings schema.
 
-## Release Notes
+`research/install.sh` is the installer, kept for reference.
 
-Users appreciate release notes as you update your extension.
+## Licence
 
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+MIT
