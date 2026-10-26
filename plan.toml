@@ -1,0 +1,727 @@
+# plan.toml — entirely: a VS Code extension for Entire
+#
+# Entire is a Git forge for agent-human collaboration. It records what coding
+# agents did as *sessions*, freezes them into *checkpoints*, and shares the
+# history across a team. The CLI does the work; this extension is the
+# editor-side surface for it.
+#
+# This plan is based on the installed CLI (v0.12.2), whose integration surface
+# was recovered by installing it and exercising every command. The recovered
+# surface is documented in research/CLI-SURFACE.md.
+#
+#   wiggum validate plan.toml
+#   wiggum generate plan.toml --dry-run
+#   wiggum generate plan.toml
+
+# ─── Project ──────────────────────────────────────────────────────────────────
+
+[project]
+name        = "entirely"
+description = """
+Entirely is a Visual Studio Code extension for Entire, a Git forge built for
+agent-human collaboration.
+
+Entire's CLI records each coding-agent session, freezes it into a checkpoint,
+and publishes the history so a team can see what every agent did and why. The
+CLI is a terminal tool; everything it exposes is invisible from the editor.
+Entirely surfaces it: a status bar that always knows whether the current
+workspace is tracking, a tree of live sessions, checkpoint history that opens
+straight into the diff, the ability to start a tracked agent turn from the
+editor, and an inline blame-style "why does this line exist" query.
+
+The extension never re-implements Entire. It discovers the installed CLI,
+reads its JSON output, and shells out for anything mutating. If the CLI is
+missing, the extension degrades to a clear, actionable message rather than
+failing obscurely.
+"""
+language     = "typescript"
+path         = "/Users/ncampbell/Projects/vscode-plugins/entirely"
+architecture = "layered"
+
+# ─── Preflight ────────────────────────────────────────────────────────────────
+
+[preflight]
+build = "npm run compile"
+test  = "npm test"
+lint  = "npm run lint"
+
+# ─── Orchestrator ─────────────────────────────────────────────────────────────
+
+[orchestrator]
+persona     = "You are a senior TypeScript engineer building a production-grade VS Code extension."
+strategy    = "standard"
+max_retries = 2
+on_failure  = "pause"
+require_evaluator = true
+gates = []
+rules = [
+    "TypeScript strict mode is already on. Do not weaken it, and do not add `any` to make a type error go away — model the shape instead.",
+    "Keep `src/lib/` free of any `vscode` import. Everything there is plain TypeScript and must be unit-testable without an extension host.",
+    "The `vscode` module may only be imported from `src/extension.ts`, `src/commands/`, `src/providers/`, and `src/services/`.",
+    "Every command, provider, watcher, and disposable must be pushed onto `context.subscriptions`. A leaked listener is the number-one extension bug.",
+    "The Entire CLI is the source of truth for its own behaviour. Never hardcode a flag list — read `entire agent-help <command>` at runtime instead.",
+    "The CLI may be missing, old, or on a machine where it is not on PATH. Every code path that touches the CLI must handle absence explicitly.",
+    "No `entire` invocation may block the extension host for more than a second without yielding to the event loop.",
+    "Never log a full checkpoint payload or a prompt body to the output channel by default; offer it behind an explicit command instead.",
+    "Follow the extension's own style: no `any`, no non-null assertions on values the CLI could omit, no floating promises.",
+    "Prefer declaring a VS Code setting over hardcoding a value. Anything a user may reasonably want to change needs a setting with a sensible default.",
+]
+# ─── Evaluator ────────────────────────────────────────────────────────────────
+# Weighted, plan-level criteria. Every task's own `evaluation_criteria` are
+# checked against these; the weights sum to 100.
+
+[evaluator]
+persona        = "You are a meticulous staff engineer reviewing a VS Code extension. You verify behaviour against the stated criteria by reading the code and running the checks, not by trusting the implementer's summary."
+pass_threshold = 8
+hard_fail      = true
+test_tool      = "npm test"
+mode           = "blocking"
+contract_review = true
+
+[[evaluator.criteria]]
+name        = "type-safety"
+weight      = 20
+description = "No `any` and no unjustified non-null assertions. The CLI's nullable fields are modelled as nullable, and every decoder handles a malformed payload without throwing."
+[[evaluator.criteria]]
+name        = "correctness"
+weight      = 25
+description = "The implementation matches the recovered CLI behaviour: the right subcommand, the right JSON shape, the right hook event. Behaviour that was verified against the real CLI stays faithful."
+[[evaluator.criteria]]
+name        = "failure-handling"
+weight      = 20
+description = "Every path that touches the CLI handles its absence, its failure and its timeout. A missing CLI is a normal state that degrades quietly, never an unhandled error."
+[[evaluator.criteria]]
+name        = "tests"
+weight      = 20
+description = "Each task's behaviour is covered by a test that would fail if the behaviour regressed. Tests assert observable outcomes, not implementation details."
+[[evaluator.criteria]]
+name        = "extension-craft"
+weight      = 15
+description = "Disposables are pushed onto context.subscriptions, commands are registered with correct titles and icons, settings are declared in package.json, and no operation blocks the extension host."
+
+# ─── Capabilities ─────────────────────────────────────────────────────────────
+
+[[capabilities]]
+name        = "cli-discovery"
+title       = "Entire CLI Discovery"
+description = "Locates the installed Entire CLI, verifies it can run, and reports its version - without ever blocking or crashing when it is absent."
+requirements = [
+    "MUST locate the `entire` binary by checking PATH first, then the documented install locations, and MUST record which one was used.",
+    "MUST distinguish 'not installed' from 'installed but broken' and MUST surface the distinction in the UI.",
+    "MUST never throw out of discovery; a missing CLI is an expected state, not an error.",
+]
+[[capabilities.scenarios]]
+name = "cli-on-path"
+when = "the `entire` binary is on PATH and `entire version` exits zero"
+then = "discovery reports the CLI as available with its version string"
+[[capabilities.scenarios]]
+name = "cli-absent"
+when = "no `entire` binary is found on PATH or in any known install location"
+then = "discovery reports the CLI as absent and the extension shows an actionable install prompt instead of failing"
+[[capabilities.scenarios]]
+name = "cli-present-but-broken"
+when = "an `entire` binary is found but `entire version` exits non-zero or prints unparseable output"
+then = "discovery reports the CLI as present but unusable, and the error detail is available for diagnosis"
+
+[[capabilities]]
+name        = "workspace-tracking-status"
+title       = "Workspace Tracking Status"
+description = "Knows, at all times, whether the current workspace is tracked by Entire, which agents are integrated, and which session is live."
+requirements = [
+    "MUST read tracking state from `entire status --json` and MUST parse it defensively, because the JSON carries nullable fields when the workspace is not a repository.",
+    "MUST surface tracking state in the status bar with a distinct visual treatment for tracked, untracked, and error states.",
+    "MUST refresh when the user switches workspaces, when the Git HEAD changes, and when an agent hook fires.",
+]
+[[capabilities.scenarios]]
+name = "tracked-workspace"
+when = "the workspace is a Git repository with Entire enabled"
+then = "the status bar shows the tracked state together with the active session when one exists"
+[[capabilities.scenarios]]
+name = "untracked-workspace"
+when = "the workspace is a Git repository but Entire is not enabled for it"
+then = "the status bar offers an enable action rather than showing an error"
+[[capabilities.scenarios]]
+name = "not-a-repository"
+when = "the workspace is not a Git repository"
+then = "the status bar shows an inert state and no enable action is offered"
+
+[[capabilities]]
+name        = "session-tree"
+title       = "Session Explorer"
+description = "Shows every session Entire tracks for the current repository, live and finished, and opens a session's detail on demand."
+requirements = [
+    "MUST source sessions from `entire session list --json`, which returns worktree paths across the whole repository rather than only the open folder.",
+    "MUST show, per session, the agent, its status, the branch, the turn and checkpoint counts, and the last prompt.",
+    "MUST refresh the tree when a session's status changes, and MUST NOT poll more often than the refresh interval allows.",
+]
+[[capabilities.scenarios]]
+name = "list-sessions"
+when = "the user opens the Entire view in a tracked repository"
+then = "the tree lists each tracked session with its agent, status, branch and counts"
+[[capabilities.scenarios]]
+name = "session-detail"
+when = "the user selects a session"
+then = "the session's details are shown, including its last prompt and its checkpoint count"
+[[capabilities.scenarios]]
+name = "empty-repository"
+when = "the repository has no tracked sessions"
+then = "the tree shows an empty-state message that explains how sessions get recorded"
+
+[[capabilities]]
+name        = "checkpoint-history"
+title       = "Checkpoint History"
+description = "Lists the checkpoints recorded on the current branch and opens any checkpoint in the diff editor."
+requirements = [
+    "MUST source checkpoints from `entire checkpoint list --json`.",
+    "MUST open a checkpoint's diff using the native VS Code diff editor rather than a custom view.",
+    "MUST tolerate a checkpoint whose diff is unavailable, showing an explanation instead of an error toast.",
+]
+[[capabilities.scenarios]]
+name = "list-checkpoints"
+when = "the user opens the checkpoint list in a tracked repository"
+then = "each recorded checkpoint is listed with its message, author and time"
+[[capabilities.scenarios]]
+name = "open-checkpoint"
+when = "the user selects a checkpoint"
+then = "the checkpoint's changes open in the diff editor"
+[[capabilities.scenarios]]
+name = "checkpoint-without-diff"
+when = "a checkpoint has no retrievable diff"
+then = "the extension explains that the diff is unavailable and does not open an empty diff"
+
+[[capabilities]]
+name        = "agent-hooks"
+title       = "Agent Hook Bridge"
+description = "Reports editor-side agent activity to Entire so the editor's own work is captured in the same session history as the CLI's."
+requirements = [
+    "MUST speak the Copilot CLI hook protocol by invoking `entire hooks copilot-cli <event>` with the event payload as JSON on stdin.",
+    "MUST map editor events onto the nine Copilot CLI hook events: SessionStart, UserPromptSubmitted, PreToolUse, PostToolUse, SubagentStart, SubagentStop, SessionEnd, AgentStop and ErrorOccurred.",
+    "MUST preserve the CLI's own convention that a missing `entire` binary is a silent no-op, and MUST NOT surface hook failures as user-visible errors.",
+    "MUST NOT block the editor on hook delivery; a hook that has not completed MUST never delay a user action.",
+]
+[[capabilities.scenarios]]
+name = "session-start"
+when = "the extension activates in a tracked workspace"
+then = "a SessionStart hook is delivered carrying the session identifier and workspace path"
+[[capabilities.scenarios]]
+name = "tool-use"
+when = "the user invokes a file-editing tool through the extension"
+then = "a PreToolUse and a matching PostToolUse hook are delivered for that invocation"
+[[capabilities.scenarios]]
+name = "cli-absent"
+when = "the `entire` binary cannot be found"
+then = "hook delivery is a silent no-op and the editor behaves exactly as if the bridge were not present"
+
+[[capabilities]]
+name        = "why-this-line"
+title       = "Why Does This Line Exist"
+description = "Answers, for the cursor's line, which agent edit introduced it and why."
+requirements = [
+    "MUST use Entire's own `why` command to answer, so the answer matches the CLI and the web UI rather than re-deriving history locally.",
+    "MUST present the answer with the originating session and checkpoint when the CLI supplies them.",
+]
+[[capabilities.scenarios]]
+name = "explain-line"
+when = "the user runs the why-this-line command with the cursor on a changed line"
+then = "the originating agent, session and explanation are shown"
+[[capabilities.scenarios]]
+name = "unexplained-line"
+when = "Entire has no record of the line under the cursor"
+then = "the extension says the line is not attributed to any recorded change"
+
+# ─── Phase 1: Foundations ─────────────────────────────────────────────────────
+
+[[phases]]
+name  = "Foundations"
+order = 1
+
+[[phases.tasks]]
+slug      = "project-scaffold"
+kind      = "infrastructure"
+title     = "Extension manifest, build pipeline, and repository hygiene"
+goal      = "Turn the generated scaffold into the manifest, build, lint and test setup the real extension will live in, with the contributed surface declared but not yet implemented."
+depends_on = []
+hints = [
+    "Set `engines.vscode` to the lowest version the implementation actually needs, and keep `@types/vscode` at or below it.",
+    "Use auto-generated activation events (`contributes.commands` plus implied `onCommand` activation) rather than a hand-maintained `activationEvents` array.",
+    "Declare the extension's contributed surface: a status bar item, a tree view container, a configuration section, and the command palette entries.",
+    "Add `extensionKind` so the extension runs on the workspace side in Remote SSH, Containers and WSL.",
+    "Set the repository, publisher, license, icon and categories fields - the marketplace listing is part of a top-tier extension.",
+    "Add a `prepublishOnly` script and a `.vscodeignore` that keeps sources and tests out of the published package.",
+    "Install dependencies and make sure `npm run compile`, `npm run lint` and `npm test` all work on a clean checkout.",
+]
+test_hints = [
+    "A smoke test that activates the extension and asserts the contributed commands are registered.",
+    "The packaged `.vsix` must contain `dist/extension.js` and must not contain `src/` or `out/`.",
+]
+must_haves = [
+    "package.json declares the status bar item, tree view, configuration section and commands",
+    "engines.vscode and @types/vscode are consistent with each other",
+    "npm run compile, npm run lint and npm test pass on a clean checkout",
+    "The .vsix excludes src/, out/ and node_modules dev artifacts",
+]
+evaluation_criteria = [
+    "npm run compile produces dist/extension.js with no TypeScript errors",
+    "npm run lint reports zero problems",
+    "npm test passes in the extension host",
+    "package.json contributes a status bar item, a tree view, and a configuration section",
+]
+
+[[phases.tasks]]
+slug      = "cli-process"
+kind      = "feature"
+title     = "Entire CLI process runner with discovery"
+goal      = "Implement the one place that knows how to find, run and parse the Entire CLI, so that nothing else in the extension touches the process boundary. It owns every failure path: a missing binary, a broken binary, a timeout and a malformed response are all typed outcomes, never thrown errors."
+depends_on = ["project-scaffold"]
+hints = [
+    "Discovery order: `entire` on PATH, then the documented install locations (`~/.local/bin`, `/usr/local/bin`, the XDG data dir, and the Windows equivalents).",
+    "Cache the resolved path, but re-verify it cheaply so a CLI installed after activation is picked up.",
+    "Run every invocation with a timeout and treat a timeout as 'the CLI is not usable', never as a hang.",
+    "Capture stdout and stderr separately, and never merge them - the CLI's JSON goes to stdout and its diagnostics to stderr.",
+    "Parse JSON from stdout with a strict schema; a CLI that emits a warning before its JSON must not break parsing.",
+    "Expose the CLI's own `agent-help` output as structured usage, so callers never hardcode a flag list.",
+    "Keep every filesystem and process concern in this module; the rest of the extension must not import `child_process`.",
+]
+test_hints = [
+    "Unit tests against a fake CLI script that emits the real `status --json` and `session list --json` shapes.",
+    "A test that the runner reports 'absent' when no binary exists, and 'broken' when one exists but exits non-zero.",
+    "A test that a timeout is reported as a failure rather than hanging the suite.",
+    "A test that a CLI printing a warning line before its JSON still parses.",
+]
+must_haves = [
+    "Discovery distinguishes absent, present-and-working, and present-but-broken",
+    "Every invocation is bounded by a timeout",
+    "stdout and stderr are captured separately",
+    "JSON parsing tolerates leading non-JSON output",
+]
+evaluation_criteria = [
+    "No module outside src/services/cli imports child_process or fs for CLI access",
+    "The runner never throws for a missing CLI; it returns a typed result",
+    "Unit tests cover absent, broken, timing-out and warning-prefixed CLI cases",
+    "The resolved CLI path is discoverable by other modules without re-running discovery",
+]
+implements = ["cli-discovery"]
+
+# ─── Phase 2: Data Model ──────────────────────────────────────────────────────
+
+[[phases]]
+name  = "Data Model"
+order = 2
+
+[[phases.tasks]]
+slug      = "domain-types"
+kind      = "feature"
+title     = "Entire data types and the JSON decode layer"
+goal      = "Model the Entire CLI's JSON output as precise TypeScript types, with decoding that tolerates the nulls and shape variations the CLI actually emits."
+depends_on = ["cli-process"]
+hints = [
+    "`status --json` emits `enabled`, `agents`, `active_sessions` and `error`, and every one of them can be null - including `error`, which is how a non-repository workspace reports itself.",
+    "`session list --json` returns an array of sessions with `session_id`, `agent`, `status`, `branch`, `worktree_path`, `started_at`, `last_active`, `turns`, `pending_turns`, `checkpoints` and `last_prompt`.",
+    "`session current --json` adds a `resolution` field and may be absent when there is no current session.",
+    "Decode into domain types, never into raw `any`. Use a discriminated result type so 'the CLI said no' and 'the CLI failed' stay distinguishable.",
+    "Timestamps arrive as RFC 3339 strings with nanosecond precision; parse them to `Date` and keep the raw string for display.",
+    "`branch` may be absent for a session that is not on a branch yet.",
+    "Write the decoders as pure functions in `src/lib/` so they are testable without a process or an extension host.",
+]
+test_hints = [
+    "Table-driven tests: one fixture per real CLI response shape, captured from the actual CLI.",
+    "A test that the `error` field of `status --json` decodes to a distinct 'not a repository' state rather than a failure.",
+    "A test that a session missing `branch` and `last_prompt` still decodes.",
+]
+must_haves = [
+    "Every CLI response has a corresponding TypeScript type and a decoder",
+    "Decoders live in src/lib/ and import nothing from vscode",
+    "The CLI's null fields are modelled as null or absent, not as empty strings",
+    "Timestamps are parsed to Date with the raw value preserved",
+]
+evaluation_criteria = [
+    "No `any` appears in the decode layer",
+    "Decoders are pure functions with no I/O",
+    "Tests cover every captured CLI response shape including the null-heavy status response",
+    "A missing optional field never throws",
+]
+
+# ─── Phase 3: Editor Surface ──────────────────────────────────────────────────
+
+[[phases]]
+name  = "Editor Surface"
+order = 3
+
+[[phases.tasks]]
+slug      = "status-bar"
+kind      = "feature"
+title     = "Status bar item showing tracking state"
+goal      = "Give the user an always-visible, always-accurate answer to 'is this workspace tracked by Entire, and is an agent running right now?'."
+depends_on = ["domain-types"]
+hints = [
+    "Render distinct treatments for tracked, untracked, tracked-but-no-session, and error states - they must be distinguishable at a glance without hovering.",
+    "Make the item a command: clicking it opens the Entire view, or offers to enable Entire when the workspace is untracked.",
+    "Do not offer an enable action when the workspace is not a Git repository; the CLI cannot track it there.",
+    "Refresh on workspace folder change, on Git HEAD change, and on a manual refresh command.",
+    "When the CLI is absent, the status bar item should stay hidden rather than show a permanent error - the extension should be invisible in a workspace that does not use Entire.",
+    "Expose the item's priority so it sits next to other SCM entries rather than at the far right.",
+]
+test_hints = [
+    "A test that the status bar text reflects each of the four states.",
+    "A test that the item is hidden when the CLI is absent.",
+    "A test that the command registered for the item routes to enable when untracked and to the view otherwise.",
+]
+must_haves = [
+    "Four visually distinct states are rendered",
+    "The item hides itself when the Entire CLI is absent",
+    "The item is a command with meaningful click behaviour in every state",
+    "The item refreshes when the workspace folder changes",
+]
+evaluation_criteria = [
+    "Each state produces a distinguishable status bar rendering",
+    "The status bar item is not rendered when the CLI is unavailable",
+    "Clicking the item performs the correct action for the current state",
+    "The status bar is disposed through context.subscriptions",
+]
+implements = ["workspace-tracking-status"]
+
+[[phases.tasks]]
+slug      = "session-tree"
+kind      = "feature"
+title     = "Tree view of tracked sessions"
+goal      = "Show every session Entire tracks for the repository - across all worktrees, not just the open folder - and let the user inspect one."
+depends_on = ["domain-types"]
+hints = [
+    "Source from `entire session list --json`, which spans all worktrees of the repository; the tree should not imply the sessions are in the current folder.",
+    "Group the tree usefully: by status (active, finished) is more useful than a flat list, and an active session deserves to be at the top.",
+    "Show the agent, status, branch, turn count, checkpoint count and last prompt on each session item.",
+    "Truncate the last prompt to one line - it is a prompt, not a document.",
+    "Provide a refresh command and an empty state that explains how sessions are recorded.",
+    "Implement `getParent` so a grouped tree reports the right parent for each element.",
+]
+test_hints = [
+    "A test that the tree renders one group per status with the right session counts.",
+    "A test that the empty state message is shown for a repository with no sessions.",
+    "A test that the last prompt is truncated to a single line.",
+]
+must_haves = [
+    "The tree is sourced from the whole repository, not only the open folder",
+    "Sessions are grouped by status",
+    "Each session item shows agent, status, branch, counts and a truncated last prompt",
+    "An empty state explains how sessions are recorded",
+]
+evaluation_criteria = [
+    "The tree shows a group per status with the correct number of children",
+    "getParent returns the correct group for each session element",
+    "A repository with no sessions shows an explanatory empty state",
+    "The refresh command re-queries the CLI and updates the tree",
+]
+implements = ["session-tree"]
+
+[[phases.tasks]]
+slug      = "checkpoint-history"
+kind      = "feature"
+title     = "Checkpoint list and diff viewer"
+goal      = "Make recorded checkpoints browsable from the editor and openable in the native diff editor."
+depends_on = ["domain-types"]
+hints = [
+    "Source from `entire checkpoint list --json`; the list is scoped to the current branch.",
+    "Opening a checkpoint should use `vscode.diff` with a title that identifies the checkpoint, so the user can step through diffs with the usual navigation.",
+    "A checkpoint with no available diff must be explained, not shown as an empty diff.",
+    "Keep the checkpoint list as a tree-view section rather than a separate panel, so the Entire view is a single place.",
+    "Include the checkpoint message, author and timestamp in the item label and tooltip.",
+]
+test_hints = [
+    "A test that a checkpoint selection opens a diff via vscode.diff.",
+    "A test that a checkpoint with no diff shows an explanatory message and opens nothing.",
+    "A test that the list renders message, author and time.",
+]
+must_haves = [
+    "Checkpoints are listed from the CLI's JSON output",
+    "Selecting a checkpoint opens the native diff editor",
+    "A checkpoint without a diff is explained rather than shown empty",
+    "The list shows message, author and timestamp",
+]
+evaluation_criteria = [
+    "Selecting a checkpoint calls vscode.diff with both sides and a descriptive title",
+    "A missing diff produces a user-facing explanation and no diff editor",
+    "The checkpoint list reflects the CLI's output without manual reformatting",
+]
+implements = ["checkpoint-history"]
+
+# ─── Phase 4: Agent Integration ───────────────────────────────────────────────
+
+[[phases]]
+name  = "Agent Integration"
+order = 4
+
+[[phases.tasks]]
+slug      = "hook-bridge"
+kind      = "feature"
+title     = "Copilot CLI hook bridge"
+goal      = "Report the extension's own agent activity to Entire using the same hook protocol the CLI installs for Copilot CLI, so editor work lands in the same session history."
+depends_on = ["domain-types"]
+hints = [
+    "The protocol is `entire hooks copilot-cli <event>` with the event payload as JSON on stdin; the CLI writes the result, not the caller.",
+    "The nine events are SessionStart, UserPromptSubmitted, PreToolUse, PostToolUse, SubagentStart, SubagentStop, SessionEnd, AgentStop and ErrorOccurred.",
+    "The payload carries at least `session_id`, `cwd`, `source` and `hook_event_name`; prompts and tool inputs are optional.",
+    "The CLI's own installed hooks guard on `command -v entire` and exit 0 when it is missing. The extension must behave the same way: never surface a hook failure to the user.",
+    "Delivery must not block the editor. Fire and forget, and never await a hook before completing the user action that triggered it.",
+    "The extension's session id must be stable for the lifetime of a workspace session so that a turn's Pre and Post events pair up.",
+    "If the user has the CLI's own Copilot CLI hooks installed, the extension must not double-report: detect the installed hook file and stand down.",
+]
+test_hints = [
+    "A test that each editor event maps to the correct hook subcommand and payload.",
+    "A test that a missing CLI results in a silent no-op and no error surfaced.",
+    "A test that the bridge stands down when `.github/hooks/entire.json` is present.",
+    "A test that hook delivery does not delay the triggering action.",
+]
+must_haves = [
+    "All nine hook events are mapped to the correct CLI subcommand",
+    "Payloads carry session_id, cwd, source and hook_event_name",
+    "A missing or failing CLI never surfaces an error to the user",
+    "The bridge stands down when the CLI's own Copilot CLI hooks are installed",
+]
+evaluation_criteria = [
+    "Each of the nine events invokes the matching `entire hooks copilot-cli` subcommand with JSON on stdin",
+    "No hook failure is surfaced as a user-visible error",
+    "Hook delivery does not block the triggering editor action",
+    "The bridge is inert when `.github/hooks/entire.json` already exists",
+]
+implements = ["agent-hooks"]
+
+[[phases.tasks]]
+slug      = "why-this-line"
+kind      = "feature"
+title     = "Why does this line exist"
+goal      = "Answer the question a reviewer actually asks - who changed this line, and why - without leaving the editor."
+depends_on = ["domain-types"]
+hints = [
+    "Use Entire's own `why` command so the answer is consistent with the CLI and the web UI; do not re-derive history from the Git log.",
+    "Run the command with the cursor's line as the subject and render the result in a side panel or a well-formed notification.",
+    "Show the originating session, checkpoint and agent when the CLI returns them.",
+    "When the line is unattributed, say so plainly - a confident wrong answer is worse than an honest none.",
+    "Offer a command palette entry and an editor context-menu entry, both operating on the current selection or cursor line.",
+]
+test_hints = [
+    "A test that the why command invokes the CLI with the cursor line as the subject.",
+    "A test that an unattributed line produces an explicit 'not attributed' message.",
+    "A test that the command is available from both the palette and the context menu.",
+]
+must_haves = [
+    "The explanation comes from Entire's own why command",
+    "The originating session, checkpoint and agent are shown when available",
+    "An unattributed line is reported as such rather than guessed at",
+    "The command is reachable from the palette and the editor context menu",
+]
+evaluation_criteria = [
+    "The why command shells out to the CLI rather than reading Git history directly",
+    "The result names the session, checkpoint and agent when the CLI supplies them",
+    "An unattributed line yields an explicit statement, not a guess",
+    "The command appears in both the palette and the editor context menu",
+]
+implements = ["why-this-line"]
+
+# ─── Phase 5: Polish and Release ──────────────────────────────────────────────
+
+[[phases]]
+name  = "Polish and Release"
+order = 5
+
+[[phases.tasks]]
+slug      = "settings-and-config"
+kind      = "feature"
+title     = "Configuration surface and settings-driven behaviour"
+goal      = "Expose the behaviour a user may reasonably want to change as VS Code settings, and make the extension read Entire's own layered configuration where it matters."
+depends_on = ["status-bar", "session-tree"]
+hints = [
+    "Entire's settings are layered: `.entire/settings.local.json`, `.entire/settings.json`, `~/.config/entire/settings.json`, then defaults. The extension should surface the effective value of the settings it acts on.",
+    "The settings the CLI understands include enabled, log_level, checkpoints.primary.type, telemetry, absolute_git_hook_path, commit_linking, sign_checkpoint_commits, and strategy_options.*.",
+    "Give the extension its own settings for the things the CLI does not cover: the CLI path, the refresh interval, whether to show the session view in the explorer, and the log level for the extension's own output channel.",
+    "A setting must be documented in package.json with a description and a sensible default - an undocumented setting is a hidden setting.",
+    "Changing a setting must take effect without requiring a window reload.",
+]
+test_hints = [
+    "A test that each setting is declared in package.json and registered with the configuration API.",
+    "A test that changing the CLI path setting re-resolves the CLI.",
+    "A test that the effective Entire setting is read from the layered locations in the documented precedence order.",
+]
+must_haves = [
+    "Every extension setting is declared in package.json with a description and a default",
+    "Settings changes take effect without a window reload",
+    "The effective Entire setting is resolved through the documented layering",
+    "The extension can point at a specific CLI binary",
+]
+evaluation_criteria = [
+    "Each contributed configuration property has a description and a default value",
+    "Changing the CLI path setting causes the extension to re-resolve the binary",
+    "Effective settings are resolved in the order local, project, global, defaults",
+    "No setting is read without being declared in package.json",
+]
+
+[[phases.tasks]]
+slug      = "output-and-diagnostics"
+kind      = "feature"
+title     = "Output channel, diagnostics and the doctor command"
+goal      = "Make the extension debuggable: one output channel for everything it does, and a doctor command that answers 'why is this not working?'."
+depends_on = ["cli-process", "status-bar"]
+hints = [
+    "One output channel, named 'Entire', for CLI invocations, their exit codes, and the errors that were swallowed.",
+    "Log the exact command line and the working directory for each CLI invocation - that is what a user needs to reproduce a problem.",
+    "Do not log full checkpoint payloads or prompt bodies by default; log their size and a truncation instead, and provide an explicit command to dump the detail.",
+    "A `doctor` command that reports: CLI path and version, whether the workspace is a repository, whether Entire is enabled, the effective settings, and the last CLI error.",
+    "Doctor output should be copyable - a user will paste it into an issue.",
+    "Respect a debug setting that raises the log level without needing a separate channel.",
+]
+test_hints = [
+    "A test that each CLI invocation writes its command line and exit code to the channel.",
+    "A test that the doctor command reports the CLI version and the workspace state.",
+    "A test that prompt bodies are not written to the channel at the default log level.",
+]
+must_haves = [
+    "A single output channel carries every CLI invocation and its exit code",
+    "The doctor command reports CLI version, repository state, enablement and effective settings",
+    "Prompt bodies and checkpoint payloads are not logged at the default level",
+    "Doctor output is copyable in one action",
+]
+evaluation_criteria = [
+    "Every CLI invocation appears in the output channel with its command line and exit code",
+    "The doctor command produces a complete, copyable diagnostic report",
+    "No prompt body appears in the channel at the default log level",
+    "The channel is disposed through context.subscriptions",
+]
+
+[[phases.tasks]]
+slug      = "packaging-and-release"
+kind      = "infrastructure"
+title     = "Marketplace packaging, CI and release workflow"
+goal      = "Make the extension installable, publishable and continuously verified - the difference between a project and a top-tier extension."
+depends_on = ["settings-and-config", "output-and-diagnostics"]
+hints = [
+    "A GitHub Actions workflow that builds, lints, type-checks and tests the extension on every push, and packages a .vsix on release.",
+    "The package script must run the type check and the linter before bundling - a published extension that does not compile is worse than no release.",
+    "Use a secret-backed publish step with `vsce publish` for the marketplace, and publish to Open VSX as well so the extension is installable outside the Microsoft marketplace.",
+    "Include a CHANGELOG with Keep a Changelog structure and a README that leads with what the extension does, not with how to build it.",
+    "Include screenshots or a short GIF in the marketplace listing, and set the correct categories, keywords and support links.",
+    "Add a LICENSE file and the `repository`, `bugs` and `homepage` fields.",
+    "Version the extension with SemVer and keep the changelog in step with the releases.",
+]
+test_hints = [
+    "CI must pass on a clean checkout: type check, lint, unit tests and the extension-host smoke test.",
+    "The packaging job must produce a .vsix that installs into a clean VS Code instance.",
+    "The published package must contain no source maps of test files, no tests, and no development dependencies.",
+]
+must_haves = [
+    "A CI workflow that type-checks, lints and tests on every push",
+    "A release workflow that publishes to the Visual Studio Marketplace and to Open VSX",
+    "CHANGELOG.md follows Keep a Changelog and the README leads with the feature",
+    "LICENSE, repository, bugs and homepage are set in package.json",
+]
+evaluation_criteria = [
+    "CI runs the type check, the linter and the test suite and all three pass",
+    "The release job publishes a .vsix to both marketplaces",
+    "The published .vsix contains no test files and no development dependencies",
+    "The README's first screen explains what the extension does for a user",
+]
+
+# ─── Phase 6: Hardening ───────────────────────────────────────────────────────
+
+[[phases]]
+name  = "Hardening"
+order = 6
+
+[[phases.tasks]]
+slug      = "security-hardening"
+kind      = "audit"
+title     = "Security and privacy review of the extension"
+goal      = "Audit the extension for the ways it can leak data, run something it should not, or degrade a user's machine — and fix what the audit finds."
+depends_on = ["hook-bridge", "settings-and-config"]
+hints = [
+    "The extension shells out to a CLI. Every argument must be passed as a separate argv element, never concatenated into a shell string — a filename with a space or a quote in it must not become shell syntax.",
+    "The extension reads `.entire/settings.json` and other user files. Validate their shape before use; a malformed settings file must not crash the extension.",
+    "Entire writes session data that includes agent transcripts and, potentially, source code. The extension must not copy that data anywhere outside the machine the CLI put it on.",
+    "The extension must not add telemetry of its own, and must not read the Entire access token to do anything other than pass it to the CLI.",
+    "The CLI's own redaction is best-effort, not a guarantee. The extension must not surface prompt or transcript content in a place a user did not ask for it — no status bar tooltip, no notification body.",
+    "Respect the CLI's `telemetry` setting: if it is off, the extension must not attempt any network call of its own.",
+    "The output channel is a local buffer, but it can be attached to a bug report. It must not contain secret material by default.",
+]
+test_hints = [
+    "A test that a filename containing a space, a quote or a semicolon is passed through as a single argv element and never interpreted.",
+    "A test that a malformed `.entire/settings.json` is ignored rather than thrown from.",
+    "A test that the output channel does not contain prompt bodies or token material at the default log level.",
+]
+must_haves = [
+    "No CLI argument is ever built by string concatenation into a shell command",
+    "User-supplied file contents are validated before use",
+    "No access token is read except to hand it to the CLI",
+    "The extension makes no network request of its own",
+    "No prompt or transcript content appears in a status bar, tooltip or notification body",
+]
+evaluation_criteria = [
+    "Every child_process invocation passes arguments as an argv array, never a shell string",
+    "A path or filename containing shell metacharacters is handled safely",
+    "The extension contains no network client and no access-token handling of its own",
+    "A test proves prompt content never reaches the output channel at the default log level",
+]
+
+[[phases.tasks]]
+slug      = "integration-wiring"
+kind      = "audit"
+title     = "End-to-end wiring audit"
+goal      = "Prove that every command, provider, setting and disposable the manifest advertises is actually connected — and that the extension works as a whole, not just as parts."
+depends_on = ["security-hardening", "packaging-and-release"]
+hints = [
+    "Enumerate every command in package.json and assert each one is registered at activation. An advertised command that does nothing is worse than an absent one.",
+    "Assert every disposable is pushed onto context.subscriptions, and that deactivating the extension leaves no listener behind.",
+    "Assert every setting the code reads is declared in package.json, and every setting declared is actually read.",
+    "Assert the tree view provider, the status bar item and the output channel are all created and all disposed.",
+    "Check that no module imports `vscode` from `src/lib/` — that layer must stay testable without an extension host.",
+    "Look for the AI-generated tells: a `TODO`, a `throw new Error('not implemented')`, a function that returns a hardcoded value, a catch block that swallows an error silently.",
+    "Run the extension in a real extension host against a real Git workspace with the CLI present, and confirm the status bar, the tree and a checkpoint diff all work.",
+]
+test_hints = [
+    "A test that iterates package.json's contributed commands and asserts each is registered.",
+    "A test that asserts every disposable lands in context.subscriptions.",
+    "A test that scans src/lib/ for `vscode` imports.",
+    "An extension-host test that opens a workspace, activates the extension, and asserts the tree has children.",
+]
+must_haves = [
+    "Every contributed command is registered",
+    "Every disposable is pushed onto context.subscriptions",
+    "Every setting read by the code is declared in package.json and vice versa",
+    "No module under src/lib/ imports vscode",
+    "No placeholder or stub implementation remains",
+]
+evaluation_criteria = [
+    "A test asserts every command in package.json is registered and every registered command exists in package.json",
+    "A test asserts no disposable is leaked",
+    "The extension-host test activates the extension in a real workspace and observes working UI",
+    "A scan finds no TODO, no unimplemented branch and no silently swallowed error",
+]
+
+[[phases.tasks]]
+slug      = "stub-cleanup"
+kind      = "audit"
+title     = "Remove scaffold leftovers and placeholder code"
+goal      = "Delete everything the generator left behind — the hello-world command, the sample test, the template description — so nothing in the published extension is scaffolding."
+depends_on = ["integration-wiring"]
+hints = [
+    "The generator leaves a `greysquirr3l.entirely.helloWorld` command and a `src/test/extension.test.ts` that only asserts the hello world. Both must go, and the manifest must not reference them.",
+    "The generator's README is a quickstart template. Replace it with a real README that leads with what the extension does.",
+    "The generator's CHANGELOG is a one-line placeholder. Replace it with a real Keep a Changelog entry for 0.1.0.",
+    "Remove `vsc-extension-quickstart.md` from the published package.",
+    "Search the whole source tree for `TODO`, `FIXME`, `XXX`, `placeholder`, `stub` and `not implemented` and resolve every hit — either by implementing it or by deleting it.",
+    "Check the icon and gallery assets: a missing or placeholder icon makes the marketplace listing look unfinished.",
+]
+test_hints = [
+    "A test that asserts the hello-world command is absent from the manifest and unregistered.",
+    "A test that scans the source tree for placeholder markers and fails if any are found.",
+    "A test that asserts the packaged .vsix contains no quickstart file.",
+]
+must_haves = [
+    "The hello-world command and its sample test are gone",
+    "The README and CHANGELOG are real documents, not generator templates",
+    "The published package contains no quickstart file",
+    "No TODO, FIXME or placeholder marker survives anywhere in src/",
+]
+evaluation_criteria = [
+    "package.json contains no hello-world command and the extension registers no such command",
+    "A source scan finds no TODO, FIXME or placeholder marker",
+    "The packaged .vsix contains no generator template files",
+    "The README and CHANGELOG describe the actual extension",
+]

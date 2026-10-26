@@ -1,0 +1,561 @@
+{
+  "project": "entirely",
+  "tasks": [
+    {
+      "id": "T01",
+      "slug": "project-scaffold",
+      "title": "Extension manifest, build pipeline, and repository hygiene",
+      "passes": false,
+      "criteria": [
+        {
+          "label": "build succeeds",
+          "passes": false
+        },
+        {
+          "label": "all tests pass",
+          "passes": false
+        },
+        {
+          "label": "linter clean",
+          "passes": false
+        },
+        {
+          "label": "implementation matches goal",
+          "passes": false
+        },
+        {
+          "label": "npm run compile produces dist/extension.js with no TypeScript errors",
+          "passes": false
+        },
+        {
+          "label": "npm run lint reports zero problems",
+          "passes": false
+        },
+        {
+          "label": "npm test passes in the extension host",
+          "passes": false
+        },
+        {
+          "label": "package.json contributes a status bar item, a tree view, and a configuration section",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": "T02",
+      "slug": "cli-process",
+      "title": "Entire CLI process runner with discovery",
+      "passes": false,
+      "criteria": [
+        {
+          "label": "build succeeds",
+          "passes": false
+        },
+        {
+          "label": "all tests pass",
+          "passes": false
+        },
+        {
+          "label": "linter clean",
+          "passes": false
+        },
+        {
+          "label": "implementation matches goal",
+          "passes": false
+        },
+        {
+          "label": "No module outside src/services/cli imports child_process or fs for CLI access",
+          "passes": false
+        },
+        {
+          "label": "The runner never throws for a missing CLI; it returns a typed result",
+          "passes": false
+        },
+        {
+          "label": "Unit tests cover absent, broken, timing-out and warning-prefixed CLI cases",
+          "passes": false
+        },
+        {
+          "label": "The resolved CLI path is discoverable by other modules without re-running discovery",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": "T03",
+      "slug": "domain-types",
+      "title": "Entire data types and the JSON decode layer",
+      "passes": false,
+      "criteria": [
+        {
+          "label": "build succeeds",
+          "passes": false
+        },
+        {
+          "label": "all tests pass",
+          "passes": false
+        },
+        {
+          "label": "linter clean",
+          "passes": false
+        },
+        {
+          "label": "implementation matches goal",
+          "passes": false
+        },
+        {
+          "label": "No `any` appears in the decode layer",
+          "passes": false
+        },
+        {
+          "label": "Decoders are pure functions with no I/O",
+          "passes": false
+        },
+        {
+          "label": "Tests cover every captured CLI response shape including the null-heavy status response",
+          "passes": false
+        },
+        {
+          "label": "A missing optional field never throws",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": "T04",
+      "slug": "status-bar",
+      "title": "Status bar item showing tracking state",
+      "passes": false,
+      "criteria": [
+        {
+          "label": "build succeeds",
+          "passes": false
+        },
+        {
+          "label": "all tests pass",
+          "passes": false
+        },
+        {
+          "label": "linter clean",
+          "passes": false
+        },
+        {
+          "label": "implementation matches goal",
+          "passes": false
+        },
+        {
+          "label": "Each state produces a distinguishable status bar rendering",
+          "passes": false
+        },
+        {
+          "label": "The status bar item is not rendered when the CLI is unavailable",
+          "passes": false
+        },
+        {
+          "label": "Clicking the item performs the correct action for the current state",
+          "passes": false
+        },
+        {
+          "label": "The status bar is disposed through context.subscriptions",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": "T05",
+      "slug": "session-tree",
+      "title": "Tree view of tracked sessions",
+      "passes": false,
+      "criteria": [
+        {
+          "label": "build succeeds",
+          "passes": false
+        },
+        {
+          "label": "all tests pass",
+          "passes": false
+        },
+        {
+          "label": "linter clean",
+          "passes": false
+        },
+        {
+          "label": "implementation matches goal",
+          "passes": false
+        },
+        {
+          "label": "The tree shows a group per status with the correct number of children",
+          "passes": false
+        },
+        {
+          "label": "getParent returns the correct group for each session element",
+          "passes": false
+        },
+        {
+          "label": "A repository with no sessions shows an explanatory empty state",
+          "passes": false
+        },
+        {
+          "label": "The refresh command re-queries the CLI and updates the tree",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": "T06",
+      "slug": "checkpoint-history",
+      "title": "Checkpoint list and diff viewer",
+      "passes": false,
+      "criteria": [
+        {
+          "label": "build succeeds",
+          "passes": false
+        },
+        {
+          "label": "all tests pass",
+          "passes": false
+        },
+        {
+          "label": "linter clean",
+          "passes": false
+        },
+        {
+          "label": "implementation matches goal",
+          "passes": false
+        },
+        {
+          "label": "Selecting a checkpoint calls vscode.diff with both sides and a descriptive title",
+          "passes": false
+        },
+        {
+          "label": "A missing diff produces a user-facing explanation and no diff editor",
+          "passes": false
+        },
+        {
+          "label": "The checkpoint list reflects the CLI's output without manual reformatting",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": "T07",
+      "slug": "hook-bridge",
+      "title": "Copilot CLI hook bridge",
+      "passes": false,
+      "criteria": [
+        {
+          "label": "build succeeds",
+          "passes": false
+        },
+        {
+          "label": "all tests pass",
+          "passes": false
+        },
+        {
+          "label": "linter clean",
+          "passes": false
+        },
+        {
+          "label": "implementation matches goal",
+          "passes": false
+        },
+        {
+          "label": "Each of the nine events invokes the matching `entire hooks copilot-cli` subcommand with JSON on stdin",
+          "passes": false
+        },
+        {
+          "label": "No hook failure is surfaced as a user-visible error",
+          "passes": false
+        },
+        {
+          "label": "Hook delivery does not block the triggering editor action",
+          "passes": false
+        },
+        {
+          "label": "The bridge is inert when `.github/hooks/entire.json` already exists",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": "T08",
+      "slug": "why-this-line",
+      "title": "Why does this line exist",
+      "passes": false,
+      "criteria": [
+        {
+          "label": "build succeeds",
+          "passes": false
+        },
+        {
+          "label": "all tests pass",
+          "passes": false
+        },
+        {
+          "label": "linter clean",
+          "passes": false
+        },
+        {
+          "label": "implementation matches goal",
+          "passes": false
+        },
+        {
+          "label": "The why command shells out to the CLI rather than reading Git history directly",
+          "passes": false
+        },
+        {
+          "label": "The result names the session, checkpoint and agent when the CLI supplies them",
+          "passes": false
+        },
+        {
+          "label": "An unattributed line yields an explicit statement, not a guess",
+          "passes": false
+        },
+        {
+          "label": "The command appears in both the palette and the editor context menu",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": "T09",
+      "slug": "settings-and-config",
+      "title": "Configuration surface and settings-driven behaviour",
+      "passes": false,
+      "criteria": [
+        {
+          "label": "build succeeds",
+          "passes": false
+        },
+        {
+          "label": "all tests pass",
+          "passes": false
+        },
+        {
+          "label": "linter clean",
+          "passes": false
+        },
+        {
+          "label": "implementation matches goal",
+          "passes": false
+        },
+        {
+          "label": "Each contributed configuration property has a description and a default value",
+          "passes": false
+        },
+        {
+          "label": "Changing the CLI path setting causes the extension to re-resolve the binary",
+          "passes": false
+        },
+        {
+          "label": "Effective settings are resolved in the order local, project, global, defaults",
+          "passes": false
+        },
+        {
+          "label": "No setting is read without being declared in package.json",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": "T10",
+      "slug": "output-and-diagnostics",
+      "title": "Output channel, diagnostics and the doctor command",
+      "passes": false,
+      "criteria": [
+        {
+          "label": "build succeeds",
+          "passes": false
+        },
+        {
+          "label": "all tests pass",
+          "passes": false
+        },
+        {
+          "label": "linter clean",
+          "passes": false
+        },
+        {
+          "label": "implementation matches goal",
+          "passes": false
+        },
+        {
+          "label": "Every CLI invocation appears in the output channel with its command line and exit code",
+          "passes": false
+        },
+        {
+          "label": "The doctor command produces a complete, copyable diagnostic report",
+          "passes": false
+        },
+        {
+          "label": "No prompt body appears in the channel at the default log level",
+          "passes": false
+        },
+        {
+          "label": "The channel is disposed through context.subscriptions",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": "T11",
+      "slug": "packaging-and-release",
+      "title": "Marketplace packaging, CI and release workflow",
+      "passes": false,
+      "criteria": [
+        {
+          "label": "build succeeds",
+          "passes": false
+        },
+        {
+          "label": "all tests pass",
+          "passes": false
+        },
+        {
+          "label": "linter clean",
+          "passes": false
+        },
+        {
+          "label": "implementation matches goal",
+          "passes": false
+        },
+        {
+          "label": "CI runs the type check, the linter and the test suite and all three pass",
+          "passes": false
+        },
+        {
+          "label": "The release job publishes a .vsix to both marketplaces",
+          "passes": false
+        },
+        {
+          "label": "The published .vsix contains no test files and no development dependencies",
+          "passes": false
+        },
+        {
+          "label": "The README's first screen explains what the extension does for a user",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": "T12",
+      "slug": "security-hardening",
+      "title": "Security and privacy review of the extension",
+      "passes": false,
+      "criteria": [
+        {
+          "label": "build succeeds",
+          "passes": false
+        },
+        {
+          "label": "all tests pass",
+          "passes": false
+        },
+        {
+          "label": "linter clean",
+          "passes": false
+        },
+        {
+          "label": "implementation matches goal",
+          "passes": false
+        },
+        {
+          "label": "Every child_process invocation passes arguments as an argv array, never a shell string",
+          "passes": false
+        },
+        {
+          "label": "A path or filename containing shell metacharacters is handled safely",
+          "passes": false
+        },
+        {
+          "label": "The extension contains no network client and no access-token handling of its own",
+          "passes": false
+        },
+        {
+          "label": "A test proves prompt content never reaches the output channel at the default log level",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": "T13",
+      "slug": "integration-wiring",
+      "title": "End-to-end wiring audit",
+      "passes": false,
+      "criteria": [
+        {
+          "label": "build succeeds",
+          "passes": false
+        },
+        {
+          "label": "all tests pass",
+          "passes": false
+        },
+        {
+          "label": "linter clean",
+          "passes": false
+        },
+        {
+          "label": "implementation matches goal",
+          "passes": false
+        },
+        {
+          "label": "A test asserts every command in package.json is registered and every registered command exists in package.json",
+          "passes": false
+        },
+        {
+          "label": "A test asserts no disposable is leaked",
+          "passes": false
+        },
+        {
+          "label": "The extension-host test activates the extension in a real workspace and observes working UI",
+          "passes": false
+        },
+        {
+          "label": "A scan finds no TODO, no unimplemented branch and no silently swallowed error",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": "T14",
+      "slug": "stub-cleanup",
+      "title": "Remove scaffold leftovers and placeholder code",
+      "passes": false,
+      "criteria": [
+        {
+          "label": "build succeeds",
+          "passes": false
+        },
+        {
+          "label": "all tests pass",
+          "passes": false
+        },
+        {
+          "label": "linter clean",
+          "passes": false
+        },
+        {
+          "label": "implementation matches goal",
+          "passes": false
+        },
+        {
+          "label": "package.json contains no hello-world command and the extension registers no such command",
+          "passes": false
+        },
+        {
+          "label": "A source scan finds no TODO, FIXME or placeholder marker",
+          "passes": false
+        },
+        {
+          "label": "The packaged .vsix contains no generator template files",
+          "passes": false
+        },
+        {
+          "label": "The README and CHANGELOG describe the actual extension",
+          "passes": false
+        }
+      ]
+    }
+  ]
+}
