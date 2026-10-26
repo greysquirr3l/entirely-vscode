@@ -315,7 +315,10 @@ title     = "Entire data types and the JSON decode layer"
 goal      = "Model the Entire CLI's JSON output as precise TypeScript types, with decoding that tolerates the nulls and shape variations the CLI actually emits."
 depends_on = ["cli-process"]
 hints = [
-    "`status --json` emits `enabled`, `agents`, `active_sessions` and `error`, and every one of them can be null - including `error`, which is how a non-repository workspace reports itself.",
+    "`status --json` has TWO different shapes and the difference is the crux of this task.",
+    "Untracked: `{ enabled: false, agents: null, active_sessions: null, error: \"not a git repository\" }`.",
+    "Tracked: `{ enabled: true, agents: [\"Copilot CLI\"], active_sessions: [{ agent, session_id, worktree_path, branch, status }], agent_help: \"entire agent-help\" }`.",
+    "`agents` and `active_sessions` are ARRAYS when tracked and NULL when not. `error` appears only when untracked; `agent_help` only when tracked. A decoder must handle both, and must treat a non-null `error` as a state rather than a failure.",
     "`session list --json` returns an array of sessions with `session_id`, `agent`, `status`, `branch`, `worktree_path`, `started_at`, `last_active`, `turns`, `pending_turns`, `checkpoints` and `last_prompt`.",
     "`session current --json` adds a `resolution` field and may be absent when there is no current session.",
     "Decode into domain types, never into raw `any`. Use a discriminated result type so 'the CLI said no' and 'the CLI failed' stay distinguishable.",
@@ -325,7 +328,8 @@ hints = [
 ]
 test_hints = [
     "Table-driven tests: one fixture per real CLI response shape, captured from the actual CLI.",
-    "A test that the `error` field of `status --json` decodes to a distinct 'not a repository' state rather than a failure.",
+    "A test that the untracked `status --json` decodes to a distinct 'not a repository' state rather than a failure.",
+    "A test that the tracked `status --json` decodes `agents` and `active_sessions` as populated arrays, not as the null shape.",
     "A test that a session missing `branch` and `last_prompt` still decodes.",
 ]
 must_haves = [
@@ -421,6 +425,9 @@ goal      = "Make recorded checkpoints browsable from the editor and openable in
 depends_on = ["domain-types"]
 hints = [
     "Source from `entire checkpoint list --json`; the list is scoped to the current branch.",
+    "The CLI also offers `entire checkpoint list --pending --json`, which returns work that is recorded in session state but not yet checkpointed - a preview per session showing the turns since the last checkpoint, the files touched, subagent task records and the prompts since the last checkpoint.",
+    "Pending work is worth surfacing separately: it is the agent's in-flight work that has no checkpoint ID yet, and it is exactly what a user wants to see while an agent is still running.",
+    "The CLI also offers `entire checkpoint list --outgoing`, which reports what the next `git push` will send, read from local state with no network call. It requires the `git-refs` backend and errors on the legacy `branch` backend.",
     "Opening a checkpoint should use `vscode.diff` with a title that identifies the checkpoint, so the user can step through diffs with the usual navigation.",
     "A checkpoint with no available diff must be explained, not shown as an empty diff.",
     "Keep the checkpoint list as a tree-view section rather than a separate panel, so the Entire view is a single place.",
@@ -493,10 +500,18 @@ goal      = "Answer the question a reviewer actually asks - who changed this lin
 depends_on = ["domain-types"]
 hints = [
     "Use Entire's own `why` command so the answer is consistent with the CLI and the web UI; do not re-derive history from the Git log.",
-    "Run the command with the cursor's line as the subject and render the result in a side panel or a well-formed notification.",
-    "Show the originating session, checkpoint and agent when the CLI returns them.",
+    "The command is `entire why <file>[:line] [--line N] [--json]`. Pass the relative path and the line number; `--json` is what the extension should always use.",
+    "The JSON has TWO shapes and the difference matters: a single line gives `{ file, line: {...} }` with `line` singular, while a whole file gives `{ file, lines: [...], summary: {...} }` with `lines` plural. Decode both.",
+    "The whole-file form's `summary` block gives `total_lines`, `checkpoint_lines`, `commit_lines`, `uncommitted_lines`, `checkpoint_percentage` and `commit_percentage` - a distribution worth rendering as a small bar.",
+    "Each line entry carries `line_number`, `status`, `commit_sha`, `short_commit_sha`, `author`, `author_time` and `content`.",
+    "`status` is one of `commit`, `checkpoint` or `uncommitted` - the three things a line can be attributed to.",
+    "A checkpoint-attributed line carries four more: `checkpoint_id`, `metadata_missing`, `metadata_missing_reason` and a `candidates` array. The candidate list is how the CLI expresses ambiguity - more than one checkpoint could own the line.",
+    "`metadata_missing: true` with a `metadata_missing_reason` is the NORMAL state when the checkpoint body is not available locally: the CLI has the commit but not the checkpoint. Show that state; do not treat it as an error.",
+    "`entire checkpoint explain <id-or-sha> --json` gives the full story for a checkpoint, including its session and prompt. Use it as the drill-down from a checkpoint-attributed line.",
+    "Render the result in a side panel or a well-formed notification, showing the originating session, checkpoint and agent when the CLI returns them.",
     "When the line is unattributed, say so plainly - a confident wrong answer is worse than an honest none.",
     "Offer a command palette entry and an editor context-menu entry, both operating on the current selection or cursor line.",
+    "For the whole-file form, the `summary` block gives `total_lines`, `checkpoint_lines`, `commit_lines`, `uncommitted_lines` and the two percentages - a useful thing to render as a small distribution bar.",
 ]
 test_hints = [
     "A test that the why command invokes the CLI with the cursor line as the subject.",

@@ -55,10 +55,18 @@ failing obscurely.
 ## Implementation
 
 - Use Entire's own `why` command so the answer is consistent with the CLI and the web UI; do not re-derive history from the Git log.
-- Run the command with the cursor's line as the subject and render the result in a side panel or a well-formed notification.
-- Show the originating session, checkpoint and agent when the CLI returns them.
+- The command is `entire why <file>[:line] [--line N] [--json]`. Pass the relative path and the line number; `--json` is what the extension should always use.
+- The JSON has TWO shapes and the difference matters: a single line gives `{ file, line: {...} }` with `line` singular, while a whole file gives `{ file, lines: [...], summary: {...} }` with `lines` plural. Decode both.
+- The whole-file form's `summary` block gives `total_lines`, `checkpoint_lines`, `commit_lines`, `uncommitted_lines`, `checkpoint_percentage` and `commit_percentage` - a distribution worth rendering as a small bar.
+- Each line entry carries `line_number`, `status`, `commit_sha`, `short_commit_sha`, `author`, `author_time` and `content`.
+- `status` is one of `commit`, `checkpoint` or `uncommitted` - the three things a line can be attributed to.
+- A checkpoint-attributed line carries four more: `checkpoint_id`, `metadata_missing`, `metadata_missing_reason` and a `candidates` array. The candidate list is how the CLI expresses ambiguity - more than one checkpoint could own the line.
+- `metadata_missing: true` with a `metadata_missing_reason` is the NORMAL state when the checkpoint body is not available locally: the CLI has the commit but not the checkpoint. Show that state; do not treat it as an error.
+- `entire checkpoint explain <id-or-sha> --json` gives the full story for a checkpoint, including its session and prompt. Use it as the drill-down from a checkpoint-attributed line.
+- Render the result in a side panel or a well-formed notification, showing the originating session, checkpoint and agent when the CLI returns them.
 - When the line is unattributed, say so plainly - a confident wrong answer is worse than an honest none.
 - Offer a command palette entry and an editor context-menu entry, both operating on the current selection or cursor line.
+- For the whole-file form, the `summary` block gives `total_lines`, `checkpoint_lines`, `commit_lines`, `uncommitted_lines` and the two percentages - a useful thing to render as a small distribution bar.
 
 
 ## Tests

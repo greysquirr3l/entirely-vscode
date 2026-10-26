@@ -39,7 +39,10 @@ failing obscurely.
 
 ## Implementation
 
-- `status --json` emits `enabled`, `agents`, `active_sessions` and `error`, and every one of them can be null - including `error`, which is how a non-repository workspace reports itself.
+- `status --json` has TWO different shapes and the difference is the crux of this task.
+- Untracked: `{ enabled: false, agents: null, active_sessions: null, error: "not a git repository" }`.
+- Tracked: `{ enabled: true, agents: ["Copilot CLI"], active_sessions: [{ agent, session_id, worktree_path, branch, status }], agent_help: "entire agent-help" }`.
+- `agents` and `active_sessions` are ARRAYS when tracked and NULL when not. `error` appears only when untracked; `agent_help` only when tracked. A decoder must handle both, and must treat a non-null `error` as a state rather than a failure.
 - `session list --json` returns an array of sessions with `session_id`, `agent`, `status`, `branch`, `worktree_path`, `started_at`, `last_active`, `turns`, `pending_turns`, `checkpoints` and `last_prompt`.
 - `session current --json` adds a `resolution` field and may be absent when there is no current session.
 - Decode into domain types, never into raw `any`. Use a discriminated result type so 'the CLI said no' and 'the CLI failed' stay distinguishable.
@@ -51,7 +54,8 @@ failing obscurely.
 ## Tests
 
 - Table-driven tests: one fixture per real CLI response shape, captured from the actual CLI.
-- A test that the `error` field of `status --json` decodes to a distinct 'not a repository' state rather than a failure.
+- A test that the untracked `status --json` decodes to a distinct 'not a repository' state rather than a failure.
+- A test that the tracked `status --json` decodes `agents` and `active_sessions` as populated arrays, not as the null shape.
 - A test that a session missing `branch` and `last_prompt` still decodes.
 
 

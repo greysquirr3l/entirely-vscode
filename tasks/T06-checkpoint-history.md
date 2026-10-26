@@ -57,6 +57,9 @@ failing obscurely.
 ## Implementation
 
 - Source from `entire checkpoint list --json`; the list is scoped to the current branch.
+- The CLI also offers `entire checkpoint list --pending --json`, which returns work that is recorded in session state but not yet checkpointed - a preview per session showing the turns since the last checkpoint, the files touched, subagent task records and the prompts since the last checkpoint.
+- Pending work is worth surfacing separately: it is the agent's in-flight work that has no checkpoint ID yet, and it is exactly what a user wants to see while an agent is still running.
+- The CLI also offers `entire checkpoint list --outgoing`, which reports what the next `git push` will send, read from local state with no network call. It requires the `git-refs` backend and errors on the legacy `branch` backend.
 - Opening a checkpoint should use `vscode.diff` with a title that identifies the checkpoint, so the user can step through diffs with the usual navigation.
 - A checkpoint with no available diff must be explained, not shown as an empty diff.
 - Keep the checkpoint list as a tree-view section rather than a separate panel, so the Entire view is a single place.

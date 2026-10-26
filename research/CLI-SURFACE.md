@@ -34,11 +34,40 @@ entire other      agent-help help labs version
 entire status [--detailed] [--json]
 ```
 
-JSON:
+Not a Git repository:
 
 ```json
 {"enabled": false, "agents": null, "active_sessions": null, "error": "not a git repository"}
 ```
+
+Tracked repository:
+
+```json
+{
+  "enabled": true,
+  "agents": ["Copilot CLI"],
+  "active_sessions": [
+    {
+      "agent": "Copilot CLI",
+      "session_id": "abc-123",
+      "worktree_path": "/work/sandbox",
+      "branch": "master",
+      "status": "active"
+    }
+  ],
+  "agent_help": "entire agent-help"
+}
+```
+
+Note the shapes differ between the two cases: `agents` and `active_sessions`
+are **arrays** when the repository is tracked and **null** when it is not.
+`error` appears only in the untracked case, and `agent_help` only in the
+tracked one. A decoder must handle both, and must treat a non-null `error`
+as a state rather than a failure — `"not a git repository"` is the normal
+answer for a workspace that is not a repository.
+
+`--detailed` prints the per-settings-file breakdown, which is the only way
+to see *which* settings file supplied a value.
 
 ### `entire session`
 
@@ -197,6 +226,134 @@ Fields: `time`, `level`, `msg`, `component` (`lifecycle`, `session`, `hooks`,
 `session_ref` points at the agent's own transcript store:
 `~/.copilot/session-state/<session-id>/events.jsonl`. Entire reads it; it
 never writes it. The session's `agent_home` is `~/.copilot`.
+
+
+### `entire why`
+
+```
+entire why <file>[:line] [--line N] [--json]
+```
+
+Explains the commit, checkpoint, prompt and session behind a file or line.
+
+Whole file (`entire why a.txt --json`):
+
+```json
+{
+  "file": "a.txt",
+  "lines": [
+    {
+      "line_number": 1,
+      "status": "commit",
+      "commit_sha": "9eefd35a64cc886dc3a94b9afcd9e55c9c21684e",
+      "short_commit_sha": "9eefd35a",
+      "author": "Tester",
+      "author_time": "2026-10-26T23:33:53Z",
+      "content": "hello"
+    }
+  ],
+  "summary": {
+    "total_lines": 1,
+    "checkpoint_lines": 0,
+    "commit_lines": 1,
+    "uncommitted_lines": 0,
+    "checkpoint_percentage": 0,
+    "commit_percentage": 100
+  }
+}
+```
+
+Single line (`entire why a.txt:1 --json`) — note the key is `line`, singular,
+not `lines`:
+
+```json
+{
+  "file": "a.txt",
+  "line": {
+    "line_number": 1,
+    "status": "commit",
+    "commit_sha": "9eefd35a64cc886dc3a94b9afcd9e55c9c21684e",
+    "short_commit_sha": "9eefd35a",
+    "author": "Tester",
+    "author_time": "2026-10-26T23:33:53Z",
+    "content": "hello"
+  }
+}
+```
+
+`status` is one of `commit`, `checkpoint` or `uncommitted` — the three things
+a line can be attributed to.
+
+A **checkpoint**-attributed line carries three extra fields beyond the commit
+ones:
+
+```json
+{
+  "line_number": 2,
+  "status": "checkpoint",
+  "commit_sha": "e65ad184d0c3dae5c1410f5f5e285c2465eb70ed",
+  "short_commit_sha": "e65ad184",
+  "author": "Tester",
+  "author_time": "2026-10-26T23:45:45Z",
+  "checkpoint_id": "01M5X9P4P6Z0PZBJ7NYZ56CHZH",
+  "metadata_missing": true,
+  "metadata_missing_reason": "checkpoint metadata was not found locally (...). Run: git fetch origin refs/entire/checkpoints/ZH/01M5X9P4P6Z0PZBJ7NYZ56CHZH:refs/entire/checkpoints/ZH/01M5X9P4P6Z0PZBJ7NYZ56CHZH. Then re-run entire checkpoint explain 01M5X9P4P6Z0PZBJ7NYZ56CHZH.",
+  "content": "second",
+  "candidates": [
+    {
+      "checkpoint_id": "01M5X9P4P6Z0PZBJ7NYZ56CHZH",
+      "metadata_missing": true,
+      "metadata_missing_reason": "checkpoint metadata was not found locally (...)."
+    }
+  ]
+}
+```
+
+The complete key inventory of the `why` response:
+
+* Top level — `file`, `lines`, `summary`, `line` (single-line form only).
+* A line entry — `line_number`, `status`, `commit_sha`, `short_commit_sha`,
+  `author`, `author_time`, `content`, plus `checkpoint_id`,
+  `metadata_missing`, `metadata_missing_reason` and `candidates` when the
+  line is checkpoint-attributed.
+* `summary` — `total_lines`, `checkpoint_lines`, `commit_lines`,
+  `uncommitted_lines`, `checkpoint_percentage`, `commit_percentage`.
+
+`metadata_missing` with a `metadata_missing_reason` is the normal shape when
+a checkpoint's metadata is not available locally — the CLI has the commit
+but not the checkpoint body. The extension must show that state, not treat
+it as an error.
+
+### `entire checkpoint explain`
+
+```
+entire checkpoint explain [<id-or-sha>] [--checkpoint <id>] [--commit <ref>] [--json]
+```
+
+Human-readable context about sessions, commits and checkpoints. Auto-detects
+whether the positional argument is a checkpoint ID or a commit SHA.
+Checkpoints in another repository can be explained with
+`--repo gh/owner/name` or `--repo et/project/repo` — that is the drill-down
+for a cross-repo `entire search` hit, and it reads from that repository's
+Entire API without writing to this one. Checkpoint IDs are 12-char hex or
+26-char ULID.
+
+### `entire checkpoint list`
+
+```
+entire checkpoint list [--json] [--pending] [--outgoing]
+```
+
+* `--json` — machine-readable JSON instead of the human view.
+* `--pending` — the *pending* dataset: turns recorded in session state but
+  not yet checkpointed. Each preview shows the turns since the last
+  checkpoint, the files touched, subagent task records, and the prompts since
+  the last checkpoint. Agent turns live in session state, not in git, so
+  pending work has no checkpoint ID until it is committed.
+* `--outgoing` — what the next `git push` will send: the checkpoints queued
+  for the checkpoint sync remote, read from local state with no network
+  call. Needs the `git-refs` backend; on the legacy `branch` backend it
+  reports an error.
 
 ## Configuration
 
