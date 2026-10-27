@@ -1,26 +1,108 @@
 {
-  "name": "greysquirr3l.entirely",
+  "name": "entirely",
+  "publisher": "greysquirr3l",
   "displayName": "Entirely",
   "description": "Entire — code management for agent-human collaboration: sessions, checkpoints, trails, and review, in the editor.",
   "version": "0.0.1",
+  "license": "MIT",
+  "icon": "images/logo.png",
+  "galleryBanner": {
+    "color": "#1a1a1a",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/greysquirr3l/entirely.git"
+  },
   "engines": {
     "vscode": "^1.140.0"
   },
-  "categories": [
-    "Other"
+  "extensionKind": [
+    "workspace"
   ],
-  "activationEvents": [],
+  "categories": [
+    "SCM Providers",
+    "Git"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "entirely",
+          "title": "Entirely",
+          "icon": "$(git-branch)"
+        }
+      ]
+    },
+    "views": {
+      "entirely": [
+        {
+          "id": "entirely.sessions",
+          "name": "Sessions"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "entirely.sessions",
+        "contents": "No sessions yet.\nSessions appear once the [Entire CLI](https://docs.entire.com/installation) is installed and this workspace is tracked.\n[Refresh](command:entirely.refresh)"
+      }
+    ],
     "commands": [
       {
-        "command": "greysquirr3l.entirely.helloWorld",
-        "title": "Hello World"
+        "command": "entirely.refresh",
+        "title": "Refresh",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.showSessions",
+        "title": "Show Sessions",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.openSettings",
+        "title": "Open Settings",
+        "category": "Entirely"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Entirely",
+      "properties": {
+        "entirely.cliPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Absolute path to the `entire` binary. Leave empty to use the built-in discovery order: `entire` on `PATH`, then the documented install locations."
+        },
+        "entirely.refreshInterval": {
+          "type": "number",
+          "default": 30,
+          "minimum": 0,
+          "markdownDescription": "How often, in seconds, the extension re-reads the Entire CLI for workspace and session state. Set to `0` to poll only when a command is run."
+        },
+        "entirely.showSessionsInExplorer": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Also show the Entirely sessions tree in the Explorer, below the source control views."
+        },
+        "entirely.logLevel": {
+          "type": "string",
+          "default": "info",
+          "enum": [
+            "error",
+            "warn",
+            "info",
+            "debug",
+            "trace"
+          ],
+          "markdownDescription": "Verbosity of the Entirely output channel. This does not change the log level of the Entire CLI itself."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
+    "prepublishOnly": "npm run package",
     "compile": "npm run check-types && npm run lint && node esbuild.js",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",

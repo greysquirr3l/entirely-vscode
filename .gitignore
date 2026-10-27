@@ -3,3 +3,19 @@ dist
 node_modules
 .vscode-test/
 *.vsix
+.vscode/
+research/
+
+# Local planning artifacts. They drive the build on this machine and are not
+# part of the published extension.
+tasks/
+capabilities/
+AGENTS.md
+BUDGET.md
+IMPLEMENTATION_PLAN.md
+PROGRESS.md
+RUN_LOG.md
+features.json
+
+# The source artwork is large and is not needed at runtime.
+entirely_logo_raw.jpeg

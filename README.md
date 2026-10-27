@@ -1,5 +1,7 @@
 # Entirely
 
+<img src="images/hero.png" alt="Entirely" width="128">
+
 A Visual Studio Code extension for [Entire](https://entire.com) — the Git
 forge built for agent-human collaboration.
 
@@ -45,9 +47,9 @@ files are in `tasks/`.
 |---|---|---|
 | Foundations | 2 | manifest and build, CLI process runner with discovery |
 | Data Model | 1 | the CLI's JSON types and decoders |
-| Editor Surface | 3 | status bar, session tree, checkpoint history |
+| Editor Surface | 4 | status bar, session tree, checkpoint history, onboarding prompt |
 | Agent Integration | 2 | Copilot CLI hook bridge, why-this-line |
-| Polish and Release | 3 | settings, diagnostics, packaging and CI |
+| Polish and Release | 4 | settings, terminal PATH repair, diagnostics, packaging and CI |
 | Hardening | 3 | security audit, wiring audit, scaffold cleanup |
 
 The scaffold compiles, lints and passes its extension-host test. The plan
@@ -69,28 +71,32 @@ npm test            # extension-host tests
 npm run watch       # rebuild on change
 ```
 
-### Working on the plan
+### Tests
+
+The extension-host tests live in `src/test/` and run inside a real VS Code
+extension host. The runner is [`@vscode/test-cli`](https://github.com/microsoft/vscode-test-cli),
+configured by `.vscode-test.mjs`:
 
 ```sh
-wiggum validate plan.toml          # schema + lint
-wiggum check plan.toml              # quality score
-wiggum generate plan.toml           # regenerate tasks/ and prompts
+npm run compile-tests   # compile the tests to out/
+npm test                # run them in a headless extension host
 ```
 
-Generated artifacts: `tasks/`, `capabilities/`, `AGENTS.md`,
-`IMPLEMENTATION_PLAN.md`, `PROGRESS.md`, `features.json` and the prompts in
-`.vscode/`. `plan.toml` is the source of truth — edit it and regenerate
-rather than editing the generated files.
+Install the
+[VS Code Extension Test Runner](https://marketplace.visualstudio.com/items?itemName=ms-vscode.extension-test-runner)
+to run the same suite from inside the editor. It reads the same
+`.vscode-test.mjs`, discovers the compiled test files under `out/test/`, and
+runs them in a debuggable Extension Development Host — so failures land in the
+Testing view with source-mapped stack traces instead of in a terminal.
 
-## Research
+The runner executes the compiled JavaScript, not the TypeScript sources, so
+compile the tests first — `npm run compile-tests`, or keep `npm run watch-tests`
+running in the background.
 
-`research/CLI-SURFACE.md` documents the Entire CLI's integration surface, as
-recovered by installing CLI v0.12.2 and exercising it against a real Git
-repository. It is the factual basis for this plan: the command surface, the
-exact JSON shapes, what `entire enable` installs, the Copilot CLI hook
-protocol, the on-disk session data model, and the settings schema.
-
-`research/install.sh` is the installer, kept for reference.
+No extra configuration is needed: `sourceMap` is on in `tsconfig.json` and
+`.vscodeignore` excludes `**/*.map`, so stack traces point back at the
+original TypeScript. On a remote without a display, set
+`extension-test-runner.wrapper` to `xvfb-run`.
 
 ## Licence
 

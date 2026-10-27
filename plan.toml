@@ -119,6 +119,7 @@ title       = "Entire CLI Discovery"
 description = "Locates the installed Entire CLI, verifies it can run, and reports its version - without ever blocking or crashing when it is absent."
 requirements = [
     "MUST locate the `entire` binary by checking PATH first, then the documented install locations, and MUST record which one was used.",
+    "MUST record whether the binary was found on PATH or at a documented install location, and MUST report the containing directory in the latter case.",
     "MUST distinguish 'not installed' from 'installed but broken' and MUST surface the distinction in the UI.",
     "MUST never throw out of discovery; a missing CLI is an expected state, not an error.",
 ]
@@ -129,11 +130,75 @@ then = "discovery reports the CLI as available with its version string"
 [[capabilities.scenarios]]
 name = "cli-absent"
 when = "no `entire` binary is found on PATH or in any known install location"
-then = "discovery reports the CLI as absent and the extension shows an actionable install prompt instead of failing"
+then = "discovery reports the CLI as absent and the workspace onboarding prompt offers to install the CLI instead of the extension failing"
 [[capabilities.scenarios]]
 name = "cli-present-but-broken"
 when = "an `entire` binary is found but `entire version` exits non-zero or prints unparseable output"
 then = "discovery reports the CLI as present but unusable, and the error detail is available for diagnosis"
+
+[[capabilities]]
+name        = "onboarding-prompt"
+title       = "Workspace Onboarding Prompt"
+description = "Tells a workspace that cannot use Entire yet exactly what is missing - the CLI, the repository setup, or a terminal that cannot see the CLI - and offers the single action that fixes it, once, without nagging."
+requirements = [
+    "MUST offer at most one prompt per workspace folder, and MUST persist the dismissal so a dismissed folder is never prompted again.",
+    "MUST present the prompt as a non-modal notification, never as a modal dialog.",
+    "MUST offer exactly one action, selected by what is actually wrong: install the CLI when it is absent, enable Entire when the repository is not set up, or repair the terminal PATH when the CLI is not reachable from the integrated terminal.",
+    "MUST NOT offer to disable or uninstall the extension, because without the CLI there is no functionality to preserve.",
+    "MUST NOT create a Git repository or an initial commit as a side effect of enabling Entire.",
+    "MUST NOT run the CLI's interactive configuration flow: the enable action must be non-interactive, using flags discovered from `entire agent-help enable` at runtime.",
+    "MUST NOT prompt from the agent hook path; a missing CLI there stays a silent no-op.",
+    "MUST NOT raise a notification that duplicates a persistent affordance the extension already shows; the prompt is the only place that notifies about a missing CLI or an unconfigured workspace, and the status bar remains the click-through surface.",
+]
+[[capabilities.scenarios]]
+name = "prompt-once-per-workspace"
+when = "a workspace folder is opened and the user has already dismissed the prompt for that folder"
+then = "no prompt is shown for that folder again"
+[[capabilities.scenarios]]
+name = "prompt-when-cli-absent"
+when = "no `entire` binary is found and the folder has not been prompted before"
+then = "one non-modal notification offers to install the CLI, with no option to disable the extension"
+[[capabilities.scenarios]]
+name = "prompt-when-not-set-up"
+when = "the CLI is present and the folder is a Git repository that Entire is not enabled in"
+then = "one non-modal notification offers to enable Entire for that repository, using a non-interactive invocation"
+[[capabilities.scenarios]]
+name = "no-enable-outside-a-repository"
+when = "the folder is not a Git repository"
+then = "no enable action is offered, because enabling would create a repository and an initial commit"
+[[capabilities.scenarios]]
+name = "prompt-not-in-hook-path"
+when = "the agent hook fires while the CLI is absent"
+then = "no prompt is shown and the hook fails silently"
+
+[[capabilities]]
+name        = "cli-path-setup"
+title       = "CLI Path Setup"
+description = "Makes an installed CLI reachable from the integrated terminal when it lives in a directory the editor's shell cannot see, by adjusting the editor's terminal environment rather than the user's shell."
+requirements = [
+    "MUST treat a CLI that is found at a documented location but is not on the integrated terminal's PATH as found and usable, because discovery invokes it by absolute path.",
+    "MUST offer the repair as an explicit user action, and MUST NOT apply it automatically.",
+    "MUST write the terminal PATH through the workspace configuration API, so the change applies to newly created integrated terminals.",
+    "MUST append to the inherited PATH rather than replace it, and MUST preserve any existing terminal environment value.",
+    "MUST write to the scope the user chose, and MUST NOT widen it on the user's behalf.",
+    "MUST warn that a workspace-scoped terminal environment is ignored in an untrusted workspace, because `terminal.integrated.env` is a restricted setting that is only read from trusted sources.",
+]
+[[capabilities.scenarios]]
+name = "cli-found-not-on-path"
+when = "the `entire` binary is found at a documented install location whose directory is not on the integrated terminal's PATH"
+then = "discovery reports the CLI as present, names the directory it was found in, and the extension offers to add that directory to the terminal PATH"
+[[capabilities.scenarios]]
+name = "path-repair-preserves-existing-env"
+when = "the terminal already has a `terminal.integrated.env` value"
+then = "the repair keeps it and adds only the PATH entry"
+[[capabilities.scenarios]]
+name = "path-repair-in-untrusted-workspace"
+when = "the repair is applied at workspace scope in a workspace that is not trusted"
+then = "the extension says the change will have no effect there, because `terminal.integrated.env` is a restricted setting"
+[[capabilities.scenarios]]
+name = "path-repair-is-opt-in"
+when = "the CLI is found but not on the terminal's PATH"
+then = "nothing is written until the user accepts the offered action"
 
 [[capabilities]]
 name        = "workspace-tracking-status"
@@ -291,16 +356,25 @@ hints = [
     "Set the repository, publisher, license, icon and categories fields - the marketplace listing is part of a top-tier extension.",
     "Add a `prepublishOnly` script and a `.vscodeignore` that keeps sources and tests out of the published package.",
     "Install dependencies and make sure `npm run compile`, `npm run lint` and `npm test` all work on a clean checkout.",
+    "THE ICON: `icon` must be a relative path to a raster image of at least 128x128 pixels (256x256 for Retina). It can be PNG, GIF or JPEG - **SVG IS REJECTED**: `vsce` throws `SVGs can't be used as icons` at package time, so an SVG will not publish. A 256x256 PNG is the safe choice.",
+    "The icon file MUST be inside the package directory and must not be excluded by `.vscodeignore`, or `vsce` fails with `The specified icon '...' wasn't found in the extension`. Keep it at a stable path such as `images/icon.png` and do not add a `*.png` exclusion to `.vscodeignore`.",
+    "Pair the icon with a `galleryBanner` - a `color` (hex) and a `theme` of `dark` or `light`. The banner is the header strip behind the icon on the Marketplace, so the color must contrast with the icon rather than disappear into it.",
+    "The icon must also work at 16x16: it is what a user sees in the activity bar, the extensions list and the command palette. A detailed or wordmark-heavy design is unreadable at that size.",
+    "The marketplace renders the icon on both light and dark backgrounds, so it needs to hold up in both. A solid, high-contrast mark beats a transparent-background illustration.",
+    "`vsce` also warns and prompts when the manifest has no `repository` field, and rejects a README that still contains the generator's template text. Set `repository` and write a real README before packaging.",
 ]
 test_hints = [
     "A smoke test that activates the extension and asserts the contributed commands are registered.",
     "The packaged `.vsix` must contain `dist/extension.js` and must not contain `src/` or `out/`.",
+    "A test that the icon path declared in package.json exists on disk, is not an `.svg`, and is not excluded by `.vscodeignore`.",
+    "A test that the packaged `.vsix` contains the icon file itself.",
 ]
 must_haves = [
     "package.json declares the status bar item, tree view, configuration section and commands",
     "engines.vscode and @types/vscode are consistent with each other",
     "npm run compile, npm run lint and npm test pass on a clean checkout",
     "The .vsix excludes src/, out/ and node_modules dev artifacts",
+    "package.json declares a raster `icon` of at least 128x128 that is present in the packaged .vsix, plus a `galleryBanner`",
 ]
 evaluation_criteria = [
     "npm run compile produces dist/extension.js with no TypeScript errors",
@@ -317,6 +391,8 @@ goal      = "Implement the one place that knows how to find, run and parse the E
 depends_on = ["project-scaffold"]
 hints = [
     "Discovery order: `entire` on PATH, then the documented install locations (`~/.local/bin`, `/usr/local/bin`, the XDG data dir, and the Windows equivalents).",
+    "Report whether the binary was found on PATH or at a documented install location, and name the directory in the latter case. The CLI installs to `~/.local/bin`, which is off PATH on most machines, so this is the common case and not an edge case.",
+    "An off-PATH CLI is still a working CLI: the extension invokes it by absolute path, so it is 'found', never 'broken'. The difference only matters to the user's own shell, which is what the path repair addresses.",
     "Cache the resolved path, but re-verify it cheaply so a CLI installed after activation is picked up.",
     "Run every invocation with a timeout and treat a timeout as 'the CLI is not usable', never as a hang.",
     "Capture stdout and stderr separately, and never merge them - the CLI's JSON goes to stdout and its diagnostics to stderr.",
@@ -327,11 +403,13 @@ hints = [
 test_hints = [
     "Unit tests against a fake CLI script that emits the real `status --json` and `session list --json` shapes.",
     "A test that the runner reports 'absent' when no binary exists, and 'broken' when one exists but exits non-zero.",
+    "A test that a CLI found at a documented install location that is not on PATH is reported as found, with its directory, and is never reported as broken.",
     "A test that a timeout is reported as a failure rather than hanging the suite.",
     "A test that a CLI printing a warning line before its JSON still parses.",
 ]
 must_haves = [
     "Discovery distinguishes absent, present-and-working, and present-but-broken",
+    "Discovery reports whether the binary was on PATH or at a documented install location, and names that directory",
     "Every invocation is bounded by a timeout",
     "stdout and stderr are captured separately",
     "JSON parsing tolerates leading non-JSON output",
@@ -498,6 +576,48 @@ evaluation_criteria = [
 ]
 implements = ["checkpoint-history"]
 
+[[phases.tasks]]
+slug      = "onboarding-prompt"
+kind      = "feature"
+title     = "Workspace onboarding prompt for a missing or unconfigured Entire"
+goal      = "Give a workspace that cannot use Entire yet exactly one prompt, once, that says what is missing and offers the single action that fixes it, without nagging and without a modal dialog."
+depends_on = ["domain-types", "cli-process"]
+hints = [
+    "The prompt is a non-modal notification with an action button, NOT a modal dialog. A modal dialog blocks the editor and is hostile in a workspace the user may not even use Entire in.",
+    "Offer at most one prompt per workspace folder, and persist the dismissal so a dismissed folder is never prompted again. The user said 'once per workspace if it is not installed, initialized' - honour that literally.",
+    "Pick the SINGLE action that matches what is actually wrong. Do not offer a menu of everything: no CLI -> install; CLI present but `entire status --json` says `error: \"not set up\"` -> enable; CLI present but its directory is not on the integrated terminal's PATH -> path repair.",
+    "Do NOT offer to disable or uninstall the extension. Without the CLI the extension has no functionality to preserve, so disabling it is not a useful choice; offer the fix instead.",
+    "The install action should point at the documented install method rather than shelling out to a remote script. The extension never downloads and runs an installer on the user's behalf. The documented method is `curl -fsSL https://entire.com/install.sh | bash`, and the CLI installs to `~/.local/bin` - so after installing, the CLI is found off PATH and the path repair applies.",
+    "The enable action must be NON-INTERACTIVE. `entire enable` with no arguments runs a configuration flow that prompts. Use `entire enable --agent <name> --no-init-repo`: `--agent` selects a single agent and implies non-interactive mode, and `--no-init-repo` exits instead of initialising a repository. Verified against the real CLI: it prints 'Ready', writes `.entire/settings.json`, and leaves the Git history untouched.",
+    "Never pass `--init-repo` or `--yes` in a non-repo directory: `--yes` initialises Git and creates an initial commit. A prompt action must not create a repository behind the user's back.",
+    "Enabling installs the CLI's OWN hooks for the chosen agent. The extension's own hook bridge must detect that and stand down, otherwise the same activity is reported twice.",
+    "The agent hook path is the exception to every rule here: the CLI's installed hooks guard on `command -v entire` and exit 0 when it is missing. A missing CLI there is a silent no-op, never a prompt.",
+    "Keep the prompt out of `src/lib/` - it needs `vscode.window`, so it belongs in `src/services/` or `src/commands/`.",
+]
+test_hints = [
+    "A test that the prompt fires exactly once per workspace folder and never fires again after dismissal.",
+    "A test that the prompt is a non-modal notification and never calls a modal dialog API.",
+    "A test that the offered action is install when the CLI is absent, enable when the repository is not set up, and path repair when the CLI is off PATH - one action, never several.",
+    "A test that no offered action is disable or uninstall.",
+    "A test that the enable invocation carries `--no-init-repo` and never `--init-repo`.",
+    "A test that the hook path raises no prompt when the CLI is absent.",
+]
+must_haves = [
+    "At most one non-modal prompt per workspace folder, persisted across restarts",
+    "Exactly one action is offered, chosen by what is actually wrong",
+    "No action offers to disable or uninstall the extension",
+    "Enabling never creates a repository or an initial commit",
+    "The hook path never raises the prompt",
+]
+evaluation_criteria = [
+    "The prompt uses a notification with an action button, never a modal dialog",
+    "The dismissal is persisted per workspace folder and survives a reload",
+    "The enable invocation is non-interactive and cannot initialise a repository",
+    "Exactly one action button is offered and it matches the detected fault",
+    "Tests cover the absent, not-set-up, off-PATH, already-dismissed and hook-path cases",
+]
+implements = ["onboarding-prompt"]
+
 # ─── Phase 4: Agent Integration ───────────────────────────────────────────────
 
 [[phases]]
@@ -644,6 +764,49 @@ evaluation_criteria = [
     "Effective settings are resolved in the order local, project, global, defaults",
     "No setting is read without being declared in package.json",
 ]
+
+[[phases.tasks]]
+slug      = "cli-path-setup"
+kind      = "feature"
+title     = "Terminal PATH repair for a CLI the integrated terminal cannot see"
+goal      = "Let a user make an already-installed CLI reachable from the integrated terminal, by writing the terminal environment through the editor's own settings, at the scope the user picks, and never touching their shell."
+depends_on = ["cli-process", "onboarding-prompt"]
+hints = [
+    "The CLI installs to `~/.local/bin`, which is off PATH on most macOS and Linux machines. So this is the COMMON case, not an edge case, and the extension must treat it as normal.",
+    "A CLI found off PATH is still fully usable: discovery invokes it by absolute path. The repair is about the user's terminal and their git hooks, not about the extension's own operation. Say so, or the user will think the extension is broken.",
+    "The target is the editor's terminal environment: `terminal.integrated.env.<platform>.PATH`, where the platform segment is `osx`, `linux` or `windows`. It affects newly created terminals only.",
+    "APPEND to the inherited PATH, never replace it. The value must keep the existing PATH and add the CLI's directory to it - replacing it silently breaks every other tool the user has.",
+    "Use the `${env:PATH}` variable in the value so the terminal inherits the live PATH and adds the CLI's directory to it. VS Code resolves `${env:Name}` in `terminal.integrated.env` values, and the resolved value REPLACES the terminal's PATH - so a hardcoded PATH list would be a stale, wrong PATH.",
+    "Preserve any existing `terminal.integrated.env` value. Read the current value, add only the PATH entry, and write the merged object back. Do not clobber other variables the user has set.",
+    "`terminal.integrated.env` is a RESTRICTED setting: its value is only read from trusted sources. A workspace-scoped repair therefore does nothing in an untrusted workspace, so say so rather than letting the user wonder why the change did not take.",
+    "Write through the workspace configuration API with an explicit target, so the change is visible in the Settings editor and the user can undo it. Do not edit `settings.json` on disk by hand.",
+    "Offer the scope choice and honour it exactly: workspace folder, workspace, then user. The user asked for workspace first, then profile/user, then global, because a workspace-scoped change is the least invasive and the easiest to undo. The configuration API exposes exactly three targets - `ConfigurationTarget.WorkspaceFolder`, `ConfigurationTarget.Workspace` and `ConfigurationTarget.Global` - and `Global` resolves to the current profile's user settings, so offer those three in that order and do not pretend to write a machine-wide or all-profiles scope the API does not expose.",
+    "A workspace-scoped PATH change is stored in the workspace and may be committed by the user. Say that before writing it.",
+    "The repair is opt-in: nothing is written until the user accepts the action. It is also reversible - the user must be able to remove the entry the same way they added it.",
+    "Do NOT modify the user's shell profile (`.zshrc`, `.bashrc`, `.profile`) and do NOT run `chmod` or any other shell command. The extension's reach ends at the editor's own settings.",
+]
+test_hints = [
+    "A test that the written PATH value contains the previous PATH entries as well as the new directory.",
+    "A test that the written value uses the `${env:PATH}` form rather than a hardcoded PATH list.",
+    "A test that an existing `terminal.integrated.env` value is preserved and only the PATH key is changed.",
+    "A test that the write targets exactly the scope the user selected and no other.",
+    "A test that no write happens until the user accepts the action.",
+]
+must_haves = [
+    "A CLI found off PATH is reported as found, with the directory named",
+    "The written PATH value appends to the inherited PATH and never replaces it",
+    "An existing terminal environment value is preserved",
+    "The write targets only the scope the user chose",
+    "Nothing is written before the user accepts",
+]
+evaluation_criteria = [
+    "No shell profile is read or written, and no shell command is run to change PATH",
+    "The terminal environment is written through the configuration API at an explicit target",
+    "The written PATH contains both the inherited entries and the added directory",
+    "The repair is offered rather than applied automatically",
+    "Tests cover appending, preserving an existing value, scope selection and the opt-in gate",
+]
+implements = ["cli-path-setup"]
 
 [[phases.tasks]]
 slug      = "output-and-diagnostics"
@@ -797,7 +960,7 @@ hints = [
     "The generator's CHANGELOG is a one-line placeholder. Replace it with a real Keep a Changelog entry for 0.1.0.",
     "Remove `vsc-extension-quickstart.md` from the published package.",
     "Search the whole source tree for `TODO`, `FIXME`, `XXX`, `placeholder`, `stub` and `not implemented` and resolve every hit — either by implementing it or by deleting it.",
-    "Check the icon and gallery assets: a missing or placeholder icon makes the marketplace listing look unfinished.",
+    "Check the icon and gallery assets: a missing or placeholder icon makes the marketplace listing look unfinished. The icon must be raster (never SVG), at least 128x128, present in the package, and paired with a `galleryBanner` whose color contrasts with it.",
 ]
 test_hints = [
     "A test that asserts the hello-world command is absent from the manifest and unregistered.",

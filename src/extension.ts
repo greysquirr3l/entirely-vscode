@@ -1,26 +1,23 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { registerCommands } from './commands';
+import { SessionsProvider } from './providers/sessionsProvider';
+import { StatusBar } from './services/statusBar';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+/**
+ * Entry point. Everything created here is pushed onto `context.subscriptions`
+ * so the extension host can tear it down cleanly.
+ */
+export function activate(context: vscode.ExtensionContext): void {
+	context.subscriptions.push(vscode.window.createOutputChannel('Entirely'));
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "greysquirr3l.entirely" is now active!');
+	const sessions = new SessionsProvider();
+	context.subscriptions.push(sessions);
+	context.subscriptions.push(vscode.window.registerTreeDataProvider('entirely.sessions', sessions));
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('greysquirr3l.entirely.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from Entirely!');
-	});
+	const status = new StatusBar();
+	context.subscriptions.push(status);
 
-	context.subscriptions.push(disposable);
+	registerCommands(context, { sessions, status });
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate(): void {}
