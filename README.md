@@ -40,8 +40,7 @@ extension has never seen is not a special case.
 
 ## Status
 
-**Planned.** The implementation plan is `plan.toml`; the generated task
-files are in `tasks/`.
+**Planned.** The implementation plan is `plan.toml`.
 
 | Phase | Tasks | |
 |---|---|---|
@@ -52,7 +51,8 @@ files are in `tasks/`.
 | Polish and Release | 4 | settings, terminal PATH repair, diagnostics, packaging and CI |
 | Hardening | 3 | security audit, wiring audit, scaffold cleanup |
 
-The scaffold compiles, lints and passes its extension-host test. The plan
+The manifest, build pipeline and contributed surface are in place; the
+extension compiles, lints and passes its extension-host tests. The plan
 validates against `wiggum` at 9/10 with a valid DAG and 8 parallelisable
 groups.
 
@@ -60,7 +60,7 @@ groups.
 
 * The [Entire CLI](https://docs.entire.com/installation) — `entire version`
   must run. Without it the extension stays dormant.
-* VS Code 1.96 or newer.
+* VS Code 1.140 or newer.
 
 ## Development
 
@@ -101,3 +101,9 @@ original TypeScript. On a remote without a display, set
 ## Licence
 
 MIT
+
+## Issues
+
+Found something broken, or want to see something built? The repository and
+issue tracker live at
+[greysquirr3l/entirely-vscode](https://github.com/greysquirr3l/entirely-vscode).
