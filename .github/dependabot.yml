@@ -14,3 +14,11 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - dependencies
+    # Every step of the CodeQL action has to be on the same version, or
+    # the job fails for want of a matching configuration. Updating one
+    # step at a time would therefore always break the workflow, so the
+    # steps are updated together.
+    groups:
+      codeql:
+        patterns:
+          - 'github/codeql-action*'
