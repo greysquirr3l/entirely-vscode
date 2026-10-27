@@ -1,10 +1,12 @@
 import * as vscode from 'vscode';
-import type { SessionsProvider } from '../providers/sessionsProvider';
+import type { SessionDetailProvider } from '../providers/sessionDetailProvider';
+import type { SessionItemNode, SessionsProvider } from '../providers/sessionsProvider';
 import type { StatusController } from '../services/statusController';
 
 /** The surfaces the command handlers act on. */
 export interface CommandDependencies {
 	readonly sessions: SessionsProvider;
+	readonly sessionDetail: SessionDetailProvider;
 	readonly statusController: StatusController;
 }
 
@@ -19,9 +21,9 @@ const EXTENSION_ID = 'greysquirr3l.entirely';
  */
 export function registerCommands(context: vscode.ExtensionContext, deps: CommandDependencies): void {
 	context.subscriptions.push(
-		vscode.commands.registerCommand('entirely.refresh', () => {
-			deps.sessions.refresh();
-			void deps.statusController.refresh();
+		vscode.commands.registerCommand('entirely.refresh', async () => {
+			await deps.statusController.refresh();
+			await deps.sessions.refresh();
 		}),
 
 		vscode.commands.registerCommand('entirely.showSessions', async () => {
@@ -38,6 +40,11 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 
 		vscode.commands.registerCommand('entirely.setUp', async () => {
 			await deps.statusController.offerToSetUp();
+		}),
+
+		vscode.commands.registerCommand('entirely.selectSession', (element: SessionItemNode) => {
+			deps.sessions.select(element);
+			deps.sessionDetail.show(element?.session);
 		}),
 
 		vscode.commands.registerCommand('entirely.openSettings', async () => {

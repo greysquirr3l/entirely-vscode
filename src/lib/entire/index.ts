@@ -9,3 +9,5 @@ export type { DecodeIssue, DecodeIssueKind, DecodeResult } from './decode';
 export { unwrap } from './decode';
 export { canBeSetUp, decodeWorkspaceStatus, isTracked } from './status';
 export { decodeCurrentSession, decodeSession, decodeSessionList } from './session';
+export { humanizeStatus, pluralise, truncatePrompt } from './text';
+export type { SessionListing, SessionSource } from './source';

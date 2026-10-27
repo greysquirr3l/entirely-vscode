@@ -44,13 +44,21 @@
         {
           "id": "entirely.sessions",
           "name": "Sessions"
+        },
+        {
+          "id": "entirely.sessionDetail",
+          "name": "Session"
         }
       ]
     },
     "viewsWelcome": [
       {
         "view": "entirely.sessions",
-        "contents": "No sessions yet.\nSessions appear once the [Entire CLI](https://docs.entire.com/installation) is installed and this workspace is tracked.\n[Refresh](command:entirely.refresh)"
+        "contents": "No sessions yet.\nSessions are recorded automatically when an agent runs in a repository that Entire tracks.\n[Refresh](command:entirely.refresh)"
+      },
+      {
+        "view": "entirely.sessionDetail",
+        "contents": "Select a session to see its details."
       }
     ],
     "commands": [
@@ -77,6 +85,11 @@
       {
         "command": "entirely.setUp",
         "title": "Set Up Entire",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.selectSession",
+        "title": "Show Session Details",
         "category": "Entirely"
       }
     ],
@@ -117,6 +130,10 @@
       "commandPalette": [
         {
           "command": "entirely.statusBar",
+          "when": "false"
+        },
+        {
+          "command": "entirely.selectSession",
           "when": "false"
         }
       ]
