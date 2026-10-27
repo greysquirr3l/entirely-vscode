@@ -260,7 +260,19 @@
           "passes": false
         },
         {
-          "label": "Each of the nine events invokes the matching `entire hooks copilot-cli` subcommand with JSON on stdin",
+          "label": "Each editor event invokes the matching `entire hooks copilot-cli` subcommand with JSON on stdin",
+          "passes": false
+        },
+        {
+          "label": "Every payload is in the VS Code dialect and uses the VS Code event names",
+          "passes": false
+        },
+        {
+          "label": "The agent-stop payload carries a transcript_path, and an end-to-end test against a real transcript shows the model recorded",
+          "passes": false
+        },
+        {
+          "label": "A test proves an arbitrary BYOK model string reaches the CLI unmodified",
           "passes": false
         },
         {

@@ -189,6 +189,110 @@ Observed input fields (JSON on stdin, all optional):
 
 Output is empty; the hook is fire-and-forget and logs to `.entire/logs/`.
 
+### The VS Code host
+
+The CLI recognises two payload dialects and picks between them by sniffing
+the raw JSON (`detectHookHost` in `cmd/entire/cli/agent/copilotcli/compat.go`):
+
+| Signal | Host |
+|---|---|
+| `hookEventName` present as a string | `vscode` |
+| `transcript_path` present as a string | `vscode` |
+| `timestamp` present as a string | `vscode` |
+| `transcriptPath` key present at all | `copilot-cli` |
+| `timestamp` present as a number | `copilot-cli` |
+
+This matters: the **VS Code dialect uses snake_case `transcript_path`** while
+the Copilot CLI dialect uses camelCase `transcriptPath`. Sending the wrong
+one is not an error — the payload is simply read as the other host and the
+model never resolves.
+
+Field names accepted on either dialect (`firstString` takes the first
+present key):
+
+| Field | Accepted as |
+|---|---|
+| session id | `sessionId`, `session_id` |
+| transcript path | `transcriptPath`, `transcript_path` |
+| prompt | `prompt` |
+| working dir | `cwd` |
+| hook event name | `hookEventName` |
+| agent id | `agentId`, `agent_id` |
+| agent type | `agentType`, `agent_type` |
+| agent name | `agentName`, `agent_name` |
+| agent description | `agentDescription`, `agent_description` |
+| stop reason | `stopReason` |
+| reason | `reason` |
+| timestamp | `timestamp` |
+
+### VS Code hook event names
+
+On the VS Code dialect the CLI validates `hookEventName` against the
+subcommand it was invoked with, and **skips the event silently** on a
+mismatch. The allowed pairs:
+
+| `hookEventName` | Allowed subcommand(s) |
+|---|---|
+| `SessionStart` | `session-start` |
+| `UserPromptSubmit` | `user-prompt-submitted` |
+| `Stop` | `agent-stop` **and** `session-end` |
+| `PreToolUse` | `pre-tool-use` |
+| `PostToolUse` | `post-tool-use` |
+| `SubagentStart` | `subagent-start` |
+| `SubagentStop` | `subagent-stop` |
+| `PreCompact` | *(none — always skipped)* |
+
+Note these are **not** the Copilot CLI names. The CLI uses
+`UserPromptSubmitted`; VS Code uses `UserPromptSubmit`.
+
+`Stop` is overloaded: VS Code emits one Stop event where the Copilot CLI
+distinguishes end-of-turn from end-of-session. The CLI routes them by
+`reason`/`stopReason` — a non-terminal Stop becomes `agent-stop`, a
+terminal one becomes `session-end`. An extension that sends every Stop as
+`agent-stop` will never close a session; one that sends every Stop as
+`session-end` will close a session at the end of every turn.
+
+### Where the model actually comes from
+
+**The model is not read from the hook payload.** No field name in the
+payload populates it — `model`, `modelName`, `modelId`, `modelID` and
+`selectedModel` were each tested and all left `model` empty in the log.
+
+The CLI reads it from the **transcript file** named by the payload's
+transcript path, via `ExtractModelFromTranscript`:
+
+1. Read and parse the transcript as JSONL.
+2. Take the **last** `session.model_change` event, reading `data.newModel`.
+3. If there is none, fall back to the **last** `tool.execution_complete`
+   event, reading `data.model`.
+
+Verified end to end against a real Copilot transcript:
+
+```
+$ entire hooks copilot-cli agent-stop  (transcript_path = a real events.jsonl)
+  → "session_ref":"/…/session-state/rt-3/events.jsonl"
+  → "model":"minimax/MiniMax-M3.1-Flash-Preview"
+```
+
+And verified model-agnostic across providers — the CLI stores whatever the
+transcript says, with no allowlist and no normalisation:
+
+| Transcript says | CLI records |
+|---|---|
+| `minimax/MiniMax-M3.1-Flash-Preview` | `minimax/MiniMax-M3.1-Flash-Preview` |
+| `kimi-k2.7-code` | `kimi-k2.7-code` |
+| `Qwen 3 Coder (Ollama)` | `Qwen 3 Coder (Ollama)` |
+
+Only `agent-stop` populates the model. `session-start` records `"model":""`
+even when the transcript path is supplied, because the model extraction
+runs in `buildAgentStop` alone.
+
+**Consequence for the extension:** to record the model, the extension must
+send a `transcript_path` pointing at a readable Copilot transcript, and it
+must send it on the `agent-stop` event. BYOK models work with no
+extension-side special-casing — the extension must not filter, map or
+validate the model string in any way.
+
 ## On-disk session data
 
 ```

@@ -59,6 +59,8 @@ failing obscurely.
 
 - Prefer declaring a VS Code setting over hardcoding a value. Anything a user may reasonably want to change needs a setting with a sensible default.
 
+- Never hardcode a model name, model id, provider name or context-window size. The user may be on a BYOK model from any provider, or a local model. Treat every model as an opaque string.
+
 ## Testing instructions
 
 - Run `npm test` before committing

@@ -31,7 +31,7 @@ You are an orchestration agent. Your sole job is to drive subagents to implement
 3. Read every file in `capabilities/` — these are the behavioural contracts the
    project must satisfy. Subagents may reference them by slug; the orchestrator
    is the one that has the full picture. The current plan declares
-   6 capability(ies).
+   7 capability(ies).
 
 
 ## Implementation loop
@@ -192,6 +192,7 @@ You are a senior TypeScript engineer building a production-grade VS Code extensi
 - Never log a full checkpoint payload or a prompt body to the output channel by default; offer it behind an explicit command instead.
 - Follow the extension's own style: no `any`, no non-null assertions on values the CLI could omit, no floating promises.
 - Prefer declaring a VS Code setting over hardcoding a value. Anything a user may reasonably want to change needs a setting with a sensible default.
+- Never hardcode a model name, model id, provider name or context-window size. The user may be on a BYOK model from any provider, or a local model. Treat every model as an opaque string.
 
 ## Security (non-negotiable)
 

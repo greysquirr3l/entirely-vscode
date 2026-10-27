@@ -23,6 +23,24 @@ Implement the one place that knows how to find, run and parse the Entire CLI, so
 - **cli-present-but-broken** — WHEN `an `entire` binary is found but `entire version` exits non-zero or prints unparseable output` THEN `discovery reports the CLI as present but unusable, and the error detail is available for diagnosis`
 
 
+### Capability: [byok-model-support](../capabilities/byok-model-support.md) — Bring Your Own Key Model Support
+
+- MUST treat the model as an opaque string end to end. It MUST NOT be filtered against an allowlist, mapped, normalised, or validated against a known set of models.
+- MUST support every model the Copilot Chat picker can offer: the hosted Anthropic and OpenAI models, BYOK models registered through the Copilot Chat model picker, and local models served by Ollama, LM Studio or llama.cpp.
+- MUST NOT hardcode a model name, a model id, a provider name or a context-window size anywhere in the extension.
+- MUST record the model exactly as the Copilot transcript reports it, so the session view shows the same string the user's picker shows.
+- MUST tolerate a model the extension has never seen: an unknown provider, a renamed model, or a local model whose name the extension has no knowledge of.
+- MUST NOT gate any feature on the model. A session recorded with an unrecognised model MUST appear in the session tree, the checkpoint history and the why-this-line answer exactly like any other.
+- MUST NOT infer anything about a model from its name - not its vendor, not its capabilities, not its cost.
+
+**Scenarios this task must satisfy:**
+
+- **byok-model-recorded** — WHEN `the user runs a BYOK model such as minimax/MiniMax-M3.1-Flash-Preview through Copilot Chat` THEN `the recorded session shows that model string verbatim, and the extension applies no special handling`
+- **local-model-recorded** — WHEN `the user runs a local model served by Ollama or LM Studio` THEN `the session is recorded and displayed with no error and no warning about an unrecognised model`
+- **unknown-model** — WHEN `a model appears that the extension has never been built against` THEN `the extension behaves identically to any other model, with no allowlist rejection and no degraded feature`
+- **model-unavailable** — WHEN `the transcript does not report a model, because the session has not yet produced one` THEN `the session is still recorded, with the model simply absent, and no error is surfaced`
+
+
 
 ## Project Context
 

@@ -23,11 +23,18 @@ Entirely (this extension)
 | **Checkpoint history** | Recorded checkpoints, opening straight into the native diff editor |
 | **Why this line** | Which agent edit introduced the line under the cursor, and why |
 | **Hook bridge** | Reports the editor's own agent activity to Entire, so editor work lands in the same session history |
+| **BYOK models** | Works with whatever model Copilot Chat is using — hosted, BYOK, or local — without the extension knowing the model exists |
 | **Doctor** | A copyable diagnostic report: CLI version, repository state, effective settings, last error |
 
 The extension never re-implements Entire. It discovers the installed CLI,
 reads its JSON output, and shells out for anything mutating. If the CLI is
 missing, the extension degrades quietly rather than failing obscurely.
+
+**Model-agnostic by construction.** No model name, provider or context-window
+size is hardcoded anywhere. The model is an opaque string, recorded exactly
+as the Copilot transcript reports it — so a BYOK model from any provider and
+a local Ollama model work the same as a hosted one, and a model the
+extension has never seen is not a special case.
 
 ## Status
 

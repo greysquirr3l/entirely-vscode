@@ -142,6 +142,16 @@ Shows every session Entire tracks for the current repository, live and finished,
 
 Lists the checkpoints recorded on the current branch and opens any checkpoint in the diff editor.
 
+### Bring Your Own Key Model Support
+
+- **File**: [`capabilities/byok-model-support.md`](capabilities/byok-model-support.md)
+- **Capability slug**: `byok-model-support`
+- **Requirements**: 7
+- **Scenarios**: 4
+
+
+Works with whatever model the user has selected in Copilot Chat, including BYOK models from any provider - without the extension knowing or caring which model it is.
+
 ### Agent Hook Bridge
 
 - **File**: [`capabilities/agent-hooks.md`](capabilities/agent-hooks.md)

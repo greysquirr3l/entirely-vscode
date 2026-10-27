@@ -45,6 +45,8 @@ failing obscurely.
 - `agents` and `active_sessions` are ARRAYS when tracked and NULL when not. `error` appears only when untracked; `agent_help` only when tracked. A decoder must handle both, and must treat a non-null `error` as a state rather than a failure.
 - `session list --json` returns an array of sessions with `session_id`, `agent`, `status`, `branch`, `worktree_path`, `started_at`, `last_active`, `turns`, `pending_turns`, `checkpoints` and `last_prompt`.
 - `session current --json` adds a `resolution` field and may be absent when there is no current session.
+- The model, wherever it appears, is an OPAQUE STRING. Type it as `string`, never as a union of known models and never as a branded type. There is no `Model` type that enumerates providers - that is the whole point of BYOK support.
+- The model may be absent entirely (a session that has not yet produced one) and may be any string at all: a hosted model, a BYOK model, a local model, or something the extension has never seen.
 - Decode into domain types, never into raw `any`. Use a discriminated result type so 'the CLI said no' and 'the CLI failed' stay distinguishable.
 - Timestamps arrive as RFC 3339 strings with nanosecond precision; parse them to `Date` and keep the raw string for display.
 - `branch` may be absent for a session that is not on a branch yet.
@@ -57,6 +59,8 @@ failing obscurely.
 - A test that the untracked `status --json` decodes to a distinct 'not a repository' state rather than a failure.
 - A test that the tracked `status --json` decodes `agents` and `active_sessions` as populated arrays, not as the null shape.
 - A test that a session missing `branch` and `last_prompt` still decodes.
+- A test that an arbitrary model string - a BYOK id, a local model name with spaces, an empty string - decodes to a plain string with no validation error.
+- A test that the decoded model type accepts any string, proving there is no closed union of models.
 
 
 
