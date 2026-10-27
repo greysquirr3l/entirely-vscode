@@ -36,6 +36,14 @@ export interface ActiveSession {
 	readonly branch?: string;
 	/** The session's status, as the CLI words it. */
 	readonly status: string;
+	/**
+	 * The model the session is running, when the CLI reports one.
+	 *
+	 * This is whatever the user picked, which may be a model from a
+	 * provider the extension has never heard of, or a local one. It is
+	 * kept as the string it is.
+	 */
+	readonly model?: string;
 }
 
 /**

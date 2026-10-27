@@ -12,6 +12,7 @@ import {
 	createCheckpointSource,
 } from './services/checkpointSource';
 import { GitService } from './services/gitService';
+import { HookBridge } from './services/hookBridge';
 import {
 	INSTALL_COMMAND,
 	INSTALL_DOCS,
@@ -75,7 +76,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	const status = new StatusBar();
 	context.subscriptions.push(status);
 
-	const statusController = new StatusController({ statusBar: status, runner, output });
+	const hooks = new HookBridge({
+		runner,
+		workspaceRoot,
+		log: line => output.appendLine(`hook ${line}`),
+	});
+
+	const statusController = new StatusController({ statusBar: status, runner, output, hooks });
 	context.subscriptions.push(statusController);
 
 	const sessions = new SessionsProvider(createSessionSource(runner, workspaceRoot), () =>

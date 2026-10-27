@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { decodeWorkspaceStatus, unwrap, type WorkspaceStatus } from '../lib/entire';
 import { CliRunner } from './cli';
 import { watchHeadChanges } from './headWatcher';
+import type { HookBridge } from './hookBridge';
 import { enableEntire } from './setup';
 import type { StatusBar, StatusDisplay } from './statusBar';
 
@@ -11,6 +12,13 @@ export interface StatusControllerOptions {
 	readonly statusBar: StatusBar;
 	readonly runner: CliRunner;
 	readonly output: vscode.OutputChannel;
+	/**
+	 * Where the workspace's agent activity is reported.
+	 *
+	 * The controller is the one thing that knows whether the workspace is
+	 * tracked, and a session only begins in a tracked workspace.
+	 */
+	readonly hooks?: HookBridge;
 }
 
 /** What clicking the status bar item does. */
@@ -69,6 +77,7 @@ export class StatusController {
 	private readonly disposables: vscode.Disposable[] = [];
 	private display: StatusDisplay | undefined;
 	private timer: NodeJS.Timeout | undefined;
+	private sessionStarted = false;
 
 	constructor(private readonly options: StatusControllerOptions) {
 		this.disposables.push(
@@ -135,6 +144,31 @@ export class StatusController {
 
 		this.display = toDisplay(result.value);
 		this.options.statusBar.show(this.display);
+		this.beginSession();
+	}
+
+	/**
+	 * Reports the start of a session, once per workspace.
+	 *
+	 * A session only exists in a workspace that Entire is tracking, and it
+	 * only starts once: the events that follow it belong to it.
+	 */
+	private beginSession(): void {
+		if (this.sessionStarted || !this.options.hooks) {
+			return;
+		}
+
+		if (this.display?.kind !== 'tracked') {
+			return;
+		}
+
+		this.sessionStarted = true;
+		const cwd = this.workspaceRoot();
+		if (!cwd) {
+			return;
+		}
+
+		this.options.hooks.post('SessionStart', { cwd });
 	}
 
 	/**

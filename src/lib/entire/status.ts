@@ -59,6 +59,13 @@ function decodeActiveSession(value: unknown, path: string): DecodeResult<ActiveS
 		return branch;
 	}
 
+	// The model is whatever the user picked, which may be a model the
+	// extension has never heard of. It is kept as the string it is.
+	const model = optionalString(read, 'model');
+	if (!model.ok) {
+		return model;
+	}
+
 	return {
 		ok: true,
 		value: {
@@ -67,6 +74,7 @@ function decodeActiveSession(value: unknown, path: string): DecodeResult<ActiveS
 			worktreePath: worktreePath.value,
 			branch: branch.value,
 			status: status.value,
+			model: model.value,
 		},
 	};
 }
