@@ -7,6 +7,7 @@ import { CheckpointsProvider } from './providers/checkpointsProvider';
 import { SessionDetailProvider } from './providers/sessionDetailProvider';
 import { SessionsProvider } from './providers/sessionsProvider';
 import { CliRunner } from './services/cli';
+import { readExtensionSettings } from './services/configuration';
 import {
 	createCheckpointDetailSource,
 	createCheckpointSource,
@@ -23,6 +24,7 @@ import {
 } from './services/onboarding';
 import { enableEntire } from './services/setup';
 import { createSessionSource } from './services/sessionSource';
+import { createLogger } from './services/logger';
 import { StatusBar } from './services/statusBar';
 import { StatusController } from './services/statusController';
 import { WhyService } from './services/whyService';
@@ -74,20 +76,26 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 	const runner = new CliRunner();
 
+	// The path the user gave for the CLI is applied before anything is
+	// read, so the very first look uses the binary they chose.
+	runner.setConfiguredPath(readExtensionSettings().cliPath);
+
+	const log = createLogger(output, () => readExtensionSettings().logLevel);
+
 	const status = new StatusBar();
 	context.subscriptions.push(status);
 
 	const hooks = new HookBridge({
 		runner,
 		workspaceRoot,
-		log: line => output.appendLine(`hook ${line}`),
+		log: line => log.debug(`hook ${line}`),
 	});
 
 	const statusController = new StatusController({ statusBar: status, runner, output, hooks });
 	context.subscriptions.push(statusController);
 
 	const sessions = new SessionsProvider(createSessionSource(runner, workspaceRoot), () =>
-		vscode.workspace.getConfiguration('entirely').get<number>('refreshInterval', 30),
+		readExtensionSettings().refreshInterval,
 	);
 	context.subscriptions.push(sessions);
 
@@ -97,7 +105,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	const checkpoints = new CheckpointsProvider(
 		createCheckpointSource(runner, workspaceRoot),
 		createCheckpointDetailSource(runner, workspaceRoot),
-		() => vscode.workspace.getConfiguration('entirely').get<number>('refreshInterval', 30),
+		() => readExtensionSettings().refreshInterval,
 	);
 	context.subscriptions.push(checkpoints);
 
@@ -116,11 +124,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	});
 	context.subscriptions.push(detailView);
 
+	// The same session tree, shown in the Explorer as well, for the users
+	// who want to see it next to the source control views.
+	const explorerSessionsView = vscode.window.createTreeView('entirely.explorerSessions', {
+		treeDataProvider: sessions,
+	});
+	context.subscriptions.push(explorerSessionsView);
+
 	// The tree view shows a message in place of the sessions when there is
 	// a reason the tree is empty.
 	context.subscriptions.push(
 		sessions.onDidChangeTreeData(() => {
 			sessionsView.message = sessions.emptyReason;
+			explorerSessionsView.message = sessions.emptyReason;
 		}),
 	);
 
@@ -183,6 +199,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		why,
 		checkpointDetail: createCheckpointDetailSource(runner, workspaceRoot),
 	});
+
+	// A setting that changes takes effect at once, without a window reload.
+	context.subscriptions.push(
+		vscode.workspace.onDidChangeConfiguration(event => {
+			if (event.affectsConfiguration('entirely.refreshInterval')) {
+				sessions.reschedule();
+				checkpoints.reschedule();
+			}
+
+			if (event.affectsConfiguration('entirely.cliPath')) {
+				runner.setConfiguredPath(readExtensionSettings().cliPath);
+				void statusController.refresh();
+				void sessions.refresh();
+				void checkpoints.refresh();
+			}
+		}),
+	);
 
 	void statusController.refresh();
 	void sessions.refresh();

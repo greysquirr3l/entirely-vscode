@@ -214,6 +214,16 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionNode> {
 		this.onDidChangeSelection.fire(element);
 	}
 
+	/**
+	 * Restarts the polling timer.
+	 *
+	 * The interval is a setting, and a setting the user changes takes
+	 * effect at once rather than at the next tick.
+	 */
+	reschedule(): void {
+		this.schedulePolling();
+	}
+
 	/** Starts, stops or restarts the polling timer. */
 	private schedulePolling(): void {
 		if (this.timer) {

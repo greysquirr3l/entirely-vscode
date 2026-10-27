@@ -1,4 +1,7 @@
 import * as vscode from 'vscode';
+import { summariseSettings } from '../lib/entire';
+import { readExtensionSettings } from './configuration';
+import { readEntireSettings } from './settingsSource';
 
 import { decodeWorkspaceStatus, unwrap, type WorkspaceStatus } from '../lib/entire';
 import { CliRunner } from './cli';
@@ -53,14 +56,16 @@ export function clickAction(display: StatusDisplay | undefined): ClickAction {
 }
 
 /** The status bar rendering for a workspace status. */
-function toDisplay(status: WorkspaceStatus): StatusDisplay {
+function toDisplay(status: WorkspaceStatus, settings: readonly string[]): StatusDisplay {
 	switch (status.kind) {
 		case 'tracked': {
 			const session = status.activeSessions[0];
-			return session ? { kind: 'active-session', agent: session.agent } : { kind: 'tracked' };
+			return session
+				? { kind: 'active-session', agent: session.agent, settings }
+				: { kind: 'tracked', settings };
 		}
 		case 'not-set-up':
-			return { kind: 'not-set-up' };
+			return { kind: 'not-set-up', settings };
 		case 'not-a-repository':
 			return { kind: 'not-a-repository' };
 	}
@@ -142,7 +147,7 @@ export class StatusController {
 			return;
 		}
 
-		this.display = toDisplay(result.value);
+		this.display = toDisplay(result.value, this.effectiveSettings());
 		this.options.statusBar.show(this.display);
 		this.beginSession();
 	}
@@ -244,8 +249,17 @@ export class StatusController {
 
 	/** The path the user configured for the CLI, if any. */
 	private configuredPath(): string | undefined {
-		const configured = vscode.workspace.getConfiguration('entirely').get<string>('cliPath', '');
-		return configured && configured.trim().length > 0 ? configured.trim() : undefined;
+		return readExtensionSettings().cliPath;
+	}
+
+	/**
+	 * The settings that are in effect for this workspace.
+	 *
+	 * These are Entire's own settings, read through the same layering the
+	 * CLI reads them through, so the tooltip says what the CLI would do.
+	 */
+	private effectiveSettings(): readonly string[] {
+		return summariseSettings(readEntireSettings(this.workspaceRoot()));
 	}
 
 	/** The directory the CLI should run in. */

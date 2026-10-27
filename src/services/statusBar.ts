@@ -8,11 +8,11 @@ import * as vscode from 'vscode';
  */
 export type StatusDisplay =
 	/** The workspace is tracked and an agent session is live. */
-	| { readonly kind: 'active-session'; readonly agent?: string }
+	| { readonly kind: 'active-session'; readonly agent?: string; readonly settings?: readonly string[] }
 	/** The workspace is tracked and no agent session is running. */
-	| { readonly kind: 'tracked' }
+	| { readonly kind: 'tracked'; readonly settings?: readonly string[] }
 	/** The workspace is a git repository Entire has not been set up for. */
-	| { readonly kind: 'not-set-up' }
+	| { readonly kind: 'not-set-up'; readonly settings?: readonly string[] }
 	/** The workspace is not a git repository, so it cannot be tracked. */
 	| { readonly kind: 'not-a-repository' }
 	/** The CLI could not be read. */
@@ -22,6 +22,20 @@ export type StatusDisplay =
 interface Rendering {
 	readonly text: string;
 	readonly tooltip: string;
+}
+
+/**
+ * The settings that are in effect, as a line for the tooltip.
+ *
+ * A setting nobody has set is not shown, so the line says what is
+ * actually decided rather than what could be.
+ */
+function settingsLine(settings: readonly string[] | undefined): string {
+	if (!settings || settings.length === 0) {
+		return '';
+	}
+
+	return `\n\nEntire's settings here: ${settings.join(' · ')}`;
 }
 
 /**
@@ -42,19 +56,25 @@ function render(display: StatusDisplay): Rendering {
 		case 'active-session':
 			return {
 				text: '$(pulse) Entire',
-				tooltip: display.agent
-					? `Entire is tracking this workspace. ${display.agent} is running.`
-					: 'Entire is tracking this workspace. An agent session is running.',
+				tooltip:
+					(display.agent
+						? `Entire is tracking this workspace. ${display.agent} is running.`
+						: 'Entire is tracking this workspace. An agent session is running.') +
+					settingsLine(display.settings),
 			};
 		case 'tracked':
 			return {
 				text: '$(circle-filled) Entire',
-				tooltip: 'Entire is tracking this workspace. No agent session is running.',
+				tooltip:
+					'Entire is tracking this workspace. No agent session is running.' +
+					settingsLine(display.settings),
 			};
 		case 'not-set-up':
 			return {
 				text: '$(circle-slash) Entire',
-				tooltip: 'Entire is not set up for this workspace. Click to set it up.',
+				tooltip:
+					'Entire is not set up for this workspace. Click to set it up.' +
+					settingsLine(display.settings),
 			};
 		case 'not-a-repository':
 			return {

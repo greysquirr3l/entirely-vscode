@@ -23,6 +23,12 @@ export type {
 	CheckpointSession,
 } from './types';
 export { decodeWhyAnswer, isAttributed } from './why';
+export {
+	decodeEntireSettings,
+	resolveEntireSettings,
+	summariseSettings,
+} from './settings';
+export type { EntireSettings, StrategyOptionValue } from './settings';
 export type {
 	LineAttribution,
 	WhyAnswer,

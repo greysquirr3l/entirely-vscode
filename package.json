@@ -53,6 +53,13 @@
           "id": "entirely.checkpoints",
           "name": "Checkpoints"
         }
+      ],
+      "explorer": [
+        {
+          "id": "entirely.explorerSessions",
+          "name": "Entirely Sessions",
+          "when": "config.entirely.showSessionsInExplorer"
+        }
       ]
     },
     "viewsWelcome": [
@@ -67,6 +74,10 @@
       {
         "view": "entirely.checkpoints",
         "contents": "No checkpoints yet.\nA checkpoint is recorded when agent work is committed, and appears here once it is.\n[Refresh](command:entirely.refresh)"
+      },
+      {
+        "view": "entirely.explorerSessions",
+        "contents": "No sessions yet.\nSessions are recorded automatically when an agent runs in a repository that Entire tracks.\n[Refresh](command:entirely.refresh)"
       }
     ],
     "commands": [

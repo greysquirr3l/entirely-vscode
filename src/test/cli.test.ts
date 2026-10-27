@@ -282,6 +282,50 @@ suite('Entire CLI runner', () => {
 
 		assert.strictEqual((await runner.discover()).state, 'available');
 	});
+
+	test('looks again for the CLI when the configured path changes', async () => {
+		const home = makeDirectory('entire-cli-path-');
+		const locator = new CliLocator({ homeDir: home, env: { PATH: '' } });
+		const runner = new CliRunner(locator);
+
+		const first = makeDirectory('entire-cli-first-');
+		const second = makeDirectory('entire-cli-second-');
+		writeFakeCli(first, WORKING_CLI);
+		writeFakeCli(second, WORKING_CLI);
+
+		runner.setConfiguredPath(path.join(first, 'entire'));
+		const found = await runner.discover();
+		assert.strictEqual(found.state, 'available');
+		if (found.state !== 'available') {
+			return;
+		}
+		assert.strictEqual(found.path, path.join(first, 'entire'));
+
+		// The setting changed, so the CLI is looked up again rather than
+		// the answer being remembered.
+		runner.setConfiguredPath(path.join(second, 'entire'));
+		const moved = await runner.discover();
+		assert.strictEqual(moved.state, 'available');
+		if (moved.state !== 'available') {
+			return;
+		}
+		assert.strictEqual(moved.path, path.join(second, 'entire'));
+	});
+
+	test('goes back to the usual search when the configured path is taken away', async () => {
+		const home = makeDirectory('entire-cli-back-');
+		const locator = new CliLocator({ homeDir: home, env: { PATH: '' } });
+		const runner = new CliRunner(locator);
+
+		const elsewhere = makeDirectory('entire-cli-elsewhere-');
+		writeFakeCli(elsewhere, WORKING_CLI);
+
+		runner.setConfiguredPath(path.join(elsewhere, 'entire'));
+		assert.strictEqual((await runner.discover()).state, 'available');
+
+		runner.setConfiguredPath(undefined);
+		assert.strictEqual((await runner.discover()).state, 'absent');
+	});
 });
 
 suite('Entire CLI output parsing', () => {
