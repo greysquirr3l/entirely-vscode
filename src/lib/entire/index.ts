@@ -22,3 +22,11 @@ export type {
 	CheckpointDetail,
 	CheckpointSession,
 } from './types';
+export { decodeWhyAnswer, isAttributed } from './why';
+export type {
+	LineAttribution,
+	WhyAnswer,
+	WhyCandidate,
+	WhyLine,
+	WhySummary,
+} from './why';

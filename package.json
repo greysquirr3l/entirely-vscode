@@ -104,6 +104,15 @@
         "command": "entirely.openCheckpointFile",
         "title": "Open Checkpoint Diff",
         "category": "Entirely"
+      },
+      {
+        "command": "entirely.whyThisLine",
+        "title": "Why Does This Line Exist?",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.explainCheckpoint",
+        "title": "Explain Checkpoint"
       }
     ],
     "configuration": {
@@ -152,6 +161,17 @@
         {
           "command": "entirely.openCheckpointFile",
           "when": "false"
+        },
+        {
+          "command": "entirely.explainCheckpoint",
+          "when": "false"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "entirely.whyThisLine",
+          "group": "1_entirely@1",
+          "when": "editorTextFocus"
         }
       ]
     }

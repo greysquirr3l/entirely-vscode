@@ -1,10 +1,13 @@
 import * as vscode from 'vscode';
 import { openCheckpointFile } from './openCheckpoint';
+import { explainCheckpoint, whyThisLine } from './whyThisLine';
 import type { CheckpointFileNode, CheckpointsProvider } from '../providers/checkpointsProvider';
 import type { SessionDetailProvider } from '../providers/sessionDetailProvider';
 import type { SessionItemNode, SessionsProvider } from '../providers/sessionsProvider';
+import type { CheckpointDetail } from '../lib/entire';
 import type { GitService } from '../services/gitService';
 import type { StatusController } from '../services/statusController';
+import type { WhyService } from '../services/whyService';
 
 /** The surfaces the command handlers act on. */
 export interface CommandDependencies {
@@ -14,6 +17,9 @@ export interface CommandDependencies {
 	readonly statusController: StatusController;
 	readonly git: GitService | undefined;
 	readonly workspaceFolder: () => vscode.Uri | undefined;
+	readonly why: WhyService;
+	/** Reads one checkpoint's story. */
+	readonly checkpointDetail: (id: string) => Promise<CheckpointDetail | undefined>;
 }
 
 const EXTENSION_ID = 'greysquirr3l.entirely';
@@ -56,6 +62,25 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 
 		vscode.commands.registerCommand('entirely.openCheckpointFile', async (element: CheckpointFileNode) => {
 			await openCheckpointFile(element, deps.git, deps.workspaceFolder());
+		}),
+
+		vscode.commands.registerCommand('entirely.whyThisLine', async () => {
+			await whyThisLine({
+				why: deps.why,
+				checkpointDetail: deps.checkpointDetail,
+			});
+		}),
+
+		// The drill-down from a line that a checkpoint owns. It is reached
+		// from the panel, so it is not in the palette.
+		vscode.commands.registerCommand('entirely.explainCheckpoint', async (id: string) => {
+			await explainCheckpoint(
+				{
+					why: deps.why,
+					checkpointDetail: deps.checkpointDetail,
+				},
+				id,
+			);
 		}),
 
 		vscode.commands.registerCommand('entirely.openSettings', async () => {

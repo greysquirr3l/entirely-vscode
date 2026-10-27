@@ -25,6 +25,7 @@ import { enableEntire } from './services/setup';
 import { createSessionSource } from './services/sessionSource';
 import { StatusBar } from './services/statusBar';
 import { StatusController } from './services/statusController';
+import { WhyService } from './services/whyService';
 
 /** The workspace folder the CLI is run in. */
 function workspaceRoot(): string | undefined {
@@ -170,6 +171,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 	void onboarding.offer();
 
+	const why = new WhyService({ runner, workspaceRoot });
+
 	registerCommands(context, {
 		sessions,
 		sessionDetail,
@@ -177,6 +180,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		statusController,
 		git,
 		workspaceFolder,
+		why,
+		checkpointDetail: createCheckpointDetailSource(runner, workspaceRoot),
 	});
 
 	void statusController.refresh();
