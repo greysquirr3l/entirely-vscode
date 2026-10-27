@@ -8,6 +8,7 @@ import { CliRunner } from '../services/cli/runner';
 import { parseJson } from '../services/cli/json';
 import { parseUsage } from '../services/cli/usage';
 import { documentedLocations, pathEntries } from '../services/cli/locations';
+import { decodeWorkspaceStatus, unwrap } from '../lib/entire';
 import { findCandidate, parseVersion } from '../services/cli/discovery';
 
 /** The `status --json` shape of a tracked repository, as the CLI prints it. */
@@ -461,6 +462,60 @@ suite('Entire CLI locator', () => {
 		assert.strictEqual(peeked.state, 'available');
 		if (peeked.state === 'available') {
 			assert.strictEqual(peeked.path, path.join(installDirectory, 'entire'));
+		}
+	});
+});
+
+suite('Entire CLI with domain decoders', () => {
+	test('decodes the status payload through the runner', async () => {
+		const home = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-cli-domain-'));
+		temporaryDirectories.push(home);
+
+		const installDirectory = path.join(home, '.local', 'bin');
+		fs.mkdirSync(installDirectory, { recursive: true });
+		fs.writeFileSync(
+			path.join(installDirectory, 'entire'),
+			'#!/bin/sh\ncase "$1" in\n\tversion) echo "entire 0.12.2" ;;\n\tstatus) echo \'{"enabled":false,"agents":null,"active_sessions":null,"error":"not a git repository"}\' ;;\n\tesac\n',
+			'utf8',
+		);
+		fs.chmodSync(path.join(installDirectory, 'entire'), 0o755);
+
+		const runner = new CliRunner(new CliLocator({ homeDir: home, env: { PATH: '' } }));
+		const result = await runner.runJson(['status', '--json'], value =>
+			unwrap(decodeWorkspaceStatus(value)),
+		);
+
+		assert.strictEqual(result.ok, true);
+		if (result.ok) {
+			assert.strictEqual(result.value.kind, 'untracked');
+			if (result.value.kind === 'untracked') {
+				assert.strictEqual(result.value.reason, 'not a git repository');
+			}
+		}
+	});
+
+	test('reports a payload the decoder rejects as invalid output', async () => {
+		const home = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-cli-badshape-'));
+		temporaryDirectories.push(home);
+
+		const installDirectory = path.join(home, '.local', 'bin');
+		fs.mkdirSync(installDirectory, { recursive: true });
+		fs.writeFileSync(
+			path.join(installDirectory, 'entire'),
+			'#!/bin/sh\ncase "$1" in\n\tversion) echo "entire 0.12.2" ;;\n\tstatus) echo \'{"unexpected":true}\' ;;\n\tesac\n',
+			'utf8',
+		);
+		fs.chmodSync(path.join(installDirectory, 'entire'), 0o755);
+
+		const runner = new CliRunner(new CliLocator({ homeDir: home, env: { PATH: '' } }));
+		const result = await runner.runJson(['status', '--json'], value =>
+			unwrap(decodeWorkspaceStatus(value)),
+		);
+
+		assert.strictEqual(result.ok, false);
+		if (!result.ok) {
+			assert.strictEqual(result.reason, 'invalid-output');
+			assert.match(result.detail, /status\.enabled/);
 		}
 	});
 });
