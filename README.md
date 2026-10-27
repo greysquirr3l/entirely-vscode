@@ -2,6 +2,8 @@
 
 <img src="images/hero.png" alt="Entirely" width="128">
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/greysquirr3l/entirely-vscode/badge)](https://scorecard.dev/viewer/?uri=github.com/greysquirr3l/entirely-vscode)
+
 A Visual Studio Code extension for [Entire](https://entire.com) — the Git
 forge built for agent-human collaboration.
 
