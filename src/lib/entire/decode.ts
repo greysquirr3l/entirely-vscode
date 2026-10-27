@@ -130,6 +130,60 @@ export function optionalNumber(fields: Fields, key: string): DecodeResult<number
 	return { ok: true, value };
 }
 
+/** Reads a field that may be absent or null and must be an array of strings. */
+export function optionalStringArray(
+	fields: Fields,
+	key: string,
+): DecodeResult<readonly string[] | undefined> {
+	const value = fields.record[key];
+	const path = join(fields.path, key);
+
+	if (value === undefined || value === null) {
+		return { ok: true, value: undefined };
+	}
+
+	const array = decodeArray(value, path);
+	if (!array.ok) {
+		return array;
+	}
+
+	const values: string[] = [];
+	for (let index = 0; index < array.value.length; index++) {
+		const entry = array.value[index];
+		if (typeof entry !== 'string') {
+			return wrongType(`${path}[${index}]`, `expected a string, got ${describe(entry)}`);
+		}
+		values.push(entry);
+	}
+
+	return { ok: true, value: values };
+}
+
+/**
+ * Reads a field that may be absent or null and must be a boolean.
+ *
+ * A field of the wrong kind is not an error here. The extension is reading
+ * a flag the CLI may grow or reshape, and a flag it cannot read is simply
+ * a flag the extension does not know about.
+ */
+export function optionalBoolean(fields: Fields, key: string): boolean | undefined {
+	const value = fields.record[key];
+	if (value === undefined || value === null) {
+		return undefined;
+	}
+	return typeof value === 'boolean' ? value : undefined;
+}
+
+/**
+ * Reads a field that may be absent or null, without insisting on its kind.
+ *
+ * Used for the fields the extension carries through untouched.
+ */
+export function optionalRaw(fields: Fields, key: string): unknown {
+	const value = fields.record[key];
+	return value === undefined || value === null ? undefined : value;
+}
+
 /** Reads a field that must be present and an array of strings. */
 export function requireStringArray(fields: Fields, key: string): DecodeResult<readonly string[]> {
 	const path = join(fields.path, key);

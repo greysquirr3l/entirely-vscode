@@ -48,6 +48,10 @@
         {
           "id": "entirely.sessionDetail",
           "name": "Session"
+        },
+        {
+          "id": "entirely.checkpoints",
+          "name": "Checkpoints"
         }
       ]
     },
@@ -59,6 +63,10 @@
       {
         "view": "entirely.sessionDetail",
         "contents": "Select a session to see its details."
+      },
+      {
+        "view": "entirely.checkpoints",
+        "contents": "No checkpoints yet.\nA checkpoint is recorded when agent work is committed, and appears here once it is.\n[Refresh](command:entirely.refresh)"
       }
     ],
     "commands": [
@@ -90,6 +98,11 @@
       {
         "command": "entirely.selectSession",
         "title": "Show Session Details",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.openCheckpointFile",
+        "title": "Open Checkpoint Diff",
         "category": "Entirely"
       }
     ],
@@ -134,6 +147,10 @@
         },
         {
           "command": "entirely.selectSession",
+          "when": "false"
+        },
+        {
+          "command": "entirely.openCheckpointFile",
           "when": "false"
         }
       ]

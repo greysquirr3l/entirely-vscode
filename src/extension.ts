@@ -1,8 +1,14 @@
 import * as vscode from 'vscode';
 import { registerCommands } from './commands';
+import { CheckpointsProvider } from './providers/checkpointsProvider';
 import { SessionDetailProvider } from './providers/sessionDetailProvider';
 import { SessionsProvider } from './providers/sessionsProvider';
 import { CliRunner } from './services/cli';
+import {
+	createCheckpointDetailSource,
+	createCheckpointSource,
+} from './services/checkpointSource';
+import { GitService } from './services/gitService';
 import { createSessionSource } from './services/sessionSource';
 import { StatusBar } from './services/statusBar';
 import { StatusController } from './services/statusController';
@@ -12,11 +18,16 @@ function workspaceRoot(): string | undefined {
 	return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 }
 
+/** The workspace folder the git repository is found in. */
+function workspaceFolder(): vscode.Uri | undefined {
+	return vscode.workspace.workspaceFolders?.[0]?.uri;
+}
+
 /**
  * Entry point. Everything created here is pushed onto `context.subscriptions`
  * so the extension host can tear it down cleanly.
  */
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
 	const output = vscode.window.createOutputChannel('Entirely');
 	context.subscriptions.push(output);
 
@@ -36,6 +47,18 @@ export function activate(context: vscode.ExtensionContext): void {
 	const sessionDetail = new SessionDetailProvider();
 	context.subscriptions.push(sessionDetail);
 
+	const checkpoints = new CheckpointsProvider(
+		createCheckpointSource(runner, workspaceRoot),
+		createCheckpointDetailSource(runner, workspaceRoot),
+		() => vscode.workspace.getConfiguration('entirely').get<number>('refreshInterval', 30),
+	);
+	context.subscriptions.push(checkpoints);
+
+	const checkpointsView = vscode.window.createTreeView('entirely.checkpoints', {
+		treeDataProvider: checkpoints,
+	});
+	context.subscriptions.push(checkpointsView);
+
 	const sessionsView = vscode.window.createTreeView('entirely.sessions', {
 		treeDataProvider: sessions,
 	});
@@ -54,10 +77,26 @@ export function activate(context: vscode.ExtensionContext): void {
 		}),
 	);
 
-	registerCommands(context, { sessions, sessionDetail, statusController });
+	context.subscriptions.push(
+		checkpoints.onDidChangeTreeData(() => {
+			checkpointsView.message = checkpoints.emptyReason;
+		}),
+	);
+
+	const git = await GitService.create();
+
+	registerCommands(context, {
+		sessions,
+		sessionDetail,
+		checkpoints,
+		statusController,
+		git,
+		workspaceFolder,
+	});
 
 	void statusController.refresh();
 	void sessions.refresh();
+	void checkpoints.refresh();
 }
 
 export function deactivate(): void {}

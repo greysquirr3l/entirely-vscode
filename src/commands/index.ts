@@ -1,13 +1,19 @@
 import * as vscode from 'vscode';
+import { openCheckpointFile } from './openCheckpoint';
+import type { CheckpointFileNode, CheckpointsProvider } from '../providers/checkpointsProvider';
 import type { SessionDetailProvider } from '../providers/sessionDetailProvider';
 import type { SessionItemNode, SessionsProvider } from '../providers/sessionsProvider';
+import type { GitService } from '../services/gitService';
 import type { StatusController } from '../services/statusController';
 
 /** The surfaces the command handlers act on. */
 export interface CommandDependencies {
 	readonly sessions: SessionsProvider;
 	readonly sessionDetail: SessionDetailProvider;
+	readonly checkpoints: CheckpointsProvider;
 	readonly statusController: StatusController;
+	readonly git: GitService | undefined;
+	readonly workspaceFolder: () => vscode.Uri | undefined;
 }
 
 const EXTENSION_ID = 'greysquirr3l.entirely';
@@ -24,6 +30,7 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 		vscode.commands.registerCommand('entirely.refresh', async () => {
 			await deps.statusController.refresh();
 			await deps.sessions.refresh();
+			await deps.checkpoints.refresh();
 		}),
 
 		vscode.commands.registerCommand('entirely.showSessions', async () => {
@@ -45,6 +52,10 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 		vscode.commands.registerCommand('entirely.selectSession', (element: SessionItemNode) => {
 			deps.sessions.select(element);
 			deps.sessionDetail.show(element?.session);
+		}),
+
+		vscode.commands.registerCommand('entirely.openCheckpointFile', async (element: CheckpointFileNode) => {
+			await openCheckpointFile(element, deps.git, deps.workspaceFolder());
 		}),
 
 		vscode.commands.registerCommand('entirely.openSettings', async () => {

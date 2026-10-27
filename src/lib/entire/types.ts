@@ -99,3 +99,66 @@ export interface Session {
 	/** How the CLI resolved this session, on the commands that say so. */
 	readonly resolution?: string;
 }
+
+/**
+ * A checkpoint: a frozen record of agent work.
+ *
+ * The CLI reports these on the current branch. Every checkpoint belongs to
+ * the agent that produced it, and carries the message the agent was given.
+ */
+export interface Checkpoint {
+	/** The checkpoint's identifier: twelve hex characters or a ULID. */
+	readonly id: string;
+	/** The message the agent was given, when it has one. */
+	readonly message?: string;
+	/** The agent that produced the work. */
+	readonly agent?: string;
+	/** When the checkpoint was recorded. */
+	readonly date?: Timestamp;
+	/** The session the checkpoint came from, when it came from one. */
+	readonly sessionId?: string;
+	/** Every session folded into the checkpoint. */
+	readonly sessionIds: readonly string[];
+	/** How many sessions the checkpoint holds. */
+	readonly sessionCount: number;
+	/** Whether the checkpoint records a subagent task rather than a turn. */
+	readonly isTaskCheckpoint: boolean;
+	/** Whether the checkpoint is a resume point with only logs. */
+	readonly isLogsOnly: boolean;
+}
+
+/** One session inside a checkpoint. */
+export interface CheckpointSession {
+	/** The session's position in the checkpoint, newest last. */
+	readonly index: number;
+	readonly sessionId?: string;
+	readonly agent?: string;
+	/** The model the session used, recorded verbatim. */
+	readonly model?: ModelId;
+	/** What kind of session it was, when the CLI says. */
+	readonly kind?: string;
+	readonly createdAt?: Timestamp;
+	/** The files the session touched. */
+	readonly filesTouched: readonly string[];
+}
+
+/**
+ * The CLI's account of one checkpoint.
+ *
+ * The envelope names the files the checkpoint touched, which is what the
+ * extension needs to open a diff.
+ */
+export interface CheckpointDetail {
+	readonly id: string;
+	/** How the checkpoint was stored. */
+	readonly strategy?: string;
+	readonly branch?: string;
+	/** Every file the checkpoint touched. */
+	readonly filesTouched: readonly string[];
+	readonly sessionCount: number;
+	readonly sessions: readonly CheckpointSession[];
+	/** Whether some of the checkpoint could not be read. */
+	readonly partial: boolean;
+	/** Why the task records could not be read, when they could not. */
+	readonly tasksError?: string;
+}

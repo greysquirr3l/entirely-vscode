@@ -11,3 +11,14 @@ export { canBeSetUp, decodeWorkspaceStatus, isTracked } from './status';
 export { decodeCurrentSession, decodeSession, decodeSessionList } from './session';
 export { humanizeStatus, pluralise, truncatePrompt } from './text';
 export type { SessionListing, SessionSource } from './source';
+export {
+	checkpointRef,
+	decodeCheckpoint,
+	decodeCheckpointDetail,
+	decodeCheckpointList,
+} from './checkpoint';
+export type {
+	Checkpoint,
+	CheckpointDetail,
+	CheckpointSession,
+} from './types';
