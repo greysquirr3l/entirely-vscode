@@ -40,21 +40,18 @@ extension has never seen is not a special case.
 
 ## Status
 
-**Planned.** The implementation plan is `plan.toml`.
+**Under construction.** The extension is being built in the open, in small
+reviewable pieces, and is not yet published to the Marketplace.
 
-| Phase | Tasks | |
-|---|---|---|
-| Foundations | 2 | manifest and build, CLI process runner with discovery |
-| Data Model | 1 | the CLI's JSON types and decoders |
-| Editor Surface | 4 | status bar, session tree, checkpoint history, onboarding prompt |
-| Agent Integration | 2 | Copilot CLI hook bridge, why-this-line |
-| Polish and Release | 4 | settings, terminal PATH repair, diagnostics, packaging and CI |
-| Hardening | 3 | security audit, wiring audit, scaffold cleanup |
+Done so far: the manifest and marketplace metadata, the build and test
+pipeline, and the contributed surface — an Entirely view container with a
+sessions tree, a status bar item, and the `entirely.*` settings. The
+extension compiles, lints and passes its extension-host tests.
 
-The manifest, build pipeline and contributed surface are in place; the
-extension compiles, lints and passes its extension-host tests. The plan
-validates against `wiggum` at 9/10 with a valid DAG and 8 parallelisable
-groups.
+Not yet done: the parts that talk to the CLI. Until those land, the status
+bar reports that the workspace state is unknown and the sessions tree is
+empty. Nothing here is released, so treat the command list and setting
+names as provisional.
 
 ## Requirements
 

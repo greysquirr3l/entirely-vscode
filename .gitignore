@@ -16,6 +16,7 @@ IMPLEMENTATION_PLAN.md
 PROGRESS.md
 RUN_LOG.md
 features.json
+plan.toml
 
 # The source artwork is large and is not needed at runtime.
 entirely_logo_raw.jpeg
