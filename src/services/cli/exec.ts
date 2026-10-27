@@ -27,6 +27,8 @@ export type ExecOutcome =
 			readonly detail: string;
 			readonly stdout: string;
 			readonly stderr: string;
+			/** The code the process exited with, when it ran and exited. */
+			readonly exitCode: number | undefined;
 			readonly durationMs: number;
 	  };
 
@@ -87,6 +89,7 @@ export function execute(
 						detail: `the command did not finish within ${options.timeoutMs}ms`,
 						stdout: out,
 						stderr: err,
+						exitCode: undefined,
 						durationMs,
 					});
 					return;
@@ -100,6 +103,7 @@ export function execute(
 						detail: `the command could not be started: ${String(code)}`,
 						stdout: out,
 						stderr: err,
+						exitCode: undefined,
 						durationMs,
 					});
 					return;
@@ -114,6 +118,7 @@ export function execute(
 					detail,
 					stdout: out,
 					stderr: err,
+					exitCode,
 					durationMs,
 				});
 			},

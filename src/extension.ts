@@ -1,17 +1,16 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import * as vscode from 'vscode';
 import { registerCommands } from './commands';
 import { decodeWorkspaceStatus, unwrap, type WorkspaceStatus } from './lib/entire';
 import { CheckpointsProvider } from './providers/checkpointsProvider';
 import { SessionDetailProvider } from './providers/sessionDetailProvider';
 import { SessionsProvider } from './providers/sessionsProvider';
-import { CliRunner } from './services/cli';
-import { readExtensionSettings } from './services/configuration';
+import { CliInvocationRecorder, CliRunner } from './services/cli';
+import { readExtensionSettings, effectiveLogLevel } from './services/configuration';
 import {
 	createCheckpointDetailSource,
 	createCheckpointSource,
 } from './services/checkpointSource';
+import { CliInvocationLogger } from './services/cliLogging';
 import { GitService } from './services/gitService';
 import { HookBridge } from './services/hookBridge';
 import {
@@ -22,6 +21,7 @@ import {
 	type OnboardingAction,
 	type WorkspaceFault,
 } from './services/onboarding';
+import { isGitRepository } from './services/repository';
 import { enableEntire } from './services/setup';
 import { createSessionSource } from './services/sessionSource';
 import { createLogger } from './services/logger';
@@ -54,25 +54,14 @@ async function readWorkspaceStatus(
 	return result.ok ? result.value : undefined;
 }
 
-/** Whether a folder is a git repository. */
-function isGitRepository(folder: string | undefined): boolean {
-	if (!folder) {
-		return false;
-	}
-
-	try {
-		return fs.existsSync(path.join(folder, '.git'));
-	} catch {
-		return false;
-	}
-}
-
 /**
  * Entry point. Everything created here is pushed onto `context.subscriptions`
  * so the extension host can tear it down cleanly.
  */
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-	const output = vscode.window.createOutputChannel('Entirely');
+	// One channel for everything the extension says: what it asked the CLI
+	// to do, what came back, and what went wrong.
+	const output = vscode.window.createOutputChannel('Entire');
 	context.subscriptions.push(output);
 
 	const runner = new CliRunner();
@@ -81,7 +70,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	// read, so the very first look uses the binary they chose.
 	runner.setConfiguredPath(readExtensionSettings().cliPath);
 
-	const log = createLogger(output, () => readExtensionSettings().logLevel);
+	const log = createLogger(output, () => effectiveLogLevel(readExtensionSettings()));
+
+	// Every CLI invocation is reported to the channel, and remembered, so
+	// that the doctor can say what went wrong even when the failure was
+	// swallowed by the tree that could not be filled.
+	const recorder = new CliInvocationRecorder();
+	runner.setSink(new CliInvocationLogger(log, recorder));
 
 	const status = new StatusBar();
 	context.subscriptions.push(status);
@@ -201,6 +196,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		why,
 		runner,
 		checkpointDetail: createCheckpointDetailSource(runner, workspaceRoot),
+		recorder,
+		output,
 	});
 
 	// A setting that changes takes effect at once, without a window reload.

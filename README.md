@@ -81,6 +81,34 @@ PATH rather than a snapshot of it taken when the setting was written.
 
 Running the command again takes the directory off again.
 
+## When something is not working
+
+Everything the extension does goes to one output channel, named **Entire**.
+Every call to the CLI is written there with the exact command line, the
+directory it ran in, and the exit code — enough to reproduce a problem by
+hand.
+
+```
+[info] entire: /usr/local/bin/entire status --json
+[info]   cwd: /work/entirely
+[info]   exit: 0 (ok, 14ms); stdout 1.2 kB, stderr 0 B, stdin 0 B
+```
+
+Prompt bodies and checkpoint payloads are **not** written there. The channel
+says how many bytes there were, and the content itself is behind
+**Entirely: Doctor: Show the Last Entire CLI Output**, for the times when
+you really do want to read it.
+
+**Entirely: Doctor: Copy a Diagnostic Report** answers "why is this not
+working?". It reports the CLI's path, version and location; whether the
+workspace is a git repository and whether Entire is enabled for it; the
+settings in effect; and the last error the CLI gave. The report is one
+block of text and one action to copy it, because it is usually on its way
+into an issue.
+
+Turn the volume up with `entirely.debug`, or with `entirely.logLevel` for
+finer control. There is still only one channel.
+
 ## Requirements
 
 * The [Entire CLI](https://docs.entire.com/installation) — `entire version`

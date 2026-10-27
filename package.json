@@ -130,6 +130,16 @@
         "command": "entirely.repairTerminalPath",
         "title": "Add the Entire CLI to the Terminal PATH",
         "category": "Entirely"
+      },
+      {
+        "command": "entirely.doctor",
+        "title": "Doctor: Copy a Diagnostic Report",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.dumpCliOutput",
+        "title": "Doctor: Show the Last Entire CLI Output",
+        "category": "Entirely"
       }
     ],
     "configuration": {
@@ -161,7 +171,12 @@
             "debug",
             "trace"
           ],
-          "markdownDescription": "Verbosity of the Entirely output channel. This does not change the log level of the Entire CLI itself."
+          "markdownDescription": "Verbosity of the Entire output channel. This does not change the log level of the Entire CLI itself."
+        },
+        "entirely.debug": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Say more in the Entire output channel: the exact command line, working directory and exit code of every Entire CLI invocation, and an excerpt of what it produced. Equivalent to setting `entirely.logLevel` to `debug`, and it does not add a second channel."
         }
       }
     },

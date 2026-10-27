@@ -2,6 +2,7 @@ import * as fs from 'fs';
 
 import { findCandidate, parseVersion, type DiscoveryOptions } from './discovery';
 import { execute } from './exec';
+import { byteLength, type CliInvocationSink } from './invocation';
 import type { CliDiscovery } from './types';
 
 /** How long a discovery result is trusted before it is looked up again. */
@@ -22,11 +23,23 @@ export class CliLocator {
 	private cached: CliDiscovery | undefined;
 	private inFlight: Promise<CliDiscovery> | undefined;
 	private checkedAt = 0;
+	private sink: CliInvocationSink | undefined;
 
 	constructor(
 		private options: DiscoveryOptions = {},
 		private readonly ttlMs: number = DEFAULT_TTL_MS,
 	) {}
+
+	/**
+	 * Reports invocations to a sink.
+	 *
+	 * The probe is a CLI invocation like any other, so it is reported too:
+	 * a user watching the channel should be able to see the extension
+	 * checking that the CLI is there.
+	 */
+	setSink(sink: CliInvocationSink | undefined): void {
+		this.sink = sink;
+	}
 
 	/**
 	 * Points discovery at a specific binary, or back at the usual search.
@@ -97,6 +110,22 @@ export class CliLocator {
 		// A binary that cannot report its version cannot be used. This is
 		// how "installed but broken" is told apart from "working".
 		const outcome = await execute(candidate.path, ['version'], { timeoutMs: VERIFY_TIMEOUT_MS });
+
+		this.sink?.report(
+			{
+				binary: candidate.path,
+				args: ['version'],
+				cwd: undefined,
+				outcome: outcome.ok ? 'ok' : outcome.reason,
+				exitCode: outcome.exitCode,
+				durationMs: outcome.durationMs,
+				inputBytes: 0,
+				stdoutBytes: byteLength(outcome.stdout),
+				stderrBytes: byteLength(outcome.stderr),
+				detail: outcome.ok ? undefined : outcome.detail,
+			},
+			{ stdout: outcome.stdout, stderr: outcome.stderr },
+		);
 
 		if (!outcome.ok) {
 			this.cached = {

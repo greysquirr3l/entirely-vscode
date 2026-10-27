@@ -11,6 +11,7 @@ import {
 	unwrap,
 } from '../lib/entire';
 import { readLogLevel, shouldLog, type LogLevel } from '../services/logger';
+import { effectiveLogLevel } from '../services/configuration';
 import { readEntireSettings, settingsLayers } from '../services/settingsSource';
 
 suite('Entire settings decoding', () => {
@@ -258,8 +259,50 @@ suite('Entire extension settings', () => {
 			'entirely.refreshInterval',
 			'entirely.showSessionsInExplorer',
 			'entirely.logLevel',
+			'entirely.debug',
 		]) {
 			assert.ok(properties[key], `the setting '${key}' is not declared`);
 		}
+	});
+});
+
+suite('Entire effective log level', () => {
+	test('is the level the user chose when the debug setting is off', () => {
+		assert.strictEqual(
+			effectiveLogLevel({
+				cliPath: undefined,
+				refreshInterval: 30,
+				showSessionsInExplorer: false,
+				logLevel: 'warn',
+				debug: false,
+			}),
+			'warn',
+		);
+	});
+
+	test('is raised to debug when the debug setting is on', () => {
+		assert.strictEqual(
+			effectiveLogLevel({
+				cliPath: undefined,
+				refreshInterval: 30,
+				showSessionsInExplorer: false,
+				logLevel: 'info',
+				debug: true,
+			}),
+			'debug',
+		);
+	});
+
+	test('is never lowered by the debug setting', () => {
+		assert.strictEqual(
+			effectiveLogLevel({
+				cliPath: undefined,
+				refreshInterval: 30,
+				showSessionsInExplorer: false,
+				logLevel: 'trace',
+				debug: true,
+			}),
+			'trace',
+		);
 	});
 });
