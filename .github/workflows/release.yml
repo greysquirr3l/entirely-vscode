@@ -1,0 +1,227 @@
+name: Release
+
+# A release is a tag. The tag says which version is going out, and the
+# build refuses to publish anything that does not match it, so a tag that
+# is a typo cannot ship a package under the wrong version.
+'on':
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The version to build, without the leading v. Leave empty to use the version in the manifest.'
+        required: false
+        type: string
+      publish:
+        description: 'Publish to the marketplaces. Leave off to build and check the package without publishing it.'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      publish: ${{ steps.publish.outputs.publish }}
+      package: ${{ steps.package.outputs.package }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # A version given by hand is written into the manifest, so that the
+      # package carries the version it is being released as rather than
+      # the one the manifest happened to have. The value is passed
+      # through the environment, so that a version is never read as
+      # shell syntax.
+      - name: Set the version
+        if: ${{ inputs.version != '' }}
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: npm version "$REQUESTED_VERSION" --no-git-tag-version --allow-same-version
+
+      - name: Read the version
+        id: version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "The package will be version $version."
+
+      # A tag that says one thing and a manifest that says another is a
+      # release of the wrong version. The build stops rather than
+      # publishing it.
+      - name: Check the version against the tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "The tag says $tag but the manifest says $version." >&2
+            exit 1
+          fi
+
+      # A run that was asked for by hand publishes only when it was asked
+      # to. A run that came from a tag always publishes: the tag is the
+      # request.
+      - name: Decide whether to publish
+        id: publish
+        env:
+          REQUESTED: ${{ inputs.publish }}
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          if [ "$REQUESTED" = "true" ] || [ "$IS_TAG" = "true" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "The build is not publishing: it is a dry run."
+          fi
+
+      # The type check and the linter run as part of the build rather
+      # than as steps of their own, so a change that does not compile
+      # cannot be packaged even when the tests happen to pass.
+      - name: Compile
+        run: npm run compile
+
+      # The tests run in a real editor, which needs a display. The
+      # runner has no screen of its own, so a virtual one is provided.
+      - name: Run the extension-host tests
+        run: xvfb-run --auto-servernum npm test
+
+      - name: Build the package
+        id: package
+        run: |
+          npx vsce package --no-git-tag-version --allow-missing-repository --out entirely.vsix
+          echo "package=entirely.vsix" >> "$GITHUB_OUTPUT"
+
+      - name: Check the package contents
+        run: npm run package:check
+
+      - name: Keep the package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: entirely-vsix
+          path: entirely.vsix
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-marketplace:
+    name: Publish to the Visual Studio Marketplace
+    needs: build
+    if: ${{ needs.build.outputs.publish == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: marketplace
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Take the package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: entirely-vsix
+          path: .
+
+      # The token is read from the environment rather than put on the
+      # command line, so it never appears in a process list or in the
+      # output of a failed step.
+      - name: Publish
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx vsce publish --packagePath entirely.vsix --skip-duplicate
+
+  publish-openvsx:
+    name: Publish to Open VSX
+    needs: build
+    if: ${{ needs.build.outputs.publish == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: openvsx
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Take the package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: entirely-vsix
+          path: .
+
+      - name: Publish
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: npx ovsx publish --packagePath entirely.vsix --skip-duplicate
+
+  release:
+    name: Publish the release on GitHub
+    needs: [build, publish-marketplace, publish-openvsx]
+    if: ${{ needs.build.outputs.publish == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Take the package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: entirely-vsix
+          path: .
+
+      # The release is made after both marketplaces have taken the
+      # package, so a tag on the repository always means the extension is
+      # installable.
+      - name: Publish the release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          files: entirely.vsix
+          fail_on_unmatched_files: true
+          generate_release_notes: true

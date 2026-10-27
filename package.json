@@ -2,14 +2,24 @@
   "name": "entirely",
   "publisher": "greysquirr3l",
   "displayName": "Entirely",
-  "description": "Entire \u2014 code management for agent-human collaboration: sessions, checkpoints, trails, and review, in the editor.",
-  "version": "0.0.1",
+  "description": "Entire — code management for agent-human collaboration: sessions, checkpoints, trails, and review, in the editor.",
+  "version": "0.1.0",
   "license": "MIT",
   "icon": "images/logo.png",
   "galleryBanner": {
     "color": "#1a1a1a",
     "theme": "dark"
   },
+  "screenshots": [
+    {
+      "path": "images/sessions.png",
+      "alt": "The Entirely view: the sessions Entire tracks for the repository, with the details of the selected one beside them."
+    },
+    {
+      "path": "images/output.png",
+      "alt": "The Entire output channel, showing every CLI invocation the extension made and what it got back."
+    }
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/greysquirr3l/entirely-vscode.git"
@@ -27,6 +37,13 @@
   "categories": [
     "SCM Providers",
     "Git"
+  ],
+  "keywords": [
+    "entire",
+    "git",
+    "ai",
+    "agent",
+    "history"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -235,7 +252,8 @@
     "typescript": "^6.0.3",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.0.0",
-    "@vscode/vsce": "4.0.0"
+    "@vscode/vsce": "4.0.0",
+    "ovsx": "1.3.0"
   },
   "overrides": {
     "@azure/msal-node": "^7.1.1",

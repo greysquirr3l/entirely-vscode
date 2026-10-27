@@ -18,7 +18,7 @@ Entirely (this extension)
          └── git refs, session state, the Entire API
 ```
 
-## What it will do
+## What it does
 
 | Surface | What it shows |
 |---|---|
@@ -43,18 +43,25 @@ extension has never seen is not a special case.
 
 ## Status
 
-**Under construction.** The extension is being built in the open, in small
-reviewable pieces, and is not yet published to the Marketplace.
+**Version 0.1.0.** The extension talks to the Entire CLI and shows what it
+knows: which repository is tracked, which agents are running, what each
+session did, and why a line of code is the way it is. It compiles, lints and
+passes its extension-host tests.
 
-Done so far: the manifest and marketplace metadata, the build and test
-pipeline, and the contributed surface — an Entirely view container with a
-sessions tree, a status bar item, and the `entirely.*` settings. The
-extension compiles, lints and passes its extension-host tests.
+The command list and the setting names are still provisional. They are the
+surface a user actually touches, so they are the most likely thing to change
+in a later version.
 
-Not yet done: the parts that talk to the CLI. Until those land, the status
-bar reports that the workspace state is unknown and the sessions tree is
-empty. Nothing here is released, so treat the command list and setting
-names as provisional.
+## Screenshots
+
+The sessions Entire tracks for the repository, with the details of the
+selected one beside them:
+
+![The Entirely view, showing the sessions Entire tracks and the details of the selected session](images/sessions.png)
+
+Every CLI invocation the extension made, in the `Entire` output channel:
+
+![The Entire output channel, showing each CLI invocation and what it returned](images/output.png)
 
 ## The terminal PATH
 
@@ -150,6 +157,28 @@ No extra configuration is needed: `sourceMap` is on in `tsconfig.json` and
 `.vscodeignore` excludes `**/*.map`, so stack traces point back at the
 original TypeScript. On a remote without a display, set
 `extension-test-runner.wrapper` to `xvfb-run`.
+
+### Releasing
+
+A release is a tag. Push `v0.1.0` and the `Release` workflow builds the
+package, checks what is in it, publishes it to the Visual Studio Marketplace
+and to Open VSX, and then makes a GitHub release with the `.vsix` attached.
+A tag whose version does not match `package.json` stops the build rather
+than publishing the wrong version.
+
+Two repository secrets are needed:
+
+| Secret | What it is |
+|---|---|
+| `VSCE_PAT` | A personal access token for the Marketplace publisher |
+| `OVSX_PAT` | A personal access token for the Open VSX namespace |
+
+The workflow can also be run by hand from the Actions tab. Leave the version
+empty to build the version in the manifest, and leave **Publish** off to
+build and check the package without publishing it — a dry run.
+
+The `marketplace` and `openvsx` jobs use GitHub environments, so either
+one can be made to wait for a review before it publishes.
 
 ## Licence
 
