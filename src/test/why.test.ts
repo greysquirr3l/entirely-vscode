@@ -228,9 +228,30 @@ suite('Entire why rendering', () => {
 			},
 		});
 
-		assert.doesNotMatch(body, /<script>/);
-		assert.doesNotMatch(body, /<img src=x/);
+		// The tags are matched without regard to case, because a tag in
+		// any case is a tag, and an assertion that only matched the
+		// lower case would pass for an escape that left the rest alone.
+		assert.doesNotMatch(body, /<script>/i);
+		assert.doesNotMatch(body, /<img src=x/i);
 		assert.match(body, /&lt;script&gt;/);
+	});
+
+	test('escapes a tag whatever case it is written in', () => {
+		const body = renderWhyBody({
+			kind: 'line',
+			file: 'src/<SCRIPT>.ts',
+			line: {
+				lineNumber: 1,
+				attribution: 'commit',
+				content: 'const a = "<IMG SRC=x ONERROR=alert(1)>";',
+				candidates: [],
+			},
+		});
+
+		assert.doesNotMatch(body, /<script>/i);
+		assert.doesNotMatch(body, /<img src=x/i);
+		assert.match(body, /&lt;SCRIPT&gt;/);
+		assert.match(body, /&lt;IMG SRC=x/);
 	});
 });
 
