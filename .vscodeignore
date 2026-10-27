@@ -12,6 +12,7 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 **/.vscode-test.*
+test-workspace/**
 
 # The source artwork is large and is not needed at runtime.
 entirely_logo_raw.jpeg

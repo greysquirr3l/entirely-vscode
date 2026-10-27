@@ -27,6 +27,7 @@ import { createSessionSource } from './services/sessionSource';
 import { createLogger } from './services/logger';
 import { StatusBar } from './services/statusBar';
 import { StatusController } from './services/statusController';
+import { onTerminalPath } from './services/terminalPath';
 import { WhyService } from './services/whyService';
 
 /** The workspace folder the CLI is run in. */
@@ -158,6 +159,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 				cli: discovery,
 				status,
 				isRepository: isGitRepository(folder),
+				onTerminalPath:
+					discovery.state === 'available'
+						? onTerminalPath(discovery.directory, process.platform)
+						: true,
 			});
 		},
 		run: async (action: OnboardingAction, folder: string): Promise<void> => {
@@ -175,10 +180,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 					return;
 
 				case 'repair-path':
-					await vscode.commands.executeCommand(
-						'workbench.action.openSettings',
-						'terminal.integrated.env',
-					);
+					await vscode.commands.executeCommand('entirely.repairTerminalPath');
 					return;
 			}
 		},
@@ -197,6 +199,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		git,
 		workspaceFolder,
 		why,
+		runner,
 		checkpointDetail: createCheckpointDetailSource(runner, workspaceRoot),
 	});
 

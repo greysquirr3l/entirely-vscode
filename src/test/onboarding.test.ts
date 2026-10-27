@@ -50,6 +50,7 @@ suite('Entire onboarding detection', () => {
 			cli: { state: 'absent' },
 			status: undefined,
 			isRepository: true,
+			onTerminalPath: true,
 		});
 
 		assert.strictEqual(fault.kind, 'cli-absent');
@@ -61,6 +62,7 @@ suite('Entire onboarding detection', () => {
 			cli: ON_PATH,
 			status: NOT_SET_UP,
 			isRepository: true,
+			onTerminalPath: true,
 		});
 
 		assert.strictEqual(fault.kind, 'not-set-up');
@@ -72,6 +74,7 @@ suite('Entire onboarding detection', () => {
 			cli: OFF_PATH,
 			status: TRACKED,
 			isRepository: true,
+			onTerminalPath: false,
 		});
 
 		assert.strictEqual(fault.kind, 'off-path');
@@ -81,11 +84,26 @@ suite('Entire onboarding detection', () => {
 		});
 	});
 
+	test('finds nothing when the terminal can see the CLI', () => {
+		// A CLI the extension found off the PATH is still a fault when the
+		// terminal can see it, because the terminal is what has to run it.
+		const fault = detectFault({
+			cli: OFF_PATH,
+			status: TRACKED,
+			isRepository: true,
+			onTerminalPath: true,
+		});
+
+		assert.strictEqual(fault.kind, 'ok');
+		assert.strictEqual(actionFor(fault), undefined);
+	});
+
 	test('prefers setting the repository up over repairing the PATH', () => {
 		const fault = detectFault({
 			cli: OFF_PATH,
 			status: NOT_SET_UP,
 			isRepository: true,
+			onTerminalPath: true,
 		});
 
 		assert.strictEqual(fault.kind, 'not-set-up');
@@ -96,6 +114,7 @@ suite('Entire onboarding detection', () => {
 			cli: ON_PATH,
 			status: NOT_SET_UP,
 			isRepository: false,
+			onTerminalPath: true,
 		});
 
 		assert.strictEqual(fault.kind, 'ok');
@@ -107,6 +126,7 @@ suite('Entire onboarding detection', () => {
 			cli: ON_PATH,
 			status: TRACKED,
 			isRepository: true,
+			onTerminalPath: true,
 		});
 
 		assert.strictEqual(fault.kind, 'ok');
@@ -117,6 +137,7 @@ suite('Entire onboarding detection', () => {
 			cli: { state: 'broken', path: '/x/entire', location: 'path', directory: '/x', detail: 'boom' },
 			status: undefined,
 			isRepository: true,
+			onTerminalPath: true,
 		});
 
 		assert.strictEqual(fault.kind, 'ok');
@@ -127,6 +148,7 @@ suite('Entire onboarding detection', () => {
 			cli: { state: 'absent' },
 			status: undefined,
 			isRepository: false,
+			onTerminalPath: true,
 		});
 
 		assert.strictEqual(fault.kind, 'cli-absent');

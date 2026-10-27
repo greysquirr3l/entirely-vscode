@@ -123,7 +123,13 @@
       },
       {
         "command": "entirely.explainCheckpoint",
-        "title": "Explain Checkpoint"
+        "title": "Explain Checkpoint",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.repairTerminalPath",
+        "title": "Add the Entire CLI to the Terminal PATH",
+        "category": "Entirely"
       }
     ],
     "configuration": {

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { openCheckpointFile } from './openCheckpoint';
+import { repairTerminalPath } from './terminalPath';
 import { explainCheckpoint, whyThisLine } from './whyThisLine';
 import type { CheckpointFileNode, CheckpointsProvider } from '../providers/checkpointsProvider';
 import type { SessionDetailProvider } from '../providers/sessionDetailProvider';
@@ -7,6 +8,7 @@ import type { SessionItemNode, SessionsProvider } from '../providers/sessionsPro
 import type { CheckpointDetail } from '../lib/entire';
 import type { GitService } from '../services/gitService';
 import type { StatusController } from '../services/statusController';
+import type { CliRunner } from '../services/cli';
 import type { WhyService } from '../services/whyService';
 
 /** The surfaces the command handlers act on. */
@@ -18,6 +20,8 @@ export interface CommandDependencies {
 	readonly git: GitService | undefined;
 	readonly workspaceFolder: () => vscode.Uri | undefined;
 	readonly why: WhyService;
+	/** The CLI the extension talks to. */
+	readonly runner: CliRunner;
 	/** Reads one checkpoint's story. */
 	readonly checkpointDetail: (id: string) => Promise<CheckpointDetail | undefined>;
 }
@@ -62,6 +66,10 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 
 		vscode.commands.registerCommand('entirely.openCheckpointFile', async (element: CheckpointFileNode) => {
 			await openCheckpointFile(element, deps.git, deps.workspaceFolder());
+		}),
+
+		vscode.commands.registerCommand('entirely.repairTerminalPath', async () => {
+			await repairTerminalPath({ runner: deps.runner });
 		}),
 
 		vscode.commands.registerCommand('entirely.whyThisLine', async () => {

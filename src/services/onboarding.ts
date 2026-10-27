@@ -43,6 +43,14 @@ export interface FaultContext {
 	readonly status?: WorkspaceStatus;
 	/** Whether the folder is a git repository. */
 	readonly isRepository: boolean;
+	/**
+	 * Whether the editor's terminal can see the CLI's directory.
+	 *
+	 * This is the terminal's PATH rather than the extension's own, because
+	 * it is the terminal that has to run the CLI. A CLI the extension can
+	 * reach but the terminal cannot is still a fault worth fixing.
+	 */
+	readonly onTerminalPath: boolean;
 }
 
 /**
@@ -75,12 +83,11 @@ export function detectFault(context: FaultContext): WorkspaceFault {
 		return { kind: 'not-set-up' };
 	}
 
-	// A CLI that was found in one of the documented install directories is
-	// off the PATH the terminal inherits, which is the common case: the CLI
-	// installs to `~/.local/bin`. The extension can still run it, by
-	// absolute path, so this is the terminal's problem rather than the
-	// extension's.
-	if (context.cli.location === 'install-location') {
+	// A CLI the terminal cannot see is off the PATH the terminal inherits,
+	// which is the common case: the CLI installs to `~/.local/bin`. The
+	// extension can still run it, by absolute path, so this is the
+	// terminal's problem rather than the extension's.
+	if (!context.onTerminalPath) {
 		return { kind: 'off-path', directory: context.cli.directory };
 	}
 
@@ -109,7 +116,10 @@ export function messageFor(fault: WorkspaceFault): string {
 		case 'not-set-up':
 			return 'Entire is not set up for this repository.';
 		case 'off-path':
-			return `Entire is installed in ${fault.directory}, which the integrated terminal cannot see.`;
+			return (
+				`Entire is installed in ${fault.directory}, which the integrated terminal cannot see. ` +
+				'Entirely itself can still use it, and the repair only changes the terminal.'
+			);
 		case 'ok':
 			return '';
 	}
@@ -123,7 +133,7 @@ export function labelFor(action: OnboardingAction): string {
 		case 'enable':
 			return 'Enable Entire';
 		case 'repair-path':
-			return 'Open Terminal Settings';
+			return 'Fix the Terminal PATH';
 	}
 }
 
