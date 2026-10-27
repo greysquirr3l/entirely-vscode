@@ -202,10 +202,16 @@ the raw JSON (`detectHookHost` in `cmd/entire/cli/agent/copilotcli/compat.go`):
 | `transcriptPath` key present at all | `copilot-cli` |
 | `timestamp` present as a number | `copilot-cli` |
 
-This matters: the **VS Code dialect uses snake_case `transcript_path`** while
-the Copilot CLI dialect uses camelCase `transcriptPath`. Sending the wrong
-one is not an error — the payload is simply read as the other host and the
-model never resolves.
+This matters for one thing only: **whether `hookEventName` is validated**.
+When the host is detected as `vscode`, the CLI checks `hookEventName`
+against the subcommand and skips a mismatch. When the host is detected as
+`copilot-cli`, no such check happens.
+
+It does **not** affect which fields are read. `firstString` accepts both
+spellings of every field regardless of host, so `transcript_path` and
+`transcriptPath` are both read, and `session_id` and `sessionId` are both
+read. All four combinations were tested against a real transcript and all
+four resolved the model identically.
 
 Field names accepted on either dialect (`firstString` takes the first
 present key):
@@ -227,9 +233,13 @@ present key):
 
 ### VS Code hook event names
 
-On the VS Code dialect the CLI validates `hookEventName` against the
-subcommand it was invoked with, and **skips the event silently** on a
-mismatch. The allowed pairs:
+The CLI validates `hookEventName` against the subcommand it was invoked with,
+and **skips the event silently** on a mismatch. This check only runs when
+the payload was detected as the `vscode` host — that is, when it carries a
+string `hookEventName`, a string `transcript_path`, or a string `timestamp`.
+
+A payload with no `hookEventName` at all is never validated, so the
+subcommand alone decides what happens. The allowed pairs:
 
 | `hookEventName` | Allowed subcommand(s) |
 |---|---|
@@ -251,6 +261,19 @@ distinguishes end-of-turn from end-of-session. The CLI routes them by
 terminal one becomes `session-end`. An extension that sends every Stop as
 `agent-stop` will never close a session; one that sends every Stop as
 `session-end` will close a session at the end of every turn.
+
+Verified, with a real transcript and a matching session directory:
+
+| Payload | Result |
+|---|---|
+| no `hookEventName`, `transcript_path` set | `turn-end`, model recorded |
+| `hookEventName: "AgentStop"` | **skipped** — not a valid VS Code name |
+| `hookEventName: "Stop"` | `turn-end`, model recorded |
+| `hookEventName: "Stop"` + `reason: "terminal"` | **skipped** — terminal Stop routes to `session-end` |
+
+So `AgentStop` is a Copilot CLI event name and is rejected as a VS Code one.
+A VS Code-native payload must use `Stop`, and must distinguish terminal from
+non-terminal by `reason`/`stopReason`.
 
 ### Where the model actually comes from
 
@@ -287,11 +310,80 @@ Only `agent-stop` populates the model. `session-start` records `"model":""`
 even when the transcript path is supplied, because the model extraction
 runs in `buildAgentStop` alone.
 
+One further condition, easy to miss: the transcript must live at
+`<copilot-home>/session-state/<session-id>/events.jsonl` where
+`<session-id>` is the **same id the payload sends**. The CLI compares the
+transcript's stored session name against the payload's session id; when they
+differ, `isSubagentAgentStop` treats the event as a subagent's and returns
+`SessionEnd` instead of `TurnEnd` — so the model is never extracted and the
+event is silently misclassified.
+
 **Consequence for the extension:** to record the model, the extension must
-send a `transcript_path` pointing at a readable Copilot transcript, and it
-must send it on the `agent-stop` event. BYOK models work with no
-extension-side special-casing — the extension must not filter, map or
-validate the model string in any way.
+send a transcript path pointing at a readable Copilot transcript, under the
+directory named for the same session id it sends, and it must send it on the
+`agent-stop` event. BYOK models work with no extension-side special-casing —
+the extension must not filter, map or validate the model string in any way.
+
+### The external agent protocol (the real extension point)
+
+The CLI has a first-class protocol for agents it does not know about — and
+this, not the hook path, is the intended way for a new agent integration to
+plug in.
+
+Discovery: the CLI scans `$PATH` for executables named `entire-agent-<name>`
+and calls their `info` subcommand. `entire plugin list` says it the same
+way: *"drop an entire-<name> binary anywhere on $PATH"*. Discovery is gated
+behind the `external_agents` setting.
+
+The `info` response:
+
+```json
+{
+  "protocol_version": 1,
+  "name": "…",
+  "type": "…",
+  "description": "…",
+  "protected_dirs": [],
+  "protected_files": [],
+  "hook_names": [],
+  "capabilities": {},
+  "caller_env_vars": []
+}
+```
+
+Subcommands the CLI calls on the external binary: `info`, `read-session`,
+`write-session`, `format-resume-command`.
+
+**Implication for a VS Code extension.** The extension cannot be a
+`entire-agent-*` binary — it is a VS Code extension, not a PATH executable,
+and it has no process the CLI could exec on demand. So the external agent
+protocol is not directly usable by the extension.
+
+What the external agent protocol does establish is the shape of the intended
+integration, and it is worth knowing that the CLI has one. A VS Code
+extension integration is a *hook-sending* peer, not an *agent* peer: it
+reports lifecycle events that something else already did.
+
+### The two dialects, in practice
+
+A VS Code extension does not have to pick a dialect at all — it has to
+produce a payload the CLI accepts. The CLI reads every field with
+`firstString`, which accepts both spellings regardless of the detected host:
+
+* session id — `sessionId` or `session_id`
+* transcript path — `transcriptPath` or `transcript_path`
+* agent id / type / name / description — camelCase or snake_case
+
+The detected host changes exactly one behaviour: whether `hookEventName` is
+validated against the invoked subcommand. All four combinations of
+snake/camel session id × snake/camel transcript path were tested against a
+real transcript and all four resolved the model identically.
+
+So the answer to "do we need a converter?" is **no**. The extension emits
+one payload shape of its own choosing; the CLI absorbs it. What the
+extension *does* need is a correct mapping from VS Code's event stream onto
+the CLI's subcommands, which is a mapping of names and routing — not a
+format conversion.
 
 ## On-disk session data
 
