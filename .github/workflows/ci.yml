@@ -1,0 +1,55 @@
+name: CI
+
+'on':
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The type check and the linter run as part of the build rather
+      # than as steps of their own, so a change that does not compile
+      # cannot pass even when the tests happen to.
+      - name: Compile
+        run: npm run compile
+
+      # The tests run in a real editor, which needs a display. The
+      # runner has no screen of its own, so a virtual one is provided.
+      - name: Run the extension-host tests
+        run: xvfb-run --auto-servernum npm test
+
+      # The package is built here rather than only at release time, so a
+      # change that breaks the packaging is caught while it is being
+      # made rather than when it is being published.
+      - name: Build the package
+        run: npx vsce package --no-git-tag-version --allow-missing-repository
+
+      - name: Check the package contents
+        run: npm run package:check

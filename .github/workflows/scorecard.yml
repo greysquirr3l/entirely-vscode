@@ -1,0 +1,55 @@
+name: Scorecard supply-chain security
+
+'on':
+  # The Branch-Protection check reads the protection on the default
+  # branch, so the scan runs against that branch.
+  push:
+    branches: [main]
+  schedule:
+    - cron: '30 1 * * 6'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    # Scorecard reads the default branch only.
+    if: ${{ github.event.repository.default_branch == github.ref_name }}
+    permissions:
+      # Needed to upload the SARIF to GitHub's code scanning.
+      security-events: write
+      # Needed for the OIDC token that signs the published result.
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run the analysis
+        uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload the artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: SARIF file
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload to code scanning
+        if: ${{ always() }}
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          sarif_file: results.sarif

@@ -2,6 +2,8 @@
 
 <img src="images/hero.png" alt="Entirely" width="128">
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/greysquirr3l/entirely-vscode/badge)](https://scorecard.dev/viewer/?uri=github.com/greysquirr3l/entirely-vscode)
+
 A Visual Studio Code extension for [Entire](https://entire.com) — the Git
 forge built for agent-human collaboration.
 
@@ -25,6 +27,7 @@ Entirely (this extension)
 | **Checkpoint history** | Recorded checkpoints, opening straight into the native diff editor |
 | **Why this line** | Which agent edit introduced the line under the cursor, and why |
 | **Hook bridge** | Reports the editor's own agent activity to Entire, so editor work lands in the same session history |
+| **Terminal PATH repair** | Puts the Entire CLI on the integrated terminal's PATH, through the editor's own settings — no shell profile, no shell command |
 | **BYOK models** | Works with whatever model Copilot Chat is using — hosted, BYOK, or local — without the extension knowing the model exists |
 | **Doctor** | A copyable diagnostic report: CLI version, repository state, effective settings, last error |
 
@@ -52,6 +55,31 @@ Not yet done: the parts that talk to the CLI. Until those land, the status
 bar reports that the workspace state is unknown and the sessions tree is
 empty. Nothing here is released, so treat the command list and setting
 names as provisional.
+
+## The terminal PATH
+
+The Entire CLI installs to `~/.local/bin`, which the integrated terminal
+does not inherit. The extension itself is unaffected — it runs the CLI by
+absolute path — but a terminal you open in the editor cannot run `entire`.
+
+Entirely offers to fix that: **Entirely: Add the Entire CLI to the Terminal
+PATH**. The repair is the editor's own terminal environment, so the only
+thing that changes is a setting the editor already owns. No shell profile is
+read or written, and no shell command is run.
+
+You choose the scope, and each one says what it costs before you pick it:
+
+| Scope | What it touches |
+|---|---|
+| This workspace folder | That folder's own settings file |
+| This workspace | The workspace settings file — which may be committed |
+| Your user settings | Every window you open; nothing in a repository changes |
+
+The value written is `${env:PATH}` with the CLI's directory on the end. The
+inherited PATH is a *reference*, not a copy, so the terminal takes the live
+PATH rather than a snapshot of it taken when the setting was written.
+
+Running the command again takes the directory off again.
 
 ## Requirements
 

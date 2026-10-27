@@ -13,7 +13,17 @@ interface ExtensionManifest {
 		commands?: { command: string }[];
 		viewsContainers?: Record<string, { id: string }[]>;
 		views?: Record<string, { id: string }[]>;
-		configuration?: { properties?: Record<string, { type?: string; default?: unknown }> };
+		configuration?: {
+			properties?: Record<
+				string,
+				{
+					type?: string;
+					default?: unknown;
+					description?: string;
+					markdownDescription?: string;
+				}
+			>;
+		};
 	};
 }
 
@@ -116,6 +126,10 @@ suite('Entirely manifest', () => {
 			assert.ok(key.startsWith('entirely.'), `the setting '${key}' is not namespaced to the extension`);
 			assert.ok(schema.type, `the setting '${key}' has no type`);
 			assert.notStrictEqual(schema.default, undefined, `the setting '${key}' has no default`);
+			assert.ok(
+				schema.markdownDescription ?? schema.description,
+				`the setting '${key}' is not described, and an undescribed setting is a hidden one`,
+			);
 		}
 
 		const commands = contributes.commands ?? [];
