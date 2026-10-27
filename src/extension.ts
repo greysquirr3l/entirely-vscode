@@ -1,5 +1,8 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { registerCommands } from './commands';
+import { decodeWorkspaceStatus, unwrap, type WorkspaceStatus } from './lib/entire';
 import { CheckpointsProvider } from './providers/checkpointsProvider';
 import { SessionDetailProvider } from './providers/sessionDetailProvider';
 import { SessionsProvider } from './providers/sessionsProvider';
@@ -9,6 +12,15 @@ import {
 	createCheckpointSource,
 } from './services/checkpointSource';
 import { GitService } from './services/gitService';
+import {
+	INSTALL_COMMAND,
+	INSTALL_DOCS,
+	OnboardingPrompt,
+	detectFault,
+	type OnboardingAction,
+	type WorkspaceFault,
+} from './services/onboarding';
+import { enableEntire } from './services/setup';
 import { createSessionSource } from './services/sessionSource';
 import { StatusBar } from './services/statusBar';
 import { StatusController } from './services/statusController';
@@ -21,6 +33,33 @@ function workspaceRoot(): string | undefined {
 /** The workspace folder the git repository is found in. */
 function workspaceFolder(): vscode.Uri | undefined {
 	return vscode.workspace.workspaceFolders?.[0]?.uri;
+}
+
+/** Reads the workspace's tracking state, when the CLI can be asked. */
+async function readWorkspaceStatus(
+	runner: CliRunner,
+	folder: string,
+): Promise<WorkspaceStatus | undefined> {
+	const result = await runner.runJson(
+		['status', '--json'],
+		value => unwrap(decodeWorkspaceStatus(value)),
+		{ cwd: folder },
+	);
+
+	return result.ok ? result.value : undefined;
+}
+
+/** Whether a folder is a git repository. */
+function isGitRepository(folder: string | undefined): boolean {
+	if (!folder) {
+		return false;
+	}
+
+	try {
+		return fs.existsSync(path.join(folder, '.git'));
+	} catch {
+		return false;
+	}
 }
 
 /**
@@ -84,6 +123,45 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	);
 
 	const git = await GitService.create();
+
+	const onboarding = new OnboardingPrompt({
+		state: context.globalState,
+		folders: () => vscode.workspace.workspaceFolders?.map(folder => folder.uri.fsPath) ?? [],
+		detect: async (folder: string): Promise<WorkspaceFault> => {
+			const discovery = await runner.discover();
+			const status = await readWorkspaceStatus(runner, folder);
+			return detectFault({
+				cli: discovery,
+				status,
+				isRepository: isGitRepository(folder),
+			});
+		},
+		run: async (action: OnboardingAction, folder: string): Promise<void> => {
+			switch (action.kind) {
+				case 'install':
+					await vscode.env.openExternal(vscode.Uri.parse(INSTALL_DOCS));
+					await vscode.window.showInformationMessage(
+						`Install the Entire CLI with: ${INSTALL_COMMAND}`,
+					);
+					return;
+
+				case 'enable':
+					await enableEntire(runner, folder, output);
+					await statusController.refresh();
+					return;
+
+				case 'repair-path':
+					await vscode.commands.executeCommand(
+						'workbench.action.openSettings',
+						'terminal.integrated.env',
+					);
+					return;
+			}
+		},
+	});
+	context.subscriptions.push({ dispose: () => void onboarding });
+
+	void onboarding.offer();
 
 	registerCommands(context, {
 		sessions,

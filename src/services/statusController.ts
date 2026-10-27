@@ -3,16 +3,8 @@ import * as vscode from 'vscode';
 import { decodeWorkspaceStatus, unwrap, type WorkspaceStatus } from '../lib/entire';
 import { CliRunner } from './cli';
 import { watchHeadChanges } from './headWatcher';
+import { enableEntire } from './setup';
 import type { StatusBar, StatusDisplay } from './statusBar';
-
-/**
- * The agents this extension sets up hooks for.
- *
- * The CLI owns the names; `copilot-cli` is the identifier it gives Copilot
- * CLI. The flag that selects the agent is read from the CLI's own help at
- * runtime, never hardcoded, because the CLI is free to change it.
- */
-const SUPPORTED_AGENTS = ['copilot-cli'];
 
 /** What the controller needs to do its job. */
 export interface StatusControllerOptions {
@@ -205,41 +197,15 @@ export class StatusController {
 	 * support every flag on every version.
 	 */
 	async setUp(): Promise<void> {
-		const runner = this.options.runner;
-		const cwd = this.workspaceRoot();
-
-		const usage = await runner.usage('enable');
-		if (!usage.ok) {
-			await vscode.window.showErrorMessage(
-				`Entirely could not read the Entire CLI's usage: ${usage.detail}`,
-			);
-			return;
-		}
-
-		const flags = usage.value.flags.map(flag => flag.name);
-		const args = ['enable'];
-
-		if (flags.includes('--agent')) {
-			args.push('--agent', SUPPORTED_AGENTS[0]);
-		}
-		if (flags.includes('--no-init-repo')) {
-			// Without this the CLI offers to initialise a repository. That
-			// is not something to do behind the user's back.
-			args.push('--no-init-repo');
-		}
-
-		const result = await runner.run(args, { cwd });
-		if (!result.ok) {
-			await vscode.window.showErrorMessage(`Entire could not be set up: ${result.detail}`);
-			return;
-		}
-
-		this.options.output.appendLine(result.stdout.trim());
-		await vscode.window.showInformationMessage(
-			'Entire is set up for this workspace. Commit the .entire and .github/hooks files so it works across worktrees.',
+		const setUp = await enableEntire(
+			this.options.runner,
+			this.workspaceRoot(),
+			this.options.output,
 		);
 
-		await this.refresh();
+		if (setUp) {
+			await this.refresh();
+		}
 	}
 
 	/** The path the user configured for the CLI, if any. */
