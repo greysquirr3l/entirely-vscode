@@ -1,0 +1,281 @@
+import * as vscode from 'vscode';
+
+import { decodeWorkspaceStatus, unwrap, type WorkspaceStatus } from '../lib/entire';
+import { CliRunner } from './cli';
+import { watchHeadChanges } from './headWatcher';
+import type { StatusBar, StatusDisplay } from './statusBar';
+
+/**
+ * The agents this extension sets up hooks for.
+ *
+ * The CLI owns the names; `copilot-cli` is the identifier it gives Copilot
+ * CLI. The flag that selects the agent is read from the CLI's own help at
+ * runtime, never hardcoded, because the CLI is free to change it.
+ */
+const SUPPORTED_AGENTS = ['copilot-cli'];
+
+/** What the controller needs to do its job. */
+export interface StatusControllerOptions {
+	readonly statusBar: StatusBar;
+	readonly runner: CliRunner;
+	readonly output: vscode.OutputChannel;
+}
+
+/** What clicking the status bar item does. */
+export type ClickAction =
+	/** Open the Entire view. */
+	| 'show-sessions'
+	/** Offer to set Entire up for the workspace. */
+	| 'set-up'
+	/** Explain that the workspace cannot be tracked. */
+	| 'explain-not-a-repository'
+	/** Report the error and offer the logs. */
+	| 'show-error';
+
+/**
+ * What clicking the item does for a state.
+ *
+ * A tracked workspace opens the view. A workspace that could be tracked
+ * offers to set it up. A workspace that cannot be tracked, and a CLI that
+ * could not be read, each explain themselves.
+ */
+export function clickAction(display: StatusDisplay | undefined): ClickAction {
+	switch (display?.kind) {
+		case 'not-set-up':
+			return 'set-up';
+		case 'not-a-repository':
+			return 'explain-not-a-repository';
+		case 'error':
+			return 'show-error';
+		default:
+			return 'show-sessions';
+	}
+}
+
+/** The status bar rendering for a workspace status. */
+function toDisplay(status: WorkspaceStatus): StatusDisplay {
+	switch (status.kind) {
+		case 'tracked': {
+			const session = status.activeSessions[0];
+			return session ? { kind: 'active-session', agent: session.agent } : { kind: 'tracked' };
+		}
+		case 'not-set-up':
+			return { kind: 'not-set-up' };
+		case 'not-a-repository':
+			return { kind: 'not-a-repository' };
+	}
+}
+
+/**
+ * Keeps the status bar in step with the workspace's tracking state.
+ *
+ * The controller owns the conversation with the CLI: it discovers the CLI,
+ * reads the workspace status, renders the result, and decides what clicking
+ * the item should do. The status bar itself renders and nothing more.
+ */
+export class StatusController {
+	private readonly disposables: vscode.Disposable[] = [];
+	private display: StatusDisplay | undefined;
+	private timer: NodeJS.Timeout | undefined;
+
+	constructor(private readonly options: StatusControllerOptions) {
+		this.disposables.push(
+			vscode.workspace.onDidChangeWorkspaceFolders(() => {
+				void this.refresh();
+			}),
+
+			vscode.workspace.onDidChangeConfiguration(event => {
+				if (event.affectsConfiguration('entirely.cliPath')) {
+					this.options.runner.setConfiguredPath(this.configuredPath());
+				}
+				this.schedulePolling();
+				void this.refresh();
+			}),
+
+			watchHeadChanges(() => {
+				void this.refresh();
+			}),
+		);
+
+		this.schedulePolling();
+	}
+
+	/** The state currently on show. */
+	get current(): StatusDisplay | undefined {
+		return this.display;
+	}
+
+	/**
+	 * Reads the workspace state and renders it.
+	 *
+	 * Every failure is a state rather than an exception: a CLI that is
+	 * missing, broken or slow must never take the extension down with it.
+	 */
+	async refresh(): Promise<void> {
+		const runner = this.options.runner;
+
+		const discovery = await runner.discover();
+		if (discovery.state === 'absent') {
+			// The extension stays invisible in a workspace that does not use
+			// Entire, so an absent CLI means no item at all.
+			this.display = undefined;
+			this.options.statusBar.hide();
+			return;
+		}
+
+		if (discovery.state === 'broken') {
+			this.display = { kind: 'error', detail: discovery.detail };
+			this.options.statusBar.show(this.display);
+			return;
+		}
+
+		const result = await runner.runJson(
+			['status', '--json'],
+			value => unwrap(decodeWorkspaceStatus(value)),
+			{ cwd: this.workspaceRoot() },
+		);
+
+		if (!result.ok) {
+			this.display = { kind: 'error', detail: result.detail };
+			this.options.statusBar.show(this.display);
+			return;
+		}
+
+		this.display = toDisplay(result.value);
+		this.options.statusBar.show(this.display);
+	}
+
+	/**
+	 * What clicking the status bar item should do.
+	 *
+	 * The action depends on the state: a tracked workspace opens the view,
+	 * a workspace that could be tracked offers to set it up, and a
+	 * workspace that cannot explains why.
+	 */
+	async handleClick(): Promise<void> {
+		const display = this.display;
+
+		switch (clickAction(display)) {
+			case 'set-up':
+				await this.offerToSetUp();
+				return;
+
+			case 'explain-not-a-repository':
+				await vscode.window.showInformationMessage(
+					'This workspace is not a git repository, so Entire cannot track it.',
+				);
+				return;
+
+			case 'show-error': {
+				const detail = display?.kind === 'error' ? display.detail : 'unknown error';
+				const choice = await vscode.window.showErrorMessage(
+					`Entirely could not read the Entire CLI: ${detail}`,
+					'Show Logs',
+				);
+				if (choice === 'Show Logs') {
+					this.options.output.show(true);
+				}
+				return;
+			}
+
+			case 'show-sessions':
+				await vscode.commands.executeCommand('entirely.showSessions');
+		}
+	}
+
+	/** Offers to set Entire up for the workspace. */
+	async offerToSetUp(): Promise<void> {
+		const choice = await vscode.window.showInformationMessage(
+			'Set up Entire for this workspace? It installs hooks so agent sessions are recorded.',
+			'Set Up',
+		);
+
+		if (choice !== 'Set Up') {
+			return;
+		}
+
+		await this.setUp();
+	}
+
+	/**
+	 * Runs the CLI's own setup command.
+	 *
+	 * The flags are read from the CLI's help rather than assumed, because
+	 * the CLI is the source of truth for its own behaviour and may not
+	 * support every flag on every version.
+	 */
+	async setUp(): Promise<void> {
+		const runner = this.options.runner;
+		const cwd = this.workspaceRoot();
+
+		const usage = await runner.usage('enable');
+		if (!usage.ok) {
+			await vscode.window.showErrorMessage(
+				`Entirely could not read the Entire CLI's usage: ${usage.detail}`,
+			);
+			return;
+		}
+
+		const flags = usage.value.flags.map(flag => flag.name);
+		const args = ['enable'];
+
+		if (flags.includes('--agent')) {
+			args.push('--agent', SUPPORTED_AGENTS[0]);
+		}
+		if (flags.includes('--no-init-repo')) {
+			// Without this the CLI offers to initialise a repository. That
+			// is not something to do behind the user's back.
+			args.push('--no-init-repo');
+		}
+
+		const result = await runner.run(args, { cwd });
+		if (!result.ok) {
+			await vscode.window.showErrorMessage(`Entire could not be set up: ${result.detail}`);
+			return;
+		}
+
+		this.options.output.appendLine(result.stdout.trim());
+		await vscode.window.showInformationMessage(
+			'Entire is set up for this workspace. Commit the .entire and .github/hooks files so it works across worktrees.',
+		);
+
+		await this.refresh();
+	}
+
+	/** The path the user configured for the CLI, if any. */
+	private configuredPath(): string | undefined {
+		const configured = vscode.workspace.getConfiguration('entirely').get<string>('cliPath', '');
+		return configured && configured.trim().length > 0 ? configured.trim() : undefined;
+	}
+
+	/** The directory the CLI should run in. */
+	private workspaceRoot(): string | undefined {
+		return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+	}
+
+	/** Starts, stops or restarts the polling timer. */
+	private schedulePolling(): void {
+		if (this.timer) {
+			clearInterval(this.timer);
+			this.timer = undefined;
+		}
+
+		const seconds = vscode.workspace.getConfiguration('entirely').get<number>('refreshInterval', 30);
+		if (seconds > 0) {
+			this.timer = setInterval(() => {
+				void this.refresh();
+			}, seconds * 1000);
+		}
+	}
+
+	dispose(): void {
+		if (this.timer) {
+			clearInterval(this.timer);
+			this.timer = undefined;
+		}
+		for (const disposable of this.disposables) {
+			disposable.dispose();
+		}
+		this.disposables.length = 0;
+	}
+}

@@ -487,10 +487,7 @@ suite('Entire CLI with domain decoders', () => {
 
 		assert.strictEqual(result.ok, true);
 		if (result.ok) {
-			assert.strictEqual(result.value.kind, 'untracked');
-			if (result.value.kind === 'untracked') {
-				assert.strictEqual(result.value.reason, 'not a git repository');
-			}
+			assert.strictEqual(result.value.kind, 'not-a-repository');
 		}
 	});
 

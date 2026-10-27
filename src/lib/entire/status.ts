@@ -10,6 +10,21 @@ import {
 } from './decode';
 import type { ActiveSession, WorkspaceStatus } from './types';
 
+/**
+ * The CLI's wording for a directory that is not a git repository.
+ *
+ * The CLI reports an untracked workspace through a human-readable `error`
+ * string, and this is the only signal it gives that the workspace cannot
+ * be tracked at all. Matching happens in one place so that a change in the
+ * CLI's wording is a one-line fix rather than a change in the UI.
+ */
+const NOT_A_REPOSITORY = 'not a git repository';
+
+/** Whether the CLI's reason says the workspace is not a git repository. */
+function isNotARepository(reason: string): boolean {
+	return reason.toLowerCase().includes(NOT_A_REPOSITORY);
+}
+
 /** Decodes one entry of the CLI's `active_sessions` array. */
 function decodeActiveSession(value: unknown, path: string): DecodeResult<ActiveSession> {
 	const record = decodeRecord(value, path);
@@ -89,10 +104,17 @@ export function decodeWorkspaceStatus(value: unknown): DecodeResult<WorkspaceSta
 		if (!reason.ok) {
 			return reason;
 		}
-		if (reason.value !== undefined) {
-			return { ok: true, value: { kind: 'untracked', enabled: false, reason: reason.value } };
+		if (reason.value !== undefined && isNotARepository(reason.value)) {
+			return { ok: true, value: { kind: 'not-a-repository', enabled: false } };
 		}
-		return { ok: true, value: { kind: 'disabled', enabled: false } };
+		return {
+			ok: true,
+			value: {
+				kind: 'not-set-up',
+				enabled: false,
+				reason: reason.value ?? 'Entire is not enabled for this repository',
+			},
+		};
 	}
 
 	const agents = requireStringArray(read, 'agents');
@@ -134,4 +156,9 @@ export function decodeWorkspaceStatus(value: unknown): DecodeResult<WorkspaceSta
 /** Whether the status says the workspace is tracked. */
 export function isTracked(status: WorkspaceStatus): boolean {
 	return status.kind === 'tracked';
+}
+
+/** Whether the extension can offer to set Entire up in this workspace. */
+export function canBeSetUp(status: WorkspaceStatus): boolean {
+	return status.kind === 'not-set-up';
 }

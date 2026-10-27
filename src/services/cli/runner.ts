@@ -44,6 +44,16 @@ export class CliRunner {
 	}
 
 	/**
+	 * Points the runner at a specific binary, or back at the usual search.
+	 *
+	 * The path comes from the user's setting, so changing it must take
+	 * effect without a reload.
+	 */
+	setConfiguredPath(configuredPath: string | undefined): void {
+		this.locator.setConfiguredPath(configuredPath);
+	}
+
+	/**
 	 * Runs a command and returns its output.
 	 *
 	 * The arguments are the CLI's own, so `run(['status', '--json'])`

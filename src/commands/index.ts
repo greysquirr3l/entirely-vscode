@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import type { SessionsProvider } from '../providers/sessionsProvider';
-import type { StatusBar } from '../services/statusBar';
+import type { StatusController } from '../services/statusController';
 
 /** The surfaces the command handlers act on. */
 export interface CommandDependencies {
 	readonly sessions: SessionsProvider;
-	readonly status: StatusBar;
+	readonly statusController: StatusController;
 }
 
 const EXTENSION_ID = 'greysquirr3l.entirely';
@@ -20,13 +20,24 @@ const EXTENSION_ID = 'greysquirr3l.entirely';
 export function registerCommands(context: vscode.ExtensionContext, deps: CommandDependencies): void {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('entirely.refresh', () => {
-			deps.status.refresh();
 			deps.sessions.refresh();
+			void deps.statusController.refresh();
 		}),
 
 		vscode.commands.registerCommand('entirely.showSessions', async () => {
 			await vscode.commands.executeCommand('workbench.view.entirely');
 			await vscode.commands.executeCommand('entirely.sessions.focus');
+		}),
+
+		// The status bar item's own command. It routes on the current state
+		// rather than doing one thing, so it is hidden from the palette and
+		// reached by clicking the item.
+		vscode.commands.registerCommand('entirely.statusBar', async () => {
+			await deps.statusController.handleClick();
+		}),
+
+		vscode.commands.registerCommand('entirely.setUp', async () => {
+			await deps.statusController.offerToSetUp();
 		}),
 
 		vscode.commands.registerCommand('entirely.openSettings', async () => {

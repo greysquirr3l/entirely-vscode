@@ -24,9 +24,20 @@ export class CliLocator {
 	private checkedAt = 0;
 
 	constructor(
-		private readonly options: DiscoveryOptions = {},
+		private options: DiscoveryOptions = {},
 		private readonly ttlMs: number = DEFAULT_TTL_MS,
 	) {}
+
+	/**
+	 * Points discovery at a specific binary, or back at the usual search.
+	 *
+	 * The path comes from the user's setting, and changing it must take
+	 * effect without a reload, so the cached result is dropped.
+	 */
+	setConfiguredPath(configuredPath: string | undefined): void {
+		this.options = { ...this.options, configuredPath };
+		this.invalidate();
+	}
 
 	/** The current discovery result, running a lookup if the cache is stale. */
 	async current(): Promise<CliDiscovery> {

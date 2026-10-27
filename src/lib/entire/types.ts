@@ -41,9 +41,14 @@ export interface ActiveSession {
 /**
  * Whether and how the workspace is tracked by Entire.
  *
- * The CLI reports a workspace that is not a git repository with an `error`
- * field. That is an answer, not a failure, and it is modelled here as its
- * own state so it can never be confused with the command having failed.
+ * The CLI reports an untracked workspace with an `error` field. That is an
+ * answer, not a failure, and it is modelled here as its own state so it
+ * can never be confused with the command having failed.
+ *
+ * The distinction that matters to the user is whether the workspace can be
+ * tracked at all. A directory that is not a git repository cannot be, and
+ * offering to set it up there would be pointless. A git repository that
+ * Entire has not been set up for can be, and the extension offers to do it.
  */
 export type WorkspaceStatus =
 	| {
@@ -56,14 +61,19 @@ export type WorkspaceStatus =
 			readonly agentHelp?: string;
 	  }
 	| {
-			readonly kind: 'untracked';
+			/** The workspace is not a git repository, so Entire cannot track it. */
+			readonly kind: 'not-a-repository';
 			readonly enabled: false;
-			/** Why the workspace is not tracked. */
-			readonly reason: string;
 	  }
 	| {
-			readonly kind: 'disabled';
+			/**
+			 * The workspace is a git repository that Entire has not been set
+			 * up for, or has been set up for and then turned off.
+			 */
+			readonly kind: 'not-set-up';
 			readonly enabled: false;
+			/** Why the CLI says it is not set up. */
+			readonly reason: string;
 	  };
 
 /** A session Entire has recorded. */

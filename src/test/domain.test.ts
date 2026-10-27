@@ -29,11 +29,18 @@ const TRACKED_STATUS = {
 	agent_help: 'entire agent-help',
 };
 
-const UNTRACKED_STATUS = {
+const NOT_A_REPOSITORY_STATUS = {
 	enabled: false,
 	agents: null,
 	active_sessions: null,
 	error: 'not a git repository',
+};
+
+const NOT_SET_UP_STATUS = {
+	enabled: false,
+	agents: null,
+	active_sessions: null,
+	error: 'not set up',
 };
 
 const DISABLED_STATUS = {
@@ -78,28 +85,39 @@ suite('Entire workspace status', () => {
 		assert.strictEqual(result.value.agentHelp, 'entire agent-help');
 	});
 
-	test('decodes a repository Entire does not track as a state, not a failure', () => {
-		const result = decodeWorkspaceStatus(UNTRACKED_STATUS);
+	test('decodes a directory that is not a git repository as a state, not a failure', () => {
+		const result = decodeWorkspaceStatus(NOT_A_REPOSITORY_STATUS);
 		assert.strictEqual(result.ok, true);
 		if (!result.ok) {
 			return;
 		}
 
-		assert.strictEqual(result.value.kind, 'untracked');
+		assert.strictEqual(result.value.kind, 'not-a-repository');
 		assert.strictEqual(result.value.enabled, false);
-		if (result.value.kind === 'untracked') {
-			assert.strictEqual(result.value.reason, 'not a git repository');
+	});
+
+	test('decodes a git repository Entire has not been set up for', () => {
+		const result = decodeWorkspaceStatus(NOT_SET_UP_STATUS);
+		assert.strictEqual(result.ok, true);
+		if (!result.ok) {
+			return;
+		}
+
+		assert.strictEqual(result.value.kind, 'not-set-up');
+		assert.strictEqual(result.value.enabled, false);
+		if (result.value.kind === 'not-set-up') {
+			assert.strictEqual(result.value.reason, 'not set up');
 		}
 	});
 
-	test('decodes a workspace where tracking is off', () => {
+	test('decodes a workspace where tracking is off as not set up', () => {
 		const result = decodeWorkspaceStatus(DISABLED_STATUS);
 		assert.strictEqual(result.ok, true);
-		if (result.ok && result.value.kind === 'disabled') {
+		if (result.ok && result.value.kind === 'not-set-up') {
 			assert.strictEqual(result.value.enabled, false);
 			return;
 		}
-		assert.fail('expected the disabled state');
+		assert.fail('expected the not-set-up state');
 	});
 
 	test('decodes a tracked repository with no active sessions', () => {
