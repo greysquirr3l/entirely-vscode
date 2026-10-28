@@ -185,6 +185,12 @@
           "default": false,
           "markdownDescription": "Also show the Entirely sessions tree in the Explorer, below the source control views."
         },
+        "entirely.minimumCliVersion": {
+          "type": "string",
+          "default": "0.12.2",
+          "scope": "machine",
+          "markdownDescription": "The oldest `entire` version whose payloads this extension reads in full. The extension works with an older CLI, but the doctor report warns that some information will be missing. Raise this when the extension starts reading a field the CLI added; lower it when an older CLI turns out to report everything."
+        },
         "entirely.logLevel": {
           "type": "string",
           "default": "info",

@@ -112,6 +112,7 @@ async function collectFacts(deps: DoctorDependencies): Promise<DoctorFacts> {
 		logLevel: settings.logLevel,
 		debug: settings.debug,
 		configuredPath: settings.cliPath,
+		minimumCliVersion: settings.minimumCliVersion,
 		failure,
 		checkpointDestination,
 	};

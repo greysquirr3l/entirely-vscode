@@ -122,6 +122,22 @@ finer control. There is still only one channel.
   must run. Without it the extension stays dormant.
 * VS Code 1.140 or newer.
 
+## Maintaining
+
+Opening a pull request here has two rules that are not obvious, and both
+cost a day the first time they were met:
+
+1. **Open the pull request as the author of the commits.** The `main`
+   ruleset asks for an approval from an account that is neither the pull
+   request's author nor the commit's author when the two differ, and a
+   pull request's author cannot approve their own pull request.
+2. **Expect the Entire gate to end `neutral`,** which GitHub treats as
+   passing. `failure` blocks the merge.
+
+The reasoning, the timeline and everything else that was learned the hard
+way is in
+[docs/post-mortem-entire-gates.md](docs/post-mortem-entire-gates.md).
+
 ## Development
 
 ```sh

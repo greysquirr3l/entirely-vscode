@@ -45,6 +45,7 @@ export {
 	canSeeRepo,
 	decodeRepoIdentity,
 	decodeVisibleRepos,
+	describeCheckpointProblem,
 	describeDestination,
 	parseForgeRef,
 	resolveCheckpointDestination,
@@ -57,6 +58,15 @@ export type {
 	RepoIdentity,
 	VisibleRepo,
 } from './destination';
+export {
+	DEFAULT_MINIMUM_CLI_VERSION,
+	compareCliVersions,
+	describeUnexpectedPayload,
+	describeUnsupportedCli,
+	isAtLeast,
+	parseCliVersion,
+} from './cliVersion';
+export type { CliVersion } from './cliVersion';
 export type {
 	LineAttribution,
 	WhyAnswer,

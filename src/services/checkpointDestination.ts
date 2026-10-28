@@ -97,9 +97,10 @@ export async function inspectCheckpointDestination(
 	const destination = resolveCheckpointDestination(status, settings);
 
 	if (!destination) {
+		const reason = 'Entire is not tracking this workspace, so there is nowhere for checkpoints to go.';
 		return {
-			destination: { kind: 'local-only' },
-			problem: 'The Entire CLI did not say where checkpoints are being uploaded.',
+			destination: { kind: 'unknown', reason },
+			problem: reason,
 		};
 	}
 
@@ -114,6 +115,13 @@ export async function inspectCheckpointDestination(
 	]);
 
 	const report: MutableReport = { destination, workspaceRepo };
+
+	if (destination.kind === 'unknown') {
+		report.problem = destination.reason;
+		report.remedy =
+			'Update the Entire CLI or Entirely to a version that reports where checkpoints are going. The doctor report says which CLI is installed.';
+		return report;
+	}
 
 	if (destination.kind === 'local-only') {
 		report.problem =

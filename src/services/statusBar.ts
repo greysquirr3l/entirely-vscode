@@ -13,12 +13,16 @@ export type StatusDisplay =
 			readonly agent?: string;
 			readonly settings?: readonly string[];
 			readonly checkpointDestination?: string;
+			/** What is wrong with where the checkpoints are going. */
+			readonly checkpointProblem?: string;
 	  }
 	/** The workspace is tracked and no agent session is running. */
 	| {
 			readonly kind: 'tracked';
 			readonly settings?: readonly string[];
 			readonly checkpointDestination?: string;
+			/** What is wrong with where the checkpoints are going. */
+			readonly checkpointProblem?: string;
 	  }
 	/** The workspace is a git repository Entire has not been set up for. */
 	| { readonly kind: 'not-set-up'; readonly settings?: readonly string[] }
@@ -63,6 +67,30 @@ function destinationLine(destination: string | undefined): string {
 }
 
 /**
+ * What is wrong with where the checkpoints are going, as a line for the
+ * tooltip.
+ *
+ * The line comes first, because it is the thing the user has to act on.
+ */
+function problemLine(problem: string | undefined): string {
+	if (!problem) {
+		return '';
+	}
+
+	return `\n\n${problem}`;
+}
+
+/**
+ * The warning mark, when there is something to warn about.
+ *
+ * The mark goes after the state rather than in front of it, so that the
+ * state can still be read without hovering.
+ */
+function warningMark(problem: string | undefined): string {
+	return problem ? ' $(warning)' : '';
+}
+
+/**
  * The priority the item is shown at.
  *
  * The source control widget sits on the left of the status bar. Matching
@@ -79,19 +107,24 @@ function render(display: StatusDisplay): Rendering {
 	switch (display.kind) {
 		case 'active-session':
 			return {
-				text: '$(pulse) Entire',
+				// The warning is added to the state rather than replacing
+				// it, so that a workspace with a problem can still be told
+				// apart from one without by looking at the bar.
+				text: `$(pulse) Entire${warningMark(display.checkpointProblem)}`,
 				tooltip:
 					(display.agent
 						? `Entire is tracking this workspace. ${display.agent} is running.`
 						: 'Entire is tracking this workspace. An agent session is running.') +
+					problemLine(display.checkpointProblem) +
 					destinationLine(display.checkpointDestination) +
 					settingsLine(display.settings),
 			};
 		case 'tracked':
 			return {
-				text: '$(circle-filled) Entire',
+				text: `$(circle-filled) Entire${warningMark(display.checkpointProblem)}`,
 				tooltip:
 					'Entire is tracking this workspace. No agent session is running.' +
+					problemLine(display.checkpointProblem) +
 					destinationLine(display.checkpointDestination) +
 					settingsLine(display.settings),
 			};
