@@ -60,15 +60,22 @@ had an approval by `greysquirr3l` bound to the exact head commit, made
 pull requests were all counted as zero. The message does not say that
 self-approval does not count, which is why it took so long to find.
 
-**3. The gate snapshots approvals when a run begins.** A run takes about
+**3. A GitHub review does not satisfy the gate.** A pull request review
+from `sosh-ncampbell` on PR #19 left the gate saying "No reviewers have
+approved this trail", even after a new run was forced. Only an approval on
+the *trail*, recorded by Entire, counts. The gate's approval requirement
+and the `main` ruleset's review requirement are two separate things, and
+both have to be satisfied.
+
+**4. The gate snapshots approvals when a run begins.** A run takes about
 four and a half minutes. Approving while a run is in flight cannot work:
 the approval has to be made, and then a *new* run has to be forced. Editing
 the pull request body is enough to force one; a push does it too.
 
-**4. `failure` blocks the merge and `neutral` does not.** See rule 2
+**5. `failure` blocks the merge and `neutral` does not.** See rule 2
 above. PR #13 merged with a `neutral` gate.
 
-**5. A GitHub-mirrored Entire project is a projection of GitHub.** Access is
+**6. A GitHub-mirrored Entire project is a projection of GitHub.** Access is
 managed at the source, so `entire project grant` on one is refused:
 
 > project access on a GitHub-mirrored project is a read-only projection of
@@ -79,11 +86,26 @@ list` did not show it even though `entire repo mirror list` showed the
 repository. Those two commands disagree, and the second one is not evidence
 that the project is reachable.
 
-**6. The CLI's identity is independent of `gh auth switch`.** Switching
+**7. The CLI's identity is independent of `gh auth switch`.** Switching
 `gh` to `sosh-ncampbell` changed nothing: `entire auth status` still
 reported `github:greysquirr3l`. A second identity needs
 `entire login --device`, completed in a browser that is signed in to the
 other GitHub account.
+
+## The procedure that works
+
+1. Open the pull request **as the author of the commits**, and have the
+   other account review it on GitHub. That satisfies the `main` ruleset.
+2. On the trail's page in the web UI, signed in as the **other** account,
+   press **Approve**. The CLI cannot do this: the other account cannot
+   resolve a GitHub-mirrored project (see root cause 6), so the approval
+   has to be made in the browser.
+3. Force a new gate run — editing the pull request body is the cheapest
+   way — and wait for it to finish.
+
+PR #19 was merged with exactly this procedure, and the gate went from
+"No reviewers have approved this trail" to "1 approval(s) recorded" with
+nothing else changed.
 
 ## A red herring, recorded so nobody follows it again
 
