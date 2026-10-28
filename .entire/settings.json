@@ -1,8 +1,21 @@
 {
   "enabled": true,
+  "strategy_options": {
+    "checkpoint_remote": {
+      "provider": "github",
+      "repo": "greysquirr3l/entirely-vscode-checkpoints"
+    }
+  },
   "checkpoints": {
     "primary": {
       "type": "git-refs"
+    }
+  },
+  "redaction": {
+    "pii": {
+      "enabled": true,
+      "email": true,
+      "phone": true
     }
   }
 }
