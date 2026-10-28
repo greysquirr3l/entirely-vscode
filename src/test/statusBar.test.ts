@@ -140,7 +140,7 @@ suite('Entire status controller', () => {
 	function controllerFor(body: string | undefined): {
 		controller: StatusController;
 		bar: StatusBar;
-		output: vscode.OutputChannel;
+		output: Pick<vscode.OutputChannel, 'show'>;
 	} {
 		const home = makeDirectory('entire-status-home-');
 		if (body !== undefined) {
@@ -148,7 +148,7 @@ suite('Entire status controller', () => {
 		}
 
 		const bar = new StatusBar();
-		const output = vscode.window.createOutputChannel('Entirely test');
+		const output = { show: () => undefined };
 		const runner = new CliRunner(new CliLocator({ homeDir: home, env: { PATH: '' } }));
 		const controller = new StatusController({ statusBar: bar, runner, output });
 
@@ -188,7 +188,6 @@ suite('Entire status controller', () => {
 			} finally {
 				controller.dispose();
 				bar.dispose();
-				output.dispose();
 			}
 		});
 	}
@@ -202,7 +201,6 @@ suite('Entire status controller', () => {
 		} finally {
 			controller.dispose();
 			bar.dispose();
-			output.dispose();
 		}
 	});
 
@@ -215,7 +213,6 @@ suite('Entire status controller', () => {
 		} finally {
 			controller.dispose();
 			bar.dispose();
-			output.dispose();
 		}
 	});
 
@@ -229,7 +226,6 @@ suite('Entire status controller', () => {
 		} finally {
 			controller.dispose();
 			bar.dispose();
-			output.dispose();
 		}
 	});
 });
@@ -243,7 +239,7 @@ suite('Entire status bar against the real CLI', () => {
 		this.timeout(30_000);
 
 		const bar = new StatusBar();
-		const output = vscode.window.createOutputChannel('Entirely real test');
+		const output = { show: () => undefined };
 		const runner = new CliRunner();
 		const controller = new StatusController({ statusBar: bar, runner, output });
 
@@ -267,7 +263,6 @@ suite('Entire status bar against the real CLI', () => {
 		} finally {
 			controller.dispose();
 			bar.dispose();
-			output.dispose();
 		}
 	});
 });

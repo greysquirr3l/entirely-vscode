@@ -469,6 +469,25 @@ suite('Entire CLI discovery helpers', () => {
 		assert.deepStrictEqual(pathEntries({}), []);
 	});
 
+	test('ignores relative PATH entries', () => {
+		const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-cli-relative-path-'));
+		temporaryDirectories.push(directory);
+
+		const relativeEntry = path.relative(process.cwd(), directory);
+		const candidatePath = path.join(directory, 'entire.exe');
+		fs.writeFileSync(candidatePath, '#!/bin/sh\necho "entire 0.12.2"\n', 'utf8');
+		fs.chmodSync(candidatePath, 0o755);
+
+		assert.strictEqual(
+			findCandidate({
+				platform: 'win32',
+				homeDir: directory,
+				env: { PATH: relativeEntry },
+			}),
+			undefined,
+		);
+	});
+
 	test('uses a configured path in preference to everything else', () => {
 		const home = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-cli-configured-'));
 		temporaryDirectories.push(home);
