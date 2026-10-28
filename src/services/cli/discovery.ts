@@ -70,6 +70,10 @@ export function findCandidate(options: DiscoveryOptions = {}): Candidate | undef
 	}
 
 	for (const entry of pathEntries(env)) {
+		if (!path.isAbsolute(entry)) {
+			continue;
+		}
+
 		const candidate = path.join(entry, name);
 		if (isExecutable(candidate)) {
 			return { path: candidate, location: 'path', directory: entry };

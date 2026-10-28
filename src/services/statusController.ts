@@ -20,7 +20,7 @@ import type { StatusBar, StatusDisplay } from './statusBar';
 export interface StatusControllerOptions {
 	readonly statusBar: StatusBar;
 	readonly runner: CliRunner;
-	readonly output: vscode.OutputChannel;
+	readonly output: Pick<vscode.OutputChannel, 'show'>;
 	/**
 	 * Where the workspace's agent activity is reported.
 	 *
@@ -305,7 +305,7 @@ export class StatusController {
 			this.timer = undefined;
 		}
 
-		const seconds = vscode.workspace.getConfiguration('entirely').get<number>('refreshInterval', 30);
+		const seconds = readExtensionSettings().refreshInterval;
 		if (seconds > 0) {
 			this.timer = setInterval(() => {
 				void this.refresh();
