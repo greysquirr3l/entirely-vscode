@@ -24,3 +24,6 @@ entirely_logo_raw.jpeg
 # A scratch copy of the repository, used to drive the editor while taking
 # the marketplace screenshots.
 .demo/
+
+# Development documents
+docs/dev/
