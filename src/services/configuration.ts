@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import { readLogLevel, type LogLevel } from './logger';
+import { readLogLevel, shouldLog, type LogLevel } from './logger';
 
 /** The extension's own settings. */
 export interface ExtensionSettings {
@@ -12,6 +12,43 @@ export interface ExtensionSettings {
 	readonly showSessionsInExplorer: boolean;
 	/** How much the extension says. */
 	readonly logLevel: LogLevel;
+	/** Whether the extension says more than it otherwise would. */
+	readonly debug: boolean;
+}
+
+/**
+ * The bounds of the refresh interval.
+ *
+ * Node's timers take a millisecond count, and a count past 2^31 wraps
+ * around to 1 ms. A poll on a 1 ms timer spawns a CLI process as fast as
+ * the event loop allows, so the interval is clamped rather than trusted.
+ *
+ * The upper bound is the point past which polling stops being useful
+ * anyway: the trees are for watching work happen, not for watching it
+ * happen in the millisecond.
+ */
+export const MIN_REFRESH_INTERVAL_SECONDS = 1;
+export const MAX_REFRESH_INTERVAL_SECONDS = 3600;
+
+/**
+ * Puts a refresh interval inside the range the extension can poll at.
+ *
+ * A value of zero still means "do not poll", because that is a thing a
+ * user may reasonably want.
+ */
+export function clampRefreshInterval(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return 30;
+	}
+
+	if (seconds === 0) {
+		return 0;
+	}
+
+	return Math.min(
+		MAX_REFRESH_INTERVAL_SECONDS,
+		Math.max(MIN_REFRESH_INTERVAL_SECONDS, Math.floor(seconds)),
+	);
 }
 
 /**
@@ -28,8 +65,24 @@ export function readExtensionSettings(): ExtensionSettings {
 
 	return {
 		cliPath: cliPath.length > 0 ? cliPath : undefined,
-		refreshInterval: configuration.get<number>('refreshInterval', 30),
+		refreshInterval: clampRefreshInterval(configuration.get<number>('refreshInterval', 30)),
 		showSessionsInExplorer: configuration.get<boolean>('showSessionsInExplorer', false),
 		logLevel: readLogLevel(configuration.get<string>('logLevel', 'info')),
+		debug: configuration.get<boolean>('debug', false),
 	};
+}
+
+/**
+ * The verbosity the extension actually logs at.
+ *
+ * The debug setting turns the volume up without opening a second channel:
+ * there is one place for everything the extension says, and asking for
+ * more of it should not mean finding it somewhere else.
+ */
+export function effectiveLogLevel(settings: ExtensionSettings): LogLevel {
+	if (settings.debug && !shouldLog(settings.logLevel, 'debug')) {
+		return 'debug';
+	}
+
+	return settings.logLevel;
 }

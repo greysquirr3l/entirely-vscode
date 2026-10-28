@@ -18,7 +18,7 @@ Entirely (this extension)
          └── git refs, session state, the Entire API
 ```
 
-## What it will do
+## What it does
 
 | Surface | What it shows |
 |---|---|
@@ -43,18 +43,25 @@ extension has never seen is not a special case.
 
 ## Status
 
-**Under construction.** The extension is being built in the open, in small
-reviewable pieces, and is not yet published to the Marketplace.
+**Version 0.1.0.** The extension talks to the Entire CLI and shows what it
+knows: which repository is tracked, which agents are running, what each
+session did, and why a line of code is the way it is. It compiles, lints and
+passes its extension-host tests.
 
-Done so far: the manifest and marketplace metadata, the build and test
-pipeline, and the contributed surface — an Entirely view container with a
-sessions tree, a status bar item, and the `entirely.*` settings. The
-extension compiles, lints and passes its extension-host tests.
+The command list and the setting names are still provisional. They are the
+surface a user actually touches, so they are the most likely thing to change
+in a later version.
 
-Not yet done: the parts that talk to the CLI. Until those land, the status
-bar reports that the workspace state is unknown and the sessions tree is
-empty. Nothing here is released, so treat the command list and setting
-names as provisional.
+## Screenshots
+
+The sessions Entire tracks for the repository, with the details of the
+selected one beside them:
+
+![The Entirely view, showing the sessions Entire tracks and the details of the selected session](images/sessions.png)
+
+Every CLI invocation the extension made, in the `Entire` output channel:
+
+![The Entire output channel, showing each CLI invocation and what it returned](images/output.png)
 
 ## The terminal PATH
 
@@ -80,6 +87,34 @@ inherited PATH is a *reference*, not a copy, so the terminal takes the live
 PATH rather than a snapshot of it taken when the setting was written.
 
 Running the command again takes the directory off again.
+
+## When something is not working
+
+Everything the extension does goes to one output channel, named **Entire**.
+Every call to the CLI is written there with the exact command line, the
+directory it ran in, and the exit code — enough to reproduce a problem by
+hand.
+
+```
+[info] entire: /usr/local/bin/entire status --json
+[info]   cwd: /work/entirely
+[info]   exit: 0 (ok, 14ms); stdout 1.2 kB, stderr 0 B, stdin 0 B
+```
+
+Prompt bodies and checkpoint payloads are **not** written there. The channel
+says how many bytes there were, and the content itself is behind
+**Entirely: Doctor: Show the Last Entire CLI Output**, for the times when
+you really do want to read it.
+
+**Entirely: Doctor: Copy a Diagnostic Report** answers "why is this not
+working?". It reports the CLI's path, version and location; whether the
+workspace is a git repository and whether Entire is enabled for it; the
+settings in effect; and the last error the CLI gave. The report is one
+block of text and one action to copy it, because it is usually on its way
+into an issue.
+
+Turn the volume up with `entirely.debug`, or with `entirely.logLevel` for
+finer control. There is still only one channel.
 
 ## Requirements
 
@@ -122,6 +157,28 @@ No extra configuration is needed: `sourceMap` is on in `tsconfig.json` and
 `.vscodeignore` excludes `**/*.map`, so stack traces point back at the
 original TypeScript. On a remote without a display, set
 `extension-test-runner.wrapper` to `xvfb-run`.
+
+### Releasing
+
+A release is a tag. Push `v0.1.0` and the `Release` workflow builds the
+package, checks what is in it, publishes it to the Visual Studio Marketplace
+and to Open VSX, and then makes a GitHub release with the `.vsix` attached.
+A tag whose version does not match `package.json` stops the build rather
+than publishing the wrong version.
+
+Two repository secrets are needed:
+
+| Secret | What it is |
+|---|---|
+| `VSCE_PAT` | A personal access token for the Marketplace publisher |
+| `OVSX_PAT` | A personal access token for the Open VSX namespace |
+
+The workflow can also be run by hand from the Actions tab. Leave the version
+empty to build the version in the manifest, and leave **Publish** off to
+build and check the package without publishing it — a dry run.
+
+The `marketplace` and `openvsx` jobs use GitHub environments, so either
+one can be made to wait for a review before it publishes.
 
 ## Licence
 

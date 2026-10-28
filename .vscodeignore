@@ -19,6 +19,10 @@ scripts/**
 # The source artwork is large and is not needed at runtime.
 entirely_logo_raw.jpeg
 
+# A scratch copy of the repository, used to drive the editor while taking
+# the marketplace screenshots. It is not part of the extension.
+.demo/**
+
 # Local planning artifacts. They are not part of the published package.
 AGENTS.md
 BUDGET.md

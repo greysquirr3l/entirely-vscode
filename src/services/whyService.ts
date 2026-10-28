@@ -1,6 +1,11 @@
 import * as path from 'path';
 
-import { decodeWhyAnswer, unwrap, type WhyAnswer } from '../lib/entire';
+import {
+	decodeWhyAnswer,
+	fileArguments,
+	unwrap,
+	type WhyAnswer,
+} from '../lib/entire';
 import type { CliRunner } from './cli';
 
 /** The outcome of asking why. */
@@ -59,11 +64,12 @@ export class WhyService {
 			return { kind: 'outside-workspace', file };
 		}
 
-		const args = ['why', relative];
-		if (line !== undefined) {
-			args.push('--line', String(line));
-		}
-		args.push('--json');
+		// The file goes after the end-of-options separator, and the line
+		// is given by the CLI's own flag. The CLI reads its file operand
+		// as `<file>[:line]`, so a path that ends in a colon and digits
+		// is read as a different file at a different line unless it is
+		// given in a form the CLI cannot split.
+		const args = fileArguments(['why'], relative, line, ['--json']);
 
 		const result = await this.options.runner.runJson(
 			args,
@@ -75,6 +81,39 @@ export class WhyService {
 			return { kind: 'failed', detail: result.detail };
 		}
 
+		// The CLI names the file it answered about. An answer about a
+		// different file is refused rather than shown: the user asked
+		// about one line of one file, and an explanation of another file
+		// would be confident and wrong.
+		if (!this.answersAbout(relative, result.value)) {
+			return {
+				kind: 'failed',
+				detail: 'the CLI answered about a different file than the one that was asked about',
+			};
+		}
+
 		return { kind: 'answered', answer: result.value };
+	}
+
+	/**
+	 * Whether the answer is about the file that was asked about.
+	 *
+	 * The CLI names the file it answered about, relative to the
+	 * repository root rather than to the workspace root. The extension
+	 * asks about a path relative to the workspace root, so the two are
+	 * compared by their last segments: the answer must end with the path
+	 * that was asked about, and must not name a different file.
+	 */
+	private answersAbout(relative: string, answer: WhyAnswer): boolean {
+		const asked = relative.split(path.sep).filter(segment => segment.length > 0);
+		const answered = answer.file.split('/').filter(segment => segment.length > 0);
+
+		if (asked.length === 0 || answered.length < asked.length) {
+			return false;
+		}
+
+		const tail = answered.slice(answered.length - asked.length);
+
+		return tail.every((segment, index) => segment === asked[index]);
 	}
 }

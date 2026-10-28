@@ -236,11 +236,7 @@ export class StatusController {
 	 * support every flag on every version.
 	 */
 	async setUp(): Promise<void> {
-		const setUp = await enableEntire(
-			this.options.runner,
-			this.workspaceRoot(),
-			this.options.output,
-		);
+		const setUp = await enableEntire(this.options.runner, this.workspaceRoot());
 
 		if (setUp) {
 			await this.refresh();

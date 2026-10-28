@@ -4,6 +4,22 @@ export { findCandidate, parseVersion, type Candidate, type DiscoveryOptions } fr
 export { documentedLocations, pathEntries, type DocumentedLocation } from './locations';
 export { parseJson, type JsonParseResult } from './json';
 export { parseUsage } from './usage';
+export {
+	byteLength,
+	excerptPayload,
+	formatBytes,
+	quoteArgument,
+	renderCommandLine,
+	PAYLOAD_EXCERPT_LIMIT,
+	type CliInvocation,
+	type CliInvocationBodies,
+	type CliInvocationOutcome,
+	type CliInvocationSink,
+} from './invocation';
+export {
+	CliInvocationRecorder,
+	type CliFailureRecord,
+} from './recorder';
 export type {
 	CliCommandUsage,
 	CliDiscovery,

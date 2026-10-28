@@ -36,6 +36,10 @@ const forbidden = [
 	{ pattern: /(^|\/)test-workspace\//, reason: 'the test workspace' },
 	{ pattern: /(^|\/)PROGRESS\.md$/, reason: 'local planning artefacts' },
 	{ pattern: /(^|\/)plan\.toml$/, reason: 'local planning artefacts' },
+	// A dot-directory is never part of the extension. One that finds its
+	// way in is a scratch directory that was left behind, and it can
+	// carry a whole copy of the repository.
+	{ pattern: /(^|\/)\.[^/]+\//, reason: 'a local directory' },
 ];
 
 const files = packagedFiles();

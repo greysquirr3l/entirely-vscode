@@ -34,6 +34,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # A workflow is code too, and a broken one fails the release rather
+      # than the build. The image is pinned to a digest, so what runs is
+      # what was reviewed.
+      - name: Lint the workflows
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 # v1.7.12
+
       # The type check and the linter run as part of the build rather
       # than as steps of their own, so a change that does not compile
       # cannot pass even when the tests happen to.

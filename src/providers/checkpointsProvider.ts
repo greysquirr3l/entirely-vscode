@@ -8,6 +8,7 @@ import {
 	type CheckpointDetail,
 } from '../lib/entire';
 import type { CheckpointSource } from '../services/checkpointSource';
+import { Tooltip } from './markdown';
 
 /** A checkpoint in the tree. */
 export interface CheckpointNode {
@@ -44,19 +45,23 @@ export function describeCheckpoint(checkpoint: Checkpoint): string {
 
 /** The full detail of a checkpoint, shown on hover. */
 export function tooltipForCheckpoint(checkpoint: Checkpoint): vscode.MarkdownString {
-	const lines = [
-		`Checkpoint \`${checkpoint.id}\``,
-		'',
-		`- Agent: ${checkpoint.agent ?? 'unknown'}`,
-		`- Recorded: ${checkpoint.date?.raw ?? 'unknown'}`,
-		`- Sessions: ${checkpoint.sessionCount}`,
-	];
+	const tooltip = new Tooltip();
+
+	tooltip.markdown('Checkpoint ').text(checkpoint.id);
+	tooltip.markdown('\n\n');
+
+	tooltip.item('Agent', checkpoint.agent ?? 'unknown');
+	tooltip.item('Recorded', checkpoint.date?.raw ?? 'unknown');
+	tooltip.item('Sessions', `${checkpoint.sessionCount}`);
 
 	if (checkpoint.message) {
-		lines.push('', '**Message**', '', checkpoint.message);
+		// The message is on the line after the heading rather than in a
+		// paragraph of its own, so that a line of it cannot be read as
+		// the start of a block — a quote, or a piece of indented code.
+		tooltip.markdown('\n**Message**\\\n').text(checkpoint.message);
 	}
 
-	return new vscode.MarkdownString(lines.join('\n'));
+	return tooltip.build();
 }
 
 /**

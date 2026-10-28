@@ -14,6 +14,37 @@ import {
 import type { Checkpoint, CheckpointDetail, CheckpointSession } from './types';
 
 /**
+ * The two shapes the CLI gives a checkpoint id.
+ *
+ * The CLI says so itself: *"invalid checkpoint ID %q: must be 12 lowercase
+ * hex characters or a 26-character ULID"*. The two are read out of the
+ * installed CLI rather than guessed at, and this is the reading of that
+ * sentence.
+ */
+const HEX_ID = /^[0-9a-f]{12}$/;
+
+/**
+ * A ULID, as the CLI writes one.
+ *
+ * A ULID is 26 characters of Crockford base32 — the digits and the
+ * letters, without `I`, `L`, `O` or `U` — and the first character
+ * carries the top of a 48-bit timestamp, so it can only be a digit up to
+ * `7`. The CLI checks exactly this.
+ */
+const ULID_ID = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
+
+/**
+ * Whether this is a checkpoint id the CLI would recognise.
+ *
+ * The id is the CLI's to mint, and the extension never mints one of its
+ * own. A value that does not have the CLI's shape did not come from a
+ * checkpoint, and a ref must not be built from it.
+ */
+export function isCheckpointId(id: string): boolean {
+	return HEX_ID.test(id) || ULID_ID.test(id);
+}
+
+/**
  * The git ref that holds a checkpoint.
  *
  * The CLI keeps one ref per checkpoint under a namespace of its own, and
@@ -22,8 +53,19 @@ import type { Checkpoint, CheckpointDetail, CheckpointSession } from './types';
  *
  * The extension has to know where the forge keeps things — it is a client
  * of that forge, not a bystander — so the rule lives here, in one place.
+ *
+ * Returns undefined for an id the CLI would not recognise. The id came
+ * from the CLI, so this is a check on the extension's own reading of the
+ * CLI's shape rather than a defence against a hostile forge — but a ref
+ * built from a value that is not a checkpoint id would point at
+ * something other than the checkpoint, and git's own refusal of `..` in
+ * a ref is not a check the extension should be relying on.
  */
-export function checkpointRef(id: string): string {
+export function checkpointRef(id: string): string | undefined {
+	if (!isCheckpointId(id)) {
+		return undefined;
+	}
+
 	const shard = id.slice(-2);
 	return `refs/entire/checkpoints/${shard}/${id}`;
 }

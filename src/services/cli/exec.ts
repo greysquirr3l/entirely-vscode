@@ -27,17 +27,13 @@ export type ExecOutcome =
 			readonly detail: string;
 			readonly stdout: string;
 			readonly stderr: string;
+			/** The code the process exited with, when it ran and exited. */
+			readonly exitCode: number | undefined;
 			readonly durationMs: number;
 	  };
 
 /** The most output the extension will read from one command. */
 const MAX_BUFFER_BYTES = 16 * 1024 * 1024;
-
-/** A short, safe excerpt of output for an error message. */
-function excerpt(text: string): string {
-	const collapsed = text.replace(/\s+/g, ' ').trim();
-	return collapsed.length > 200 ? `${collapsed.slice(0, 197)}...` : collapsed;
-}
 
 /**
  * Runs a command and captures its output.
@@ -49,6 +45,13 @@ function excerpt(text: string): string {
  * The command is always bounded by a timeout. A CLI that hangs is not a
  * CLI the extension can wait for, so the process is killed and the timeout
  * is reported as a failure.
+ *
+ * The failure detail says what went wrong and never quotes what the
+ * command wrote. stderr is where a CLI puts its diagnostics, but it is
+ * also where a CLI that is handed a prompt body may echo it back, and
+ * this detail reaches a status bar tooltip, a notification and a report
+ * the extension offers to copy into a public issue. The output itself is
+ * behind the explicit command that dumps the last invocation.
  */
 export function execute(
 	binary: string,
@@ -87,6 +90,7 @@ export function execute(
 						detail: `the command did not finish within ${options.timeoutMs}ms`,
 						stdout: out,
 						stderr: err,
+						exitCode: undefined,
 						durationMs,
 					});
 					return;
@@ -100,20 +104,20 @@ export function execute(
 						detail: `the command could not be started: ${String(code)}`,
 						stdout: out,
 						stderr: err,
+						exitCode: undefined,
 						durationMs,
 					});
 					return;
 				}
 
 				const exitCode = typeof code === 'number' ? code : -1;
-				const detail =
-					err.trim().length > 0 ? excerpt(err) : `the command exited with code ${exitCode}`;
 				resolve({
 					ok: false,
 					reason: 'exit-code',
-					detail,
+					detail: `the command exited with code ${exitCode}`,
 					stdout: out,
 					stderr: err,
+					exitCode,
 					durationMs,
 				});
 			},

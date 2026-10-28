@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { humanizeStatus, pluralise, truncatePrompt, type Session, type SessionSource } from '../lib/entire';
+import { Tooltip } from './markdown';
 
 /** A group of sessions that share a status. */
 export interface SessionGroupNode {
@@ -81,32 +82,38 @@ export function describeSession(session: Session): string {
 
 /** The full detail of a session, shown on hover. */
 export function tooltipFor(session: Session): vscode.MarkdownString {
-	const lines = [
-		`**${session.agent}** — ${humanizeStatus(session.status)}`,
-		'',
-		`- Session: \`${session.id}\``,
-		`- Branch: ${session.branch ?? 'not on a branch'}`,
-		`- Worktree: \`${session.worktreePath}\``,
-		`- Turns: ${session.turns ?? 0}${session.pendingTurns ? ` (${session.pendingTurns} pending)` : ''}`,
-		`- Checkpoints: ${session.checkpoints ?? 0}`,
-	];
+	const tooltip = new Tooltip();
+
+	tooltip.markdown('**').text(session.agent).markdown('** — ').text(humanizeStatus(session.status));
+	tooltip.markdown('\n\n');
+
+	tooltip.item('Session', session.id);
+	tooltip.item('Branch', session.branch ?? 'not on a branch');
+	tooltip.item('Worktree', session.worktreePath);
+	tooltip.item(
+		'Turns',
+		`${session.turns ?? 0}${session.pendingTurns ? ` (${session.pendingTurns} pending)` : ''}`,
+	);
+	tooltip.item('Checkpoints', `${session.checkpoints ?? 0}`);
 
 	if (session.model) {
-		lines.push(`- Model: \`${session.model}\``);
+		tooltip.item('Model', session.model);
 	}
 	if (session.startedAt) {
-		lines.push(`- Started: ${session.startedAt.raw}`);
+		tooltip.item('Started', session.startedAt.raw);
 	}
 	if (session.lastActive) {
-		lines.push(`- Last active: ${session.lastActive.raw}`);
-	}
-	if (session.lastPrompt) {
-		lines.push('', '**Last prompt**', '', session.lastPrompt);
+		tooltip.item('Last active', session.lastActive.raw);
 	}
 
-	const tooltip = new vscode.MarkdownString(lines.join('\n'));
-	tooltip.supportThemeIcons = true;
-	return tooltip;
+	if (session.lastPrompt) {
+		// The prompt is on the line after the heading rather than in a
+		// paragraph of its own, so that a line of it cannot be read as
+		// the start of a block — a quote, or a piece of indented code.
+		tooltip.markdown('\n**Last prompt**\\\n').text(session.lastPrompt);
+	}
+
+	return tooltip.build();
 }
 
 /**
