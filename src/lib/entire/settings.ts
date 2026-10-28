@@ -4,11 +4,34 @@ import {
 	optionalBoolean,
 	optionalNumber,
 	optionalString,
+	requireString,
 	type DecodeResult,
 } from './decode';
 
 /** A value a strategy option may hold. */
 export type StrategyOptionValue = string | number | boolean;
+
+/** A forge a checkpoint repository can be on. */
+export type CheckpointProvider = 'github' | 'gitlab';
+
+/**
+ * The repository checkpoints are uploaded to, when it is one of their own.
+ *
+ * The provider is the one the CLI names — `github` or `gitlab` — and the
+ * repository is `owner/repo`.
+ */
+export interface CheckpointRemote {
+	/**
+	 * The provider the repository is on.
+	 *
+	 * Absent when the CLI names a provider the extension does not know,
+	 * which is a reason to report the repository and not to decide what
+	 * can be done about it.
+	 */
+	readonly provider?: CheckpointProvider;
+	/** The repository, as `owner/repo`. */
+	readonly repo: string;
+}
 
 /**
  * The settings Entire's own configuration understands.
@@ -32,8 +55,49 @@ export interface EntireSettings {
 	readonly signCheckpointCommits?: boolean;
 	/** How checkpoints are stored, as the CLI names it. */
 	readonly checkpointType?: string;
+	/** The repository checkpoints are uploaded to, when it is one of their own. */
+	readonly checkpointRemote?: CheckpointRemote;
 	/** The options given to the CLI's strategies, as they are. */
 	readonly strategyOptions?: Readonly<Record<string, StrategyOptionValue>>;
+}
+
+/**
+ * Decodes the repository checkpoints are uploaded to.
+ *
+ * A provider the extension does not know is left out rather than guessed
+ * at, so that a new provider is reported as an unknown one instead of
+ * being mistaken for GitHub.
+ */
+function decodeCheckpointRemote(
+	value: unknown,
+	path: string,
+): DecodeResult<CheckpointRemote | undefined> {
+	if (value === undefined || value === null) {
+		return { ok: true, value: undefined };
+	}
+
+	const record = decodeRecord(value, path);
+	if (!record.ok) {
+		return record;
+	}
+
+	const read = fields(record.value, path);
+
+	const repo = requireString(read, 'repo');
+	if (!repo.ok) {
+		return repo;
+	}
+
+	const provider = optionalString(read, 'provider');
+	if (!provider.ok) {
+		return provider;
+	}
+
+	if (provider.value !== 'github' && provider.value !== 'gitlab') {
+		return { ok: true, value: { repo: repo.value } };
+	}
+
+	return { ok: true, value: { provider: provider.value, repo: repo.value } };
 }
 
 /** Decodes the options given to the CLI's strategies. */
@@ -118,15 +182,30 @@ export function decodeEntireSettings(value: unknown): DecodeResult<EntireSetting
 	}
 
 	let strategyOptions: Readonly<Record<string, StrategyOptionValue>> | undefined;
+	let checkpointRemote: CheckpointRemote | undefined;
 	if (read.record['strategy_options'] !== undefined) {
-		const decoded = decodeStrategyOptions(
+		const strategyRecord = decodeRecord(
 			read.record['strategy_options'],
 			'settings.strategy_options',
 		);
+		if (!strategyRecord.ok) {
+			return strategyRecord;
+		}
+
+		const decoded = decodeStrategyOptions(strategyRecord.value, 'settings.strategy_options');
 		if (!decoded.ok) {
 			return decoded;
 		}
 		strategyOptions = decoded.value;
+
+		const remote = decodeCheckpointRemote(
+			strategyRecord.value['checkpoint_remote'],
+			'settings.strategy_options.checkpoint_remote',
+		);
+		if (!remote.ok) {
+			return remote;
+		}
+		checkpointRemote = remote.value;
 	}
 
 	return {
@@ -139,6 +218,7 @@ export function decodeEntireSettings(value: unknown): DecodeResult<EntireSetting
 			commitLinking,
 			signCheckpointCommits,
 			checkpointType,
+			checkpointRemote,
 			strategyOptions,
 		},
 	};
@@ -179,6 +259,7 @@ export function resolveEntireSettings(
 		commitLinking: first(layer => layer.commitLinking),
 		signCheckpointCommits: first(layer => layer.signCheckpointCommits),
 		checkpointType: first(layer => layer.checkpointType),
+		checkpointRemote: first(layer => layer.checkpointRemote),
 		strategyOptions: first(layer => layer.strategyOptions),
 	};
 }
@@ -210,6 +291,13 @@ export function summariseSettings(settings: EntireSettings): readonly string[] {
 
 	for (const [name, value] of Object.entries(settings.strategyOptions ?? {})) {
 		add(`strategy_options.${name}`, value);
+	}
+
+	if (settings.checkpointRemote) {
+		const provider = settings.checkpointRemote.provider ?? 'unknown';
+		summary.push(
+			`strategy_options.checkpoint_remote: ${provider}:${settings.checkpointRemote.repo}`,
+		);
 	}
 
 	return summary;

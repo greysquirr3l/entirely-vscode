@@ -8,6 +8,10 @@ import {
 } from '../lib/entire';
 import type { CliRunner } from '../services/cli';
 import type { CliInvocationRecorder } from '../services/cli/recorder';
+import {
+	inspectCheckpointDestination,
+	type CheckpointDestinationReport,
+} from '../services/checkpointDestination';
 import { readExtensionSettings } from '../services/configuration';
 import { renderDoctorReport, type DoctorFacts } from '../services/doctorReport';
 import { isGitRepository } from '../services/repository';
@@ -82,6 +86,17 @@ async function collectFacts(deps: DoctorDependencies): Promise<DoctorFacts> {
 
 	const settings = readExtensionSettings();
 	const failure = deps.recorder.lastFailure();
+	const entireSettings = readEntireSettings(root);
+
+	let checkpointDestination: CheckpointDestinationReport | undefined;
+	if (status && status.kind === 'tracked') {
+		checkpointDestination = await inspectCheckpointDestination(
+			deps.runner,
+			root,
+			status,
+			entireSettings,
+		);
+	}
 
 	return {
 		generatedAt: new Date(),
@@ -93,11 +108,12 @@ async function collectFacts(deps: DoctorDependencies): Promise<DoctorFacts> {
 		statusError,
 		isRepository: isGitRepository(root),
 		workspaceRoot: root,
-		settings: summariseSettings(readEntireSettings(root)),
+		settings: summariseSettings(entireSettings),
 		logLevel: settings.logLevel,
 		debug: settings.debug,
 		configuredPath: settings.cliPath,
 		failure,
+		checkpointDestination,
 	};
 }
 

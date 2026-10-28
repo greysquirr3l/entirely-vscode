@@ -236,6 +236,12 @@ suite('Entire status controller', () => {
 
 suite('Entire status bar against the real CLI', () => {
 	test('reads the workspace state from the installed CLI', async function () {
+		// The real CLI reaches the network to work out which repository the
+		// workspace is on, and how long that takes is not the extension's
+		// to decide. The default timeout is for tests that do not leave the
+		// machine.
+		this.timeout(30_000);
+
 		const bar = new StatusBar();
 		const output = vscode.window.createOutputChannel('Entirely real test');
 		const runner = new CliRunner();

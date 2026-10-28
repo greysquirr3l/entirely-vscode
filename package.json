@@ -149,6 +149,11 @@
         "category": "Entirely"
       },
       {
+        "command": "entirely.checkpointDestination",
+        "title": "Check Where Checkpoints Are Uploaded",
+        "category": "Entirely"
+      },
+      {
         "command": "entirely.doctor",
         "title": "Doctor: Copy a Diagnostic Report",
         "category": "Entirely"
