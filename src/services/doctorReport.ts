@@ -1,5 +1,6 @@
-import { oneLine, type WorkspaceStatus } from '../lib/entire';
+import { describeDestination, oneLine, type WorkspaceStatus } from '../lib/entire';
 import type { CliDiscovery } from './cli/types';
+import type { CheckpointDestinationReport } from './checkpointDestination';
 
 /** The last thing that went wrong, as the doctor reports it. */
 export interface DoctorFailure {
@@ -49,6 +50,11 @@ export interface DoctorFacts {
 	readonly configuredPath: string | undefined;
 	/** The last CLI failure, when there was one. */
 	readonly failure: DoctorFailure | undefined;
+	/**
+	 * Where the checkpoints of this workspace are going, when that could
+	 * be read.
+	 */
+	readonly checkpointDestination: CheckpointDestinationReport | undefined;
 }
 
 /** How the workspace's tracking state is described. */
@@ -142,6 +148,39 @@ export function renderDoctorReport(facts: DoctorFacts): string {
 
 	if (facts.statusError) {
 		lines.push(`- Problem: ${oneLine(facts.statusError)}`);
+	}
+
+	lines.push('');
+	lines.push('### Checkpoint destination');
+	lines.push('');
+
+	if (!facts.checkpointDestination) {
+		lines.push('- (unknown)');
+	} else {
+		const destination = facts.checkpointDestination;
+		lines.push(`- Destination: ${oneLine(describeDestination(destination.destination))}`);
+
+		if (destination.destination.kind === 'dedicated') {
+			lines.push(`- Provider: ${destination.destination.provider ?? '(not set)'}`);
+		}
+
+		if (destination.workspaceRepo) {
+			lines.push(`- This repository: ${oneLine(destination.workspaceRepo.ref.path)}`);
+		}
+
+		if (destination.checkpointRepoVisible !== undefined) {
+			lines.push(
+				`- Entire can reach it: ${destination.checkpointRepoVisible ? 'yes' : 'no'}`,
+			);
+		}
+
+		if (destination.problem) {
+			lines.push(`- Problem: ${oneLine(destination.problem)}`);
+		}
+
+		if (destination.remedy) {
+			lines.push(`- Remedy: ${oneLine(destination.remedy)}`);
+		}
 	}
 
 	lines.push('');

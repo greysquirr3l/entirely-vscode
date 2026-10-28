@@ -161,9 +161,14 @@ export class CliRunner {
 	 *
 	 * The CLI is the source of truth for its own flags, so callers read them
 	 * from here rather than hardcoding a list that can drift.
+	 *
+	 * A command may be named by its path, as `repo mirror add`, and each
+	 * part of the path is passed to the CLI as its own word, because the
+	 * CLI reads a whole path as one word as though it were no path at all.
 	 */
 	async usage(command: string, options: RunOptions = {}): Promise<CliResult<CliCommandUsage>> {
-		const args = command.length > 0 ? ['agent-help', command] : ['agent-help'];
+		const segments = command.trim().split(/\s+/).filter(part => part.length > 0);
+		const args = segments.length > 0 ? ['agent-help', ...segments] : ['agent-help'];
 		const performed = await this.perform(args, options);
 		const result = performed.result;
 

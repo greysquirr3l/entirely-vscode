@@ -2,6 +2,7 @@ import {
 	decodeArray,
 	decodeRecord,
 	fields,
+	optionalBoolean,
 	optionalString,
 	requireString,
 	requireStringArray,
@@ -149,6 +150,16 @@ export function decodeWorkspaceStatus(value: unknown): DecodeResult<WorkspaceSta
 		return agentHelp;
 	}
 
+	const checkpointSyncRemote = optionalString(read, 'checkpoint_sync_remote');
+	if (!checkpointSyncRemote.ok) {
+		return checkpointSyncRemote;
+	}
+
+	const checkpointSyncRemoteSource = optionalString(read, 'checkpoint_sync_remote_source');
+	if (!checkpointSyncRemoteSource.ok) {
+		return checkpointSyncRemoteSource;
+	}
+
 	return {
 		ok: true,
 		value: {
@@ -157,6 +168,9 @@ export function decodeWorkspaceStatus(value: unknown): DecodeResult<WorkspaceSta
 			agents: agents.value,
 			activeSessions,
 			agentHelp: agentHelp.value,
+			checkpointSyncRemote: checkpointSyncRemote.value,
+			checkpointSyncRemoteSource: checkpointSyncRemoteSource.value,
+			checkpointPushDisabled: optionalBoolean(read, 'checkpoint_push_disabled'),
 		},
 	};
 }

@@ -67,6 +67,23 @@ export type WorkspaceStatus =
 			readonly activeSessions: readonly ActiveSession[];
 			/** The command that prints the CLI's own usage, when it names one. */
 			readonly agentHelp?: string;
+			/**
+			 * Where checkpoints are uploaded, as the CLI names the remote.
+			 *
+			 * A git remote name for checkpoints that go to this repository,
+			 * and `owner/repo` for checkpoints that go to a repository of
+			 * their own.
+			 */
+			readonly checkpointSyncRemote?: string;
+			/**
+			 * Where the CLI says that choice came from.
+			 *
+			 * Kept as the CLI's own words, because the CLI is free to add
+			 * another way of choosing a destination.
+			 */
+			readonly checkpointSyncRemoteSource?: string;
+			/** Whether checkpoint pushes are turned off. */
+			readonly checkpointPushDisabled?: boolean;
 	  }
 	| {
 			/** The workspace is not a git repository, so Entire cannot track it. */

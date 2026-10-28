@@ -4,6 +4,7 @@ import { dumpCliOutput } from './dumpCliOutput';
 import { openCheckpointFile } from './openCheckpoint';
 import { repairTerminalPath } from './terminalPath';
 import { explainCheckpoint, whyThisLine } from './whyThisLine';
+import { checkpointDestination } from './checkpointDestination';
 import type { CheckpointFileNode, CheckpointsProvider } from '../providers/checkpointsProvider';
 import type { SessionDetailProvider } from '../providers/sessionDetailProvider';
 import type { SessionItemNode, SessionsProvider } from '../providers/sessionsProvider';
@@ -81,6 +82,17 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 
 		vscode.commands.registerCommand('entirely.repairTerminalPath', async () => {
 			await repairTerminalPath({ runner: deps.runner });
+		}),
+
+		// Where the checkpoints of this workspace are going, and whether
+		// Entire can reach them. It is a command because the answer is
+		// about this workspace, and it changes when the workspace does.
+		vscode.commands.registerCommand('entirely.checkpointDestination', async () => {
+			await checkpointDestination({
+				runner: deps.runner,
+				workspaceRoot: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+				output: deps.output,
+			});
 		}),
 
 		vscode.commands.registerCommand('entirely.whyThisLine', async () => {
