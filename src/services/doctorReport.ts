@@ -1,4 +1,4 @@
-import { describeDestination, oneLine, type WorkspaceStatus } from '../lib/entire';
+import { describeDestination, describeUnsupportedCli, oneLine, type WorkspaceStatus } from '../lib/entire';
 import type { CliDiscovery } from './cli/types';
 import type { CheckpointDestinationReport } from './checkpointDestination';
 
@@ -50,6 +50,10 @@ export interface DoctorFacts {
 	readonly configuredPath: string | undefined;
 	/** The last CLI failure, when there was one. */
 	readonly failure: DoctorFailure | undefined;
+	/**
+	 * The oldest Entire CLI whose payloads the extension reads in full.
+	 */
+	readonly minimumCliVersion: string;
 	/**
 	 * Where the checkpoints of this workspace are going, when that could
 	 * be read.
@@ -127,6 +131,14 @@ export function renderDoctorReport(facts: DoctorFacts): string {
 
 	if (facts.discovery.state === 'broken') {
 		lines.push(`- Problem: ${oneLine(facts.discovery.detail)}`);
+	}
+
+	const installed = facts.discovery.state === 'available' ? facts.discovery.version : undefined;
+	lines.push(`- Expected by this extension: ${oneLine(facts.minimumCliVersion)}`);
+
+	const unsupported = describeUnsupportedCli(installed, facts.minimumCliVersion);
+	if (unsupported) {
+		lines.push(`- Problem: ${oneLine(unsupported)}`);
 	}
 
 	lines.push('');

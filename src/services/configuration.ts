@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { DEFAULT_MINIMUM_CLI_VERSION } from '../lib/entire';
 import { readLogLevel, shouldLog, type LogLevel } from './logger';
 
 /** The extension's own settings. */
@@ -14,6 +15,15 @@ export interface ExtensionSettings {
 	readonly logLevel: LogLevel;
 	/** Whether the extension says more than it otherwise would. */
 	readonly debug: boolean;
+	/**
+	 * The oldest Entire CLI whose payloads the extension reads.
+	 *
+	 * The extension still works with an older CLI; it warns that some of
+	 * what it reads may be missing. The setting is here so that the
+	 * warning can be turned off for a version that turns out to report
+	 * everything, without waiting for a release.
+	 */
+	readonly minimumCliVersion: string;
 }
 
 /**
@@ -63,12 +73,18 @@ export function readExtensionSettings(): ExtensionSettings {
 
 	const cliPath = configuration.get<string>('cliPath', '').trim();
 
+	const minimumCliVersion = configuration
+		.get<string>('minimumCliVersion', DEFAULT_MINIMUM_CLI_VERSION)
+		.trim();
+
 	return {
 		cliPath: cliPath.length > 0 ? cliPath : undefined,
 		refreshInterval: clampRefreshInterval(configuration.get<number>('refreshInterval', 30)),
 		showSessionsInExplorer: configuration.get<boolean>('showSessionsInExplorer', false),
 		logLevel: readLogLevel(configuration.get<string>('logLevel', 'info')),
 		debug: configuration.get<boolean>('debug', false),
+		minimumCliVersion:
+			minimumCliVersion.length > 0 ? minimumCliVersion : DEFAULT_MINIMUM_CLI_VERSION,
 	};
 }
 

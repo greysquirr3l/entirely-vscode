@@ -82,6 +82,77 @@ suite('Entire status bar', () => {
 		}
 	});
 
+	test('warns in the status bar when the checkpoints are not going anywhere', () => {
+		const bar = new StatusBar();
+		try {
+			bar.show({ kind: 'tracked' });
+			const calm = bar.text;
+
+			bar.show({
+				kind: 'tracked',
+				checkpointProblem: 'Checkpoints stay on this machine, so they will not appear on Entire.',
+			});
+
+			assert.notStrictEqual(bar.text, calm, 'the warning looks different from the calm state');
+			assert.match(bar.text, /warning/);
+			assert.match(bar.text, /circle-filled/, 'the state can still be read without hovering');
+			assert.match(bar.tooltip, /will not appear on Entire/);
+		} finally {
+			bar.dispose();
+		}
+	});
+
+	test('tells a workspace with a problem apart from one without', () => {
+		const bar = new StatusBar();
+		try {
+			bar.show({ kind: 'active-session', agent: 'Copilot CLI' });
+			const calm = bar.text;
+
+			bar.show({
+				kind: 'active-session',
+				agent: 'Copilot CLI',
+				checkpointProblem: 'the CLI said nothing',
+			});
+
+			assert.notStrictEqual(bar.text, calm);
+			assert.match(bar.text, /pulse/);
+		} finally {
+			bar.dispose();
+		}
+	});
+
+	test('keeps saying the session is running when the checkpoints are wrong', () => {
+		const bar = new StatusBar();
+		try {
+			bar.show({
+				kind: 'active-session',
+				agent: 'Copilot CLI',
+				checkpointProblem: 'the CLI said nothing',
+			});
+
+			assert.match(bar.tooltip, /Copilot CLI/);
+			assert.match(bar.tooltip, /the CLI said nothing/);
+		} finally {
+			bar.dispose();
+		}
+	});
+
+	test('does not claim where the checkpoints go when it does not know', () => {
+		const bar = new StatusBar();
+		try {
+			bar.show({
+				kind: 'tracked',
+				checkpointDestination: 'an unknown destination',
+				checkpointProblem: 'The Entire CLI did not say where checkpoints are being uploaded.',
+			});
+
+			assert.doesNotMatch(bar.tooltip, /Checkpoints go to this machine only/);
+			assert.match(bar.tooltip, /did not say where checkpoints are being uploaded/);
+		} finally {
+			bar.dispose();
+		}
+	});
+
 	test('hides itself when told to', () => {
 		const bar = new StatusBar();
 		try {

@@ -84,7 +84,7 @@ suite('Entirely extension', () => {
 			path.join(extension.extensionPath, 'src', 'services', 'configuration.ts'),
 			'utf8',
 		);
-		const read = [...settingsSource.matchAll(/configuration\.get<[^>]+>\('([^']+)'/g)]
+		const read = [...settingsSource.matchAll(/configuration\s*\.\s*get<[^>]+>\('([^']+)'/g)]
 			.map(([, key]) => key)
 			.sort();
 

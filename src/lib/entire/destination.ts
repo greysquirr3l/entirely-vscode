@@ -117,6 +117,25 @@ export type CheckpointDestination =
 			 */
 			readonly provider?: 'github' | 'gitlab';
 			readonly source: CheckpointDestinationSource;
+	  }
+	| {
+			/**
+			 * The extension could not tell where the checkpoints go.
+			 *
+			 * This is not the same as `local-only`. `local-only` says
+			 * the checkpoints stay on this machine, which is a fact the
+			 * CLI reported. This says the extension does not know, which
+			 * is a fact about the extension and not about the
+			 * checkpoints.
+			 *
+			 * The two must never be reported as one. A user told their
+			 * checkpoints stay on their machine will look for them
+			 * there and stop; a user told the extension does not know
+			 * will update something.
+			 */
+			readonly kind: 'unknown';
+			/** Why the extension could not tell. */
+			readonly reason: string;
 	  };
 
 /**
@@ -125,8 +144,11 @@ export type CheckpointDestination =
  * The CLI is the source of truth for where they are going, and the
  * settings are the source of truth for which provider a checkpoint
  * repository is on. A destination the CLI describes in a way this
- * extension does not recognise is reported as no destination at all,
+ * extension does not recognise is reported as `unknown`, with the reason,
  * rather than guessed at.
+ *
+ * `undefined` means the question does not apply: the workspace is not
+ * tracked, so there are no checkpoints to place.
  */
 export function resolveCheckpointDestination(
 	status: WorkspaceStatus,
@@ -142,7 +164,10 @@ export function resolveCheckpointDestination(
 
 	const remote = status.checkpointSyncRemote;
 	if (!remote) {
-		return undefined;
+		return {
+			kind: 'unknown',
+			reason: 'The Entire CLI did not say where checkpoints are being uploaded.',
+		};
 	}
 
 	switch (status.checkpointSyncRemoteSource) {
@@ -157,7 +182,10 @@ export function resolveCheckpointDestination(
 		case 'config':
 			return { kind: 'same-repo', remote, source: status.checkpointSyncRemoteSource };
 		default:
-			return undefined;
+			return {
+				kind: 'unknown',
+				reason: `The Entire CLI reported a checkpoint destination this extension does not understand: "${status.checkpointSyncRemoteSource ?? 'nothing'}".`,
+			};
 	}
 }
 
@@ -166,6 +194,10 @@ export function resolveCheckpointDestination(
  *
  * The line is what the user would say about it, so that it reads the same
  * way as the CLI's own words.
+ *
+ * An unknown destination is described as unknown. It is not described as
+ * anything else, because a description that sounds like a fact is a thing
+ * a user will act on.
  */
 export function describeDestination(destination: CheckpointDestination): string {
 	switch (destination.kind) {
@@ -175,6 +207,34 @@ export function describeDestination(destination: CheckpointDestination): string 
 			return `the \`${destination.remote}\` remote of this repository`;
 		case 'dedicated':
 			return `the dedicated checkpoint repository ${destination.repo}`;
+		case 'unknown':
+			return 'an unknown destination';
+	}
+}
+
+/**
+ * The problem with a destination, when the destination itself is the
+ * problem.
+ *
+ * A destination can be perfectly known and still be a problem: checkpoints
+ * that stay on this machine are known, and still never reach Entire. The
+ * summary is the one line the status bar shows.
+ *
+ * Whether the App can reach a checkpoint repository is a different
+ * question, and one that costs a command to answer, so it is not
+ * answered here.
+ */
+export function describeCheckpointProblem(
+	destination: CheckpointDestination,
+): string | undefined {
+	switch (destination.kind) {
+		case 'unknown':
+			return destination.reason;
+		case 'local-only':
+			return 'Checkpoints stay on this machine, so they will not appear on Entire.';
+		case 'same-repo':
+		case 'dedicated':
+			return undefined;
 	}
 }
 

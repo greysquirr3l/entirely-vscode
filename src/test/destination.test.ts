@@ -5,6 +5,7 @@ import {
 	decodeEntireSettings,
 	decodeRepoIdentity,
 	decodeVisibleRepos,
+	describeCheckpointProblem,
 	describeDestination,
 	parseForgeRef,
 	resolveCheckpointDestination,
@@ -218,8 +219,13 @@ suite('Entire checkpoint destination', () => {
 		assert.deepStrictEqual(destination, { kind: 'local-only' });
 	});
 
-	test('says nothing when the CLI did not name a destination', () => {
-		assert.strictEqual(resolveCheckpointDestination(tracked(), {}), undefined);
+	test('says it does not know when the CLI did not name a destination', () => {
+		const destination = resolveCheckpointDestination(tracked(), {});
+
+		assert.deepStrictEqual(destination, {
+			kind: 'unknown',
+			reason: 'The Entire CLI did not say where checkpoints are being uploaded.',
+		});
 	});
 
 	test('says nothing about a workspace that is not tracked', () => {
@@ -227,13 +233,17 @@ suite('Entire checkpoint destination', () => {
 		assert.strictEqual(resolveCheckpointDestination(status, {}), undefined);
 	});
 
-	test('says nothing about a destination it does not recognise', () => {
+	test('says it does not know about a destination it does not recognise', () => {
 		const destination = resolveCheckpointDestination(
 			tracked({ checkpointSyncRemote: 'origin', checkpointSyncRemoteSource: 'something-new' }),
 			{},
 		);
 
-		assert.strictEqual(destination, undefined);
+		assert.deepStrictEqual(destination, {
+			kind: 'unknown',
+			reason:
+				'The Entire CLI reported a checkpoint destination this extension does not understand: "something-new".',
+		});
 	});
 
 	test('describes each destination the way the user would', () => {
@@ -286,5 +296,42 @@ suite('Entire checkpoint remote settings', () => {
 	test('leaves the repository out when there is none', () => {
 		const settings = unwrap(decodeEntireSettings({ enabled: true }));
 		assert.strictEqual(settings.checkpointRemote, undefined);
+	});
+});
+
+suite('Entire checkpoint problem', () => {
+	test('says that checkpoints on this machine will not reach Entire', () => {
+		assert.strictEqual(
+			describeCheckpointProblem({ kind: 'local-only' }),
+			'Checkpoints stay on this machine, so they will not appear on Entire.',
+		);
+	});
+
+	test('says why it could not tell when it could not tell', () => {
+		assert.strictEqual(
+			describeCheckpointProblem({ kind: 'unknown', reason: 'the CLI said nothing' }),
+			'the CLI said nothing',
+		);
+	});
+
+	test('says nothing about a destination that is known and is somewhere reachable', () => {
+		assert.strictEqual(
+			describeCheckpointProblem({
+				kind: 'dedicated',
+				repo: 'owner/checkpoints',
+				provider: 'github',
+				source: 'dedicated',
+			}),
+			undefined,
+		);
+	});
+});
+
+suite('Entire checkpoint destination wording', () => {
+	test('describes an unknown destination as unknown', () => {
+		assert.strictEqual(
+			describeDestination({ kind: 'unknown', reason: 'the CLI said nothing' }),
+			'an unknown destination',
+		);
 	});
 });

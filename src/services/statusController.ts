@@ -5,12 +5,20 @@ import { readEntireSettings } from './settingsSource';
 
 import {
 	decodeWorkspaceStatus,
+	describeCheckpointProblem,
 	describeDestination,
+	describeUnexpectedPayload,
 	resolveCheckpointDestination,
 	unwrap,
+	type CheckpointDestination,
 	type EntireSettings,
 	type WorkspaceStatus,
-} from '../lib/entire';import { CliRunner } from './cli';
+} from '../lib/entire';
+import { CliRunner } from './cli';
+import {
+	inspectCheckpointDestination,
+	type CheckpointDestinationReport,
+} from './checkpointDestination';
 import { watchHeadChanges } from './headWatcher';
 import type { HookBridge } from './hookBridge';
 import { enableEntire } from './setup';
@@ -66,13 +74,25 @@ function toDisplay(
 	status: WorkspaceStatus,
 	settings: readonly string[],
 	destination: string | undefined,
+problem: string | undefined,
 ): StatusDisplay {
 	switch (status.kind) {
 		case 'tracked': {
 			const session = status.activeSessions[0];
 			return session
-				? { kind: 'active-session', agent: session.agent, settings, checkpointDestination: destination }
-				: { kind: 'tracked', settings, checkpointDestination: destination };
+				? {
+						kind: 'active-session',
+						agent: session.agent,
+						settings,
+						checkpointDestination: destination,
+						checkpointProblem: problem,
+					}
+				: {
+						kind: 'tracked',
+						settings,
+						checkpointDestination: destination,
+						checkpointProblem: problem,
+					};
 		}
 		case 'not-set-up':
 			return { kind: 'not-set-up', settings };
@@ -97,6 +117,10 @@ export class StatusController {
 	private lastStatus: WorkspaceStatus | undefined;
 	/** The settings that were in effect when the status was read. */
 	private lastSettings: EntireSettings = {};
+	/** What the last reachability check found. */
+	private checkpointReport: CheckpointDestinationReport | undefined;
+	/** The destination the reachability check was made for. */
+	private checkpointReportKey: string | undefined;
 
 	constructor(private readonly options: StatusControllerOptions) {
 		this.disposables.push(
@@ -156,7 +180,7 @@ export class StatusController {
 		);
 
 		if (!result.ok) {
-			this.display = { kind: 'error', detail: result.detail };
+			this.display = { kind: 'error', detail: await this.explain(result.reason, result.detail) };
 			this.options.statusBar.show(this.display);
 			return;
 		}
@@ -164,9 +188,55 @@ export class StatusController {
 		this.lastStatus = result.value;
 		this.lastSettings = readEntireSettings(this.workspaceRoot());
 
-		this.display = toDisplay(result.value, this.effectiveSettings(), this.destination());
-		this.options.statusBar.show(this.display);
+		this.render();
 		this.beginSession();
+		void this.refreshReachability();
+	}
+
+	/**
+	 * Renders the state the controller last read.
+	 *
+	 * Rendering is separate from reading, because the reachability check
+	 * finishes after the status does and changes what is shown.
+	 */
+	private render(): void {
+		const status = this.lastStatus;
+		if (!status) {
+			return;
+		}
+
+		const destination = this.destination();
+
+		this.display = toDisplay(
+			status,
+			this.effectiveSettings(),
+			// An unknown destination has no destination to name, so the line
+			// is left out rather than filled in with a phrase that says
+			// nothing.
+			destination && destination.kind !== 'unknown'
+				? describeDestination(destination)
+				: undefined,
+			this.checkpointProblem(destination),
+		);
+		this.options.statusBar.show(this.display);
+	}
+
+	/**
+	 * Says why a command failed.
+	 *
+	 * A payload the extension cannot read is worth naming the CLI's
+	 * version for, because the first question about such a payload is
+	 * which build produced it.
+	 */
+	private async explain(reason: string, detail: string): Promise<string> {
+		if (reason !== 'invalid-output') {
+			return detail;
+		}
+
+		const discovery = await this.options.runner.discover();
+		const version = discovery.state === 'available' ? discovery.version : undefined;
+
+		return `${describeUnexpectedPayload(version)} ${detail}`;
 	}
 
 	/**
@@ -175,16 +245,75 @@ export class StatusController {
 	 * This is what the CLI said the last time it reported the workspace's
 	 * status, so it costs nothing to show. Whether Entire can reach them
 	 * is a different question, and one that takes another command to
-	 * answer, so the tooltip points at that command rather than guessing.
+	 * answer, so it is asked separately.
 	 */
-	private destination(): string | undefined {
+	private destination(): CheckpointDestination | undefined {
 		const status = this.lastStatus;
 		if (!status) {
 			return undefined;
 		}
 
-		const destination = resolveCheckpointDestination(status, this.lastSettings);
-		return destination ? describeDestination(destination) : undefined;
+		return resolveCheckpointDestination(status, this.lastSettings);
+	}
+
+	/**
+	 * What is wrong with where the checkpoints are going.
+	 *
+	 * The destination may be the problem on its own: checkpoints that stay
+	 * on this machine are known, and still never reach Entire. A
+	 * checkpoint repository the App cannot read is a problem too, and
+	 * that one is only known once the CLI has been asked.
+	 */
+	private checkpointProblem(destination: CheckpointDestination | undefined): string | undefined {
+		if (!destination) {
+			return undefined;
+		}
+
+		if (this.checkpointReport?.checkpointRepoVisible === false) {
+			return this.checkpointReport.problem;
+		}
+
+		return describeCheckpointProblem(destination);
+	}
+
+	/**
+	 * Asks whether Entire can reach the checkpoint repository.
+	 *
+	 * Only a dedicated checkpoint repository can be unreachable in a way
+	 * worth reporting, and the answer costs a command that reaches the
+	 * network, so it is asked once for each destination rather than on
+	 * every refresh. The status bar is updated when the answer arrives.
+	 */
+	private async refreshReachability(): Promise<void> {
+		const status = this.lastStatus;
+		const destination = this.destination();
+
+		if (!status || !destination || destination.kind !== 'dedicated') {
+			return;
+		}
+
+		const key = describeDestination(destination);
+		if (this.checkpointReportKey === key) {
+			return;
+		}
+
+		this.checkpointReportKey = key;
+
+		try {
+			this.checkpointReport = await inspectCheckpointDestination(
+				this.options.runner,
+				this.workspaceRoot(),
+				status,
+				this.lastSettings,
+			);
+		} catch {
+			// The runner reports failures as values, so this is only here
+			// for the case where something throws. A check that failed
+			// says nothing, and saying nothing is honest.
+			this.checkpointReport = undefined;
+		}
+
+		this.render();
 	}
 
 	/**
