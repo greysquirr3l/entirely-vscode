@@ -50,8 +50,12 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 			await deps.checkpoints.refresh();
 		}),
 
+		// The view container is registered by VS Code under
+		// `workbench.view.extension.<id>`. The plain `workbench.view.<id>`
+		// form is not a command, and asking for it fails with
+		// "command not found".
 		vscode.commands.registerCommand('entirely.showSessions', async () => {
-			await vscode.commands.executeCommand('workbench.view.entirely');
+			await vscode.commands.executeCommand('workbench.view.extension.entirely');
 			await vscode.commands.executeCommand('entirely.sessions.focus');
 		}),
 
