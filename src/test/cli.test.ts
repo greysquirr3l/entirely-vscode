@@ -110,7 +110,14 @@ suite('Entire CLI runner', () => {
 		const discovery = await runner.discover();
 		assert.strictEqual(discovery.state, 'broken');
 		if (discovery.state === 'broken') {
-			assert.match(discovery.detail, /unexpected failure/);
+			// The detail says what happened without quoting what the CLI
+			// wrote: it reaches a status bar tooltip, a notification and a
+			// report the user may paste into a public issue.
+			assert.match(discovery.detail, /exited with code 3/);
+			assert.ok(
+				!discovery.detail.includes('unexpected failure'),
+				"the CLI's own words leaked into the detail",
+			);
 		}
 
 		const result = await runner.run(['status', '--json']);

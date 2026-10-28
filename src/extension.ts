@@ -170,7 +170,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 					return;
 
 				case 'enable':
-					await enableEntire(runner, folder, output);
+					await enableEntire(runner, folder);
 					await statusController.refresh();
 					return;
 

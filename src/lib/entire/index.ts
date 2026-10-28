@@ -9,14 +9,21 @@ export type { DecodeIssue, DecodeIssueKind, DecodeResult } from './decode';
 export { unwrap } from './decode';
 export { canBeSetUp, decodeWorkspaceStatus, isTracked } from './status';
 export { decodeCurrentSession, decodeSession, decodeSessionList } from './session';
-export { humanizeStatus, pluralise, truncatePrompt } from './text';
+export { escapeMarkdown, humanizeStatus, oneLine, pluralise, truncatePrompt } from './text';
 export type { SessionListing, SessionSource } from './source';
 export {
 	checkpointRef,
 	decodeCheckpoint,
 	decodeCheckpointDetail,
 	decodeCheckpointList,
+	isCheckpointId,
 } from './checkpoint';
+export {
+	endsWithLineSuffix,
+	fileArguments,
+	fileOperand,
+	splitLineSuffix,
+} from './operand';
 export type {
 	Checkpoint,
 	CheckpointDetail,

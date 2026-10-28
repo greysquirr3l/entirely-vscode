@@ -273,10 +273,11 @@ suite('Entire why command', () => {
 		assert.strictEqual(result.kind, 'answered');
 		assert.deepStrictEqual(runner.calls[0].args, [
 			'why',
-			path.join('src', 'auth.ts'),
+			'--json',
 			'--line',
 			'42',
-			'--json',
+			'--',
+			path.join('src', 'auth.ts'),
 		]);
 		assert.strictEqual(runner.calls[0].cwd, '/work/sandbox');
 	});
@@ -292,7 +293,12 @@ suite('Entire why command', () => {
 
 		await service.explainFile('/work/sandbox/src/auth.ts');
 
-		assert.deepStrictEqual(runner.calls[0].args, ['why', path.join('src', 'auth.ts'), '--json']);
+		assert.deepStrictEqual(runner.calls[0].args, [
+			'why',
+			'--json',
+			'--',
+			path.join('src', 'auth.ts'),
+		]);
 	});
 
 	test('does not ask about a file outside the workspace', async () => {

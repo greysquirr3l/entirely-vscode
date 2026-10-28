@@ -17,6 +17,41 @@ export interface ExtensionSettings {
 }
 
 /**
+ * The bounds of the refresh interval.
+ *
+ * Node's timers take a millisecond count, and a count past 2^31 wraps
+ * around to 1 ms. A poll on a 1 ms timer spawns a CLI process as fast as
+ * the event loop allows, so the interval is clamped rather than trusted.
+ *
+ * The upper bound is the point past which polling stops being useful
+ * anyway: the trees are for watching work happen, not for watching it
+ * happen in the millisecond.
+ */
+export const MIN_REFRESH_INTERVAL_SECONDS = 1;
+export const MAX_REFRESH_INTERVAL_SECONDS = 3600;
+
+/**
+ * Puts a refresh interval inside the range the extension can poll at.
+ *
+ * A value of zero still means "do not poll", because that is a thing a
+ * user may reasonably want.
+ */
+export function clampRefreshInterval(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return 30;
+	}
+
+	if (seconds === 0) {
+		return 0;
+	}
+
+	return Math.min(
+		MAX_REFRESH_INTERVAL_SECONDS,
+		Math.max(MIN_REFRESH_INTERVAL_SECONDS, Math.floor(seconds)),
+	);
+}
+
+/**
  * Reads the extension's settings.
  *
  * Every setting is read here so that there is one place that knows what
@@ -30,7 +65,7 @@ export function readExtensionSettings(): ExtensionSettings {
 
 	return {
 		cliPath: cliPath.length > 0 ? cliPath : undefined,
-		refreshInterval: configuration.get<number>('refreshInterval', 30),
+		refreshInterval: clampRefreshInterval(configuration.get<number>('refreshInterval', 30)),
 		showSessionsInExplorer: configuration.get<boolean>('showSessionsInExplorer', false),
 		logLevel: readLogLevel(configuration.get<string>('logLevel', 'info')),
 		debug: configuration.get<boolean>('debug', false),

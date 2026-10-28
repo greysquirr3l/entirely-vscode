@@ -50,12 +50,6 @@ function findValueEnd(text: string, start: number): number {
 	return -1;
 }
 
-/** A short, safe excerpt of output for an error message. */
-function excerpt(text: string): string {
-	const collapsed = text.replace(/\s+/g, ' ').trim();
-	return collapsed.length > 120 ? `${collapsed.slice(0, 117)}...` : collapsed;
-}
-
 /**
  * Extracts a JSON value from command output.
  *
@@ -63,6 +57,13 @@ function excerpt(text: string): string {
  * deprecation notice, a proxy message, anything the CLI decides to print
  * unprompted. Rather than fail on that, this finds the first offset from
  * which the remainder parses as JSON, and ignores anything around it.
+ *
+ * The failure says what went wrong and never what the output was. The
+ * output is the user's own content — a prompt body, a checkpoint
+ * payload — and this detail ends up in a status bar tooltip, in
+ * notifications and in a report the extension offers to copy into a
+ * public issue. The bytes themselves are behind the explicit command
+ * that dumps the last invocation.
  */
 export function parseJson(text: string): JsonParseResult {
 	const trimmed = text.trim();
@@ -94,5 +95,5 @@ export function parseJson(text: string): JsonParseResult {
 		}
 	}
 
-	return { ok: false, detail: `the output was not JSON: ${excerpt(trimmed)}` };
+	return { ok: false, detail: 'the output was not JSON' };
 }

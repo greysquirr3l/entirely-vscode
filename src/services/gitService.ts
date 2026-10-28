@@ -93,12 +93,18 @@ export class GitService {
 	 * Returns undefined when the checkpoint is not in this repository, or
 	 * when the repository does not hold it — which is the case for a
 	 * checkpoint that has not been fetched.
+	 *
+	 * A checkpoint id the CLI would not recognise has no ref, so there is
+	 * nothing to look up and the answer is undefined as well.
 	 */
 	async findCheckpointCommit(
 		repository: GitRepository,
 		checkpointId: string,
 	): Promise<CheckpointCommit | undefined> {
 		const ref = checkpointRef(checkpointId);
+		if (!ref) {
+			return undefined;
+		}
 
 		try {
 			const commit = await repository.getCommit(ref);

@@ -5,6 +5,7 @@ import {
 	type Checkpoint,
 	type CheckpointDetail,
 } from '../lib/entire';
+import { END_OF_OPTIONS } from '../lib/entire/operand';
 import { CliRunner } from './cli';
 
 /**
@@ -57,8 +58,12 @@ export function createCheckpointDetailSource(
 	workspaceRoot: () => string | undefined,
 ): CheckpointDetailSource {
 	return async (id: string): Promise<CheckpointDetail | undefined> => {
+		// The id goes after the end-of-options separator, so the CLI
+		// cannot read it as a flag. The CLI's flag parser accepts a flag
+		// wherever an operand may go, so an id that began with a dash
+		// would be answered about as a different object entirely.
 		const result = await runner.runJson(
-			['checkpoint', 'explain', id, '--json'],
+			['checkpoint', 'explain', '--json', END_OF_OPTIONS, id],
 			value => unwrap(decodeCheckpointDetail(value)),
 			{ cwd: workspaceRoot() },
 		);

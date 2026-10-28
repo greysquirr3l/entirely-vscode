@@ -225,7 +225,13 @@ export function optionalTimestamp(fields: Fields, key: string): DecodeResult<Tim
 
 	const date = new Date(value);
 	if (Number.isNaN(date.getTime())) {
-		return wrongType(path, `the timestamp '${value}' could not be parsed`);
+		// The value itself is not quoted. It came from the CLI's payload,
+		// and this message ends up in the doctor report that a user
+		// copies into a public issue. Its shape is what a reader needs.
+		return wrongType(
+			path,
+			`expected an RFC 3339 timestamp, got a string of ${value.length} characters that is not one`,
+		);
 	}
 
 	return { ok: true, value: { date, raw: value } };

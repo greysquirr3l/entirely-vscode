@@ -48,12 +48,13 @@ export async function enableArguments(runner: CliRunner): Promise<string[] | und
 /**
  * Sets Entire up for a repository, without asking anything and without
  * touching the git history.
+ *
+ * The CLI's own words are not shown here. The invocation logger already
+ * carries them, as a bounded excerpt, at the `debug` level; writing the
+ * whole of stdout to the channel at the default level would put the
+ * payload into the buffer a user attaches to a bug report.
  */
-export async function enableEntire(
-	runner: CliRunner,
-	cwd: string | undefined,
-	output: vscode.OutputChannel,
-): Promise<boolean> {
+export async function enableEntire(runner: CliRunner, cwd: string | undefined): Promise<boolean> {
 	const args = await enableArguments(runner);
 	if (!args) {
 		return false;
@@ -65,7 +66,6 @@ export async function enableEntire(
 		return false;
 	}
 
-	output.appendLine(result.stdout.trim());
 	await vscode.window.showInformationMessage(
 		'Entire is set up for this workspace. Commit the .entire and .github/hooks files so it works across worktrees.',
 	);

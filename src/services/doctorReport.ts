@@ -1,4 +1,4 @@
-import type { WorkspaceStatus } from '../lib/entire';
+import { oneLine, type WorkspaceStatus } from '../lib/entire';
 import type { CliDiscovery } from './cli/types';
 
 /** The last thing that went wrong, as the doctor reports it. */
@@ -101,30 +101,38 @@ export function renderDoctorReport(facts: DoctorFacts): string {
 
 	lines.push('### Entire CLI');
 	lines.push('');
-	lines.push(`- State: ${facts.discovery.state}`);
-	lines.push(`- Path: ${facts.discovery.state === 'absent' ? '(not found)' : facts.discovery.path}`);
+	lines.push(`- State: ${oneLine(facts.discovery.state)}`);
 	lines.push(
-		`- Version: ${facts.discovery.state === 'available' ? facts.discovery.version : '(unknown)'}`,
+		`- Path: ${facts.discovery.state === 'absent' ? '(not found)' : oneLine(facts.discovery.path)}`,
 	);
 	lines.push(
-		`- Found at: ${facts.discovery.state === 'absent' ? '(none)' : `${facts.discovery.location} (${facts.discovery.directory})`}`,
+		`- Version: ${
+			facts.discovery.state === 'available' ? oneLine(facts.discovery.version) : '(unknown)'
+		}`,
 	);
-	lines.push(`- Configured path: ${facts.configuredPath ?? '(not set)'}`);
+	lines.push(
+		`- Found at: ${
+			facts.discovery.state === 'absent'
+				? '(none)'
+				: `${oneLine(facts.discovery.location)} (${oneLine(facts.discovery.directory)})`
+		}`,
+	);
+	lines.push(`- Configured path: ${facts.configuredPath ? oneLine(facts.configuredPath) : '(not set)'}`);
 
 	if (facts.discovery.state === 'broken') {
-		lines.push(`- Problem: ${facts.discovery.detail}`);
+		lines.push(`- Problem: ${oneLine(facts.discovery.detail)}`);
 	}
 
 	lines.push('');
 	lines.push('### Workspace');
 	lines.push('');
-	lines.push(`- Folder: ${facts.workspaceRoot ?? '(no folder is open)'}`);
+	lines.push(`- Folder: ${facts.workspaceRoot ? oneLine(facts.workspaceRoot) : '(no folder is open)'}`);
 	lines.push(`- Git repository: ${facts.isRepository ? 'yes' : 'no'}`);
 	lines.push(`- Entire enabled: ${facts.status ? describeStatus(facts.status) : '(unknown)'}`);
 
 	const agents = facts.status ? agentNames(facts.status) : undefined;
 	if (agents && agents.length > 0) {
-		lines.push(`- Agents: ${agents.join(', ')}`);
+		lines.push(`- Agents: ${agents.map(oneLine).join(', ')}`);
 	}
 
 	const sessions = facts.status ? activeSessionCount(facts.status) : undefined;
@@ -133,7 +141,7 @@ export function renderDoctorReport(facts: DoctorFacts): string {
 	}
 
 	if (facts.statusError) {
-		lines.push(`- Problem: ${facts.statusError}`);
+		lines.push(`- Problem: ${oneLine(facts.statusError)}`);
 	}
 
 	lines.push('');
@@ -145,7 +153,7 @@ export function renderDoctorReport(facts: DoctorFacts): string {
 	}
 
 	for (const setting of facts.settings) {
-		lines.push(`- ${setting}`);
+		lines.push(`- ${oneLine(setting)}`);
 	}
 
 	lines.push('');
@@ -161,10 +169,10 @@ export function renderDoctorReport(facts: DoctorFacts): string {
 	if (!facts.failure) {
 		lines.push('- (none)');
 	} else {
-		lines.push(`- Command: ${facts.failure.commandLine}`);
-		lines.push(`- Directory: ${facts.failure.cwd ?? "(the editor's own directory)"}`);
-		lines.push(`- Reason: ${facts.failure.reason}`);
-		lines.push(`- Detail: ${facts.failure.detail}`);
+		lines.push(`- Command: ${oneLine(facts.failure.commandLine)}`);
+		lines.push(`- Directory: ${facts.failure.cwd ? oneLine(facts.failure.cwd) : "(the editor's own directory)"}`);
+		lines.push(`- Reason: ${oneLine(facts.failure.reason)}`);
+		lines.push(`- Detail: ${oneLine(facts.failure.detail)}`);
 	}
 
 	return lines.join('\n');

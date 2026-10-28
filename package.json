@@ -165,12 +165,14 @@
         "entirely.cliPath": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Absolute path to the `entire` binary. Leave empty to use the built-in discovery order: `entire` on `PATH`, then the documented install locations."
+          "scope": "machine",
+          "markdownDescription": "Absolute path to the `entire` binary. Leave empty to use the built-in discovery order: `entire` on `PATH`, then the documented install locations. This can only be set in your user settings, never by a workspace."
         },
         "entirely.refreshInterval": {
           "type": "number",
           "default": 30,
           "minimum": 0,
+          "maximum": 3600,
           "markdownDescription": "How often, in seconds, the extension re-reads the Entire CLI for workspace and session state. Set to `0` to poll only when a command is run."
         },
         "entirely.showSessionsInExplorer": {
@@ -225,6 +227,16 @@
       ]
     }
   },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Entirely reads the Entire CLI, which reports on the repository. In an untrusted workspace the CLI path and the refresh interval are ignored, so the workspace cannot choose which binary runs or how often the extension polls.",
+      "restrictedConfigurations": [
+        "entirely.cliPath",
+        "entirely.refreshInterval"
+      ]
+    }
+  },
   "scripts": {
     "vscode:prepublish": "npm run package",
     "prepublishOnly": "npm run package",
@@ -242,18 +254,19 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.140.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "26.x",
-    "typescript-eslint": "^8.61.1",
-    "eslint": "^10.5.0",
-    "esbuild": "^0.28.1",
-    "npm-run-all": "^4.1.5",
-    "typescript": "^6.0.3",
+    "@types/vscode": "^1.140.0",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.0.0",
     "@vscode/vsce": "4.0.0",
-    "ovsx": "1.3.0"
+    "esbuild": "^0.28.1",
+    "eslint": "^10.5.0",
+    "marked": "18.1.2",
+    "npm-run-all": "^4.1.5",
+    "ovsx": "1.3.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1"
   },
   "overrides": {
     "@azure/msal-node": "^7.1.1",
