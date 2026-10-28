@@ -8,9 +8,18 @@ import * as vscode from 'vscode';
  */
 export type StatusDisplay =
 	/** The workspace is tracked and an agent session is live. */
-	| { readonly kind: 'active-session'; readonly agent?: string; readonly settings?: readonly string[] }
+	| {
+			readonly kind: 'active-session';
+			readonly agent?: string;
+			readonly settings?: readonly string[];
+			readonly checkpointDestination?: string;
+	  }
 	/** The workspace is tracked and no agent session is running. */
-	| { readonly kind: 'tracked'; readonly settings?: readonly string[] }
+	| {
+			readonly kind: 'tracked';
+			readonly settings?: readonly string[];
+			readonly checkpointDestination?: string;
+	  }
 	/** The workspace is a git repository Entire has not been set up for. */
 	| { readonly kind: 'not-set-up'; readonly settings?: readonly string[] }
 	/** The workspace is not a git repository, so it cannot be tracked. */
@@ -39,6 +48,21 @@ function settingsLine(settings: readonly string[] | undefined): string {
 }
 
 /**
+ * Where the checkpoints are going, as a line for the tooltip.
+ *
+ * A checkpoint that stays on the machine is worth saying out loud: it is
+ * the reason a dashboard can be empty while the extension says everything
+ * is fine.
+ */
+function destinationLine(destination: string | undefined): string {
+	if (!destination) {
+		return '';
+	}
+
+	return `\n\nCheckpoints go to ${destination}.`;
+}
+
+/**
  * The priority the item is shown at.
  *
  * The source control widget sits on the left of the status bar. Matching
@@ -60,6 +84,7 @@ function render(display: StatusDisplay): Rendering {
 					(display.agent
 						? `Entire is tracking this workspace. ${display.agent} is running.`
 						: 'Entire is tracking this workspace. An agent session is running.') +
+					destinationLine(display.checkpointDestination) +
 					settingsLine(display.settings),
 			};
 		case 'tracked':
@@ -67,6 +92,7 @@ function render(display: StatusDisplay): Rendering {
 				text: '$(circle-filled) Entire',
 				tooltip:
 					'Entire is tracking this workspace. No agent session is running.' +
+					destinationLine(display.checkpointDestination) +
 					settingsLine(display.settings),
 			};
 		case 'not-set-up':

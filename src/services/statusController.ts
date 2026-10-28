@@ -3,8 +3,14 @@ import { summariseSettings } from '../lib/entire';
 import { readExtensionSettings } from './configuration';
 import { readEntireSettings } from './settingsSource';
 
-import { decodeWorkspaceStatus, unwrap, type WorkspaceStatus } from '../lib/entire';
-import { CliRunner } from './cli';
+import {
+	decodeWorkspaceStatus,
+	describeDestination,
+	resolveCheckpointDestination,
+	unwrap,
+	type EntireSettings,
+	type WorkspaceStatus,
+} from '../lib/entire';import { CliRunner } from './cli';
 import { watchHeadChanges } from './headWatcher';
 import type { HookBridge } from './hookBridge';
 import { enableEntire } from './setup';
@@ -56,13 +62,17 @@ export function clickAction(display: StatusDisplay | undefined): ClickAction {
 }
 
 /** The status bar rendering for a workspace status. */
-function toDisplay(status: WorkspaceStatus, settings: readonly string[]): StatusDisplay {
+function toDisplay(
+	status: WorkspaceStatus,
+	settings: readonly string[],
+	destination: string | undefined,
+): StatusDisplay {
 	switch (status.kind) {
 		case 'tracked': {
 			const session = status.activeSessions[0];
 			return session
-				? { kind: 'active-session', agent: session.agent, settings }
-				: { kind: 'tracked', settings };
+				? { kind: 'active-session', agent: session.agent, settings, checkpointDestination: destination }
+				: { kind: 'tracked', settings, checkpointDestination: destination };
 		}
 		case 'not-set-up':
 			return { kind: 'not-set-up', settings };
@@ -83,6 +93,10 @@ export class StatusController {
 	private display: StatusDisplay | undefined;
 	private timer: NodeJS.Timeout | undefined;
 	private sessionStarted = false;
+	/** The last status the CLI reported, kept so it can be read again. */
+	private lastStatus: WorkspaceStatus | undefined;
+	/** The settings that were in effect when the status was read. */
+	private lastSettings: EntireSettings = {};
 
 	constructor(private readonly options: StatusControllerOptions) {
 		this.disposables.push(
@@ -147,9 +161,30 @@ export class StatusController {
 			return;
 		}
 
-		this.display = toDisplay(result.value, this.effectiveSettings());
+		this.lastStatus = result.value;
+		this.lastSettings = readEntireSettings(this.workspaceRoot());
+
+		this.display = toDisplay(result.value, this.effectiveSettings(), this.destination());
 		this.options.statusBar.show(this.display);
 		this.beginSession();
+	}
+
+	/**
+	 * Where the checkpoints of this workspace are going.
+	 *
+	 * This is what the CLI said the last time it reported the workspace's
+	 * status, so it costs nothing to show. Whether Entire can reach them
+	 * is a different question, and one that takes another command to
+	 * answer, so the tooltip points at that command rather than guessing.
+	 */
+	private destination(): string | undefined {
+		const status = this.lastStatus;
+		if (!status) {
+			return undefined;
+		}
+
+		const destination = resolveCheckpointDestination(status, this.lastSettings);
+		return destination ? describeDestination(destination) : undefined;
 	}
 
 	/**
@@ -255,7 +290,7 @@ export class StatusController {
 	 * CLI reads them through, so the tooltip says what the CLI would do.
 	 */
 	private effectiveSettings(): readonly string[] {
-		return summariseSettings(readEntireSettings(this.workspaceRoot()));
+		return summariseSettings(this.lastSettings);
 	}
 
 	/** The directory the CLI should run in. */
