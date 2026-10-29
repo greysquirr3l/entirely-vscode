@@ -11,6 +11,7 @@ import {
 	unwrap,
 } from '../lib/entire';
 import { readLogLevel, shouldLog, type LogLevel } from '../services/logger';
+import { makeTempDir } from './support/tempDir';
 import { effectiveLogLevel } from '../services/configuration';
 import { readEntireSettings, settingsLayers } from '../services/settingsSource';
 
@@ -91,8 +92,8 @@ suite('Entire settings layering', () => {
 	});
 
 	test('reads the effective settings from the files in that order', () => {
-		const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-settings-'));
-		const home = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-home-'));
+		const workspace = makeTempDir('entire-settings-');
+		const home = makeTempDir('entire-home-');
 
 		try {
 			fs.mkdirSync(path.join(workspace, '.entire'), { recursive: true });
@@ -128,8 +129,8 @@ suite('Entire settings layering', () => {
 	});
 
 	test('reads the settings that are there when there are none', () => {
-		const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-settings-'));
-		const home = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-home-'));
+		const workspace = makeTempDir('entire-settings-');
+		const home = makeTempDir('entire-home-');
 
 		try {
 			const settings = readEntireSettings(workspace, home);
@@ -143,8 +144,8 @@ suite('Entire settings layering', () => {
 	});
 
 	test('ignores a settings file it cannot parse', () => {
-		const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-settings-'));
-		const home = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-home-'));
+		const workspace = makeTempDir('entire-settings-');
+		const home = makeTempDir('entire-home-');
 
 		try {
 			fs.mkdirSync(path.join(workspace, '.entire'), { recursive: true });

@@ -18,6 +18,7 @@ import {
 	type BlameAnswer,
 } from '../lib/entire';
 import { blameFile, clearBlame } from '../commands/blameFile';
+import { makeTempDir } from './support/tempDir';
 import { BlameDecorations } from '../providers/blameDecorations';
 import { renderWhyBody } from '../providers/whyView';
 import { BlameService } from '../services/blameService';
@@ -366,7 +367,7 @@ suite('Entire blame decorations', () => {
 
 	test('draws nothing when the file is edited while the CLI is working', async () => {
 		const decorations = new BlameDecorations();
-		const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-race-'));
+		const directory = makeTempDir('entire-race-');
 		try {
 			const file = path.join(directory, 'a.txt');
 			fs.writeFileSync(file, 'one\ntwo\n', 'utf8');
@@ -426,7 +427,7 @@ suite('Entire blame against the real CLI', function () {
 		}
 		const runner = new CliRunner(locator);
 
-		directory = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-blame-'));
+		directory = makeTempDir('entire-blame-');
 		execFileSync('git', ['init', '--quiet'], { cwd: directory });
 		execFileSync('git', ['config', 'user.name', 'T'], { cwd: directory });
 		execFileSync('git', ['config', 'user.email', 't@example.com'], { cwd: directory });

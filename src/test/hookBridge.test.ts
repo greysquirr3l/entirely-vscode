@@ -15,6 +15,7 @@ import {
 	type HookPayload,
 } from '../services/hookBridge';
 import type { CliRunner } from '../services/cli';
+import { makeTempDir } from './support/tempDir';
 
 /** A runner that records what it was asked to run. */
 class RecordingRunner {
@@ -58,7 +59,7 @@ suiteTeardown(() => {
 
 /** Creates a temporary directory. */
 function temporary(): string {
-	const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-hooks-'));
+	const directory = makeTempDir('entire-hooks-');
 	directories.push(directory);
 	return directory;
 }

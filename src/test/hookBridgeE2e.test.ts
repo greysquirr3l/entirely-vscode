@@ -5,6 +5,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import { CliRunner } from '../services/cli';
+import { makeTempDir } from './support/tempDir';
 import { CliLocator } from '../services/cli/locator';
 import { HookBridge } from '../services/hookBridge';
 import { decodeWorkspaceStatus, unwrap } from '../lib/entire';
@@ -30,7 +31,7 @@ suite('Entire hook bridge against the real CLI', function () {
 
 	/** Creates a temporary directory. */
 	function temporary(prefix: string): string {
-		const directory = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+		const directory = makeTempDir(prefix);
 		directories.push(directory);
 		return directory;
 	}

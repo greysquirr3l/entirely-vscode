@@ -26,6 +26,7 @@ import {
 	type Session,
 } from '../lib/entire';
 import { importHistory, type ImportConfirmation, type ImportDependencies, type ImportNarrowing, type ImportUi } from '../commands/historyImport';
+import { makeTempDir } from './support/tempDir';
 import { stopSession, resumeStoppedSession, type LifecycleDependencies } from '../commands/sessionLifecycle';
 import { CheckpointsProvider } from '../providers/checkpointsProvider';
 import { SessionsProvider } from '../providers/sessionsProvider';
@@ -145,7 +146,7 @@ function behaviour(dir: string, name: string, value: Behaviour | undefined, fall
 }
 
 function fakeCli(options: FakeOptions = {}): FakeCli {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-import-'));
+	const dir = makeTempDir('entire-import-');
 	const bin = path.join(dir, '.local', 'bin');
 	fs.mkdirSync(bin, { recursive: true });
 	const log = path.join(dir, 'invocations.log');

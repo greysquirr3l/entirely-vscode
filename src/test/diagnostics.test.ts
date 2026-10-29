@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import { doctor, type ReportSink } from '../commands/doctor';
+import { makeTempDir } from './support/tempDir';
 import { dumpCliOutput } from '../commands/dumpCliOutput';
 import { AccountContextService } from '../services/accountContext';
 import {
@@ -130,7 +131,7 @@ suite('Entire diagnostics', () => {
 	});
 
 	function makeDirectory(prefix: string): string {
-		const directory = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+		const directory = makeTempDir(prefix);
 		temporaryDirectories.push(directory);
 		return directory;
 	}
@@ -441,7 +442,7 @@ suite('Entire invocation recorder', () => {
 
 suite('Entire repository check', () => {
 	test('says a folder without a .git is not a repository', () => {
-		const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-repository-'));
+		const directory = makeTempDir('entire-repository-');
 
 		try {
 			assert.strictEqual(isGitRepository(directory), false);

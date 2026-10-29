@@ -5,6 +5,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import { CliLocator } from '../services/cli/locator';
+import { makeTempDir } from './support/tempDir';
 import { readEntireSettings } from '../services/settingsSource';
 
 suite('Entire settings against the real CLI', function () {
@@ -20,7 +21,7 @@ suite('Entire settings against the real CLI', function () {
 
 	/** Creates a temporary directory. */
 	function temporary(prefix: string): string {
-		const directory = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+		const directory = makeTempDir(prefix);
 		directories.push(directory);
 		return directory;
 	}

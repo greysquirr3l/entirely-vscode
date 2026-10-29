@@ -16,6 +16,7 @@ import {
 	type SessionInfo,
 } from '../lib/entire';
 import { MAX_DOCUMENT_CHARACTERS, MAX_MESSAGE_CHARACTERS } from '../lib/entire/transcriptView';
+import { makeTempDir } from './support/tempDir';
 import { openTranscript, selectSession } from '../commands/sessionDetail';
 import { SessionDetailProvider } from '../providers/sessionDetailProvider';
 import { SessionsProvider } from '../providers/sessionsProvider';
@@ -104,7 +105,7 @@ interface FakeAnswers {
 
 /** A runner bound to a fake CLI that records what it was asked. */
 function fakeCli(answers: FakeAnswers): FakeCli {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-detail-'));
+	const dir = makeTempDir('entire-detail-');
 	const bin = path.join(dir, '.local', 'bin');
 	fs.mkdirSync(bin, { recursive: true });
 
@@ -282,6 +283,21 @@ suite('Entire transcript reading', () => {
 		}
 	});
 
+	test('leaves the worktree line out for an imported session that has none', async () => {
+		const transcript = await parseTranscript(COPILOT_TRANSCRIPT);
+		const text = renderTranscript(infoOf({ worktree_path: undefined }), {
+			transcript,
+			raw: '',
+			receivedBytes: 10,
+			truncated: false,
+		});
+
+		assert.ok(!text.includes('undefined'));
+		assert.ok(!text.includes('Worktree'));
+		assert.match(text, /- Session: /);
+		assert.match(renderTranscript(infoOf(), { transcript, raw: '', receivedBytes: 10, truncated: false }), /- Worktree: \/work\/repo/);
+	});
+
 	test('renders the attribution, the tool calls and the conversation', async () => {
 		const transcript = await parseTranscript(COPILOT_TRANSCRIPT);
 		const text = renderTranscript(infoOf(), { transcript, raw: '', receivedBytes: 10, truncated: false });
@@ -446,7 +462,7 @@ suite('Entire session detail', () => {
 	});
 
 	test('says so in the view when the CLI is missing', async () => {
-		const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-detail-none-'));
+		const empty = makeTempDir('entire-detail-none-');
 		const runner = new CliRunner(new CliLocator({ homeDir: empty, env: { PATH: '' } }));
 		const detail = new SessionDetailProvider();
 		const sessions = new SessionsProvider(async () => ({ sessions: [] }), () => 0);
@@ -530,7 +546,7 @@ suite('Entire long transcripts', () => {
 	}).timeout(60_000);
 
 	test('reports a transcript the CLI cannot produce', async () => {
-		const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-detail-none-'));
+		const empty = makeTempDir('entire-detail-none-');
 		const runner = new CliRunner(new CliLocator({ homeDir: empty, env: { PATH: '' } }));
 		const warnings: string[] = [];
 		const detail = new SessionDetailProvider();

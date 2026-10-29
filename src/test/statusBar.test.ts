@@ -5,6 +5,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 
 import { AccountContextService } from '../services/accountContext';
+import { makeTempDir } from './support/tempDir';
 import { CliLocator } from '../services/cli/locator';
 import { CliRunner } from '../services/cli/runner';
 import { StatusBar } from '../services/statusBar';
@@ -13,7 +14,7 @@ import { clickAction, StatusController } from '../services/statusController';
 const temporaryDirectories: string[] = [];
 
 function makeDirectory(prefix: string): string {
-	const directory = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+	const directory = makeTempDir(prefix);
 	temporaryDirectories.push(directory);
 	return directory;
 }

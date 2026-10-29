@@ -32,6 +32,7 @@ import {
 	type SessionSource,
 } from '../lib/entire';
 import { EditorLifecycleUi } from '../commands/lifecycleUi';
+import { makeTempDir } from './support/tempDir';
 import { SessionsProvider } from '../providers/sessionsProvider';
 import { CliLocator } from '../services/cli/locator';
 import { CliRunner } from '../services/cli/runner';
@@ -288,7 +289,7 @@ function writeBehaviour(dir: string, name: string, behaviour: FakeBehaviour | un
 }
 
 function fakeCli(options: FakeOptions = {}): FakeCli {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-lifecycle-'));
+	const dir = makeTempDir('entire-lifecycle-');
 	const bin = path.join(dir, '.local', 'bin');
 	fs.mkdirSync(bin, { recursive: true });
 	const log = path.join(dir, 'invocations.log');

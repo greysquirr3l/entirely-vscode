@@ -12,6 +12,7 @@ import {
 	type TokenReport,
 } from '../lib/entire';
 import { selectSession } from '../commands/sessionDetail';
+import { makeTempDir } from './support/tempDir';
 import { CheckpointsProvider, describeCheckpointUsage } from '../providers/checkpointsProvider';
 import { SessionDetailProvider } from '../providers/sessionDetailProvider';
 import { SessionsProvider } from '../providers/sessionsProvider';
@@ -82,7 +83,7 @@ interface FakeCli {
 
 /** A runner bound to a fake CLI that answers the two tokens commands. */
 function fakeCli(answers: { session?: unknown; checkpoint?: unknown }): FakeCli {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-tokens-'));
+	const dir = makeTempDir('entire-tokens-');
 	const bin = path.join(dir, '.local', 'bin');
 	fs.mkdirSync(bin, { recursive: true });
 
@@ -294,7 +295,7 @@ suite('Entire token usage service', () => {
 	});
 
 	test('fails with an explanation when the CLI is missing', async () => {
-		const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-tokens-none-'));
+		const empty = makeTempDir('entire-tokens-none-');
 		const runner = new CliRunner(new CliLocator({ homeDir: empty, env: { PATH: '' } }));
 		const service = new TokenUsageService({ runner, workspaceRoot: () => empty });
 

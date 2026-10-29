@@ -12,6 +12,7 @@ import {
 	selectAccountContext,
 } from '../lib/entire';
 import { AccountContextService, readAccountContext } from '../services/accountContext';
+import { makeTempDir } from './support/tempDir';
 import { CliLocator } from '../services/cli/locator';
 import { CliRunner } from '../services/cli/runner';
 import { readExtensionSettings } from '../services/configuration';
@@ -30,7 +31,7 @@ suiteTeardown(() => {
 
 /** Creates a temporary directory. */
 function makeDirectory(prefix: string): string {
-	const directory = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+	const directory = makeTempDir(prefix);
 	temporaryDirectories.push(directory);
 	return directory;
 }

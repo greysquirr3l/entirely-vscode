@@ -15,6 +15,7 @@ import {
 	type SearchOutcome,
 } from '../lib/entire';
 import { CheckpointsProvider } from '../providers/checkpointsProvider';
+import { makeTempDir } from './support/tempDir';
 import { CheckpointFilter, type FilterState } from '../services/checkpointFilter';
 import { CheckpointSearchService, type CheckpointSearchSource } from '../services/checkpointSearch';
 import { CliLocator } from '../services/cli/locator';
@@ -160,7 +161,7 @@ interface FakeOptions {
 }
 
 function fakeCli(options: FakeOptions = {}): FakeCli {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-search-'));
+	const dir = makeTempDir('entire-search-');
 	const bin = path.join(dir, '.local', 'bin');
 	fs.mkdirSync(bin, { recursive: true });
 	const log = path.join(dir, 'invocations.log');
