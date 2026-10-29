@@ -157,5 +157,5 @@ export type {
 	ResumeFlags,
 	StopFlags,
 } from './sessionLifecycle';
-export { describeResume } from './sessionResume';
+export { describeResume, describeUnsavedRefusal } from './sessionResume';
 export type { ResumeResult } from './sessionResume';

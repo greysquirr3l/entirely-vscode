@@ -37,6 +37,22 @@ export class EditorLifecycleUi implements LifecycleUi {
 		return choice === prompt.action;
 	}
 
+	unsavedFiles(): readonly string[] {
+		const names: string[] = [];
+		for (const document of vscode.workspace.textDocuments) {
+			// Untitled and virtual buffers are not in the working tree, and a file
+			// outside the workspace is not in the repository the checkout moves.
+			if (!document.isDirty || document.isUntitled || document.uri.scheme !== 'file') {
+				continue;
+			}
+			if (!vscode.workspace.getWorkspaceFolder(document.uri)) {
+				continue;
+			}
+			names.push(vscode.workspace.asRelativePath(document.uri, false));
+		}
+		return names;
+	}
+
 	async chooseSession(title: string, sessions: readonly Session[]): Promise<Session | undefined> {
 		if (sessions.length === 0) {
 			await this.inform('There is no session for this to act on.');

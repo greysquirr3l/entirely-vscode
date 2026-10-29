@@ -2,10 +2,12 @@ import * as fs from 'fs';
 
 import {
 	describeResume,
+	describeUnsavedRefusal,
 	isLive,
 	isStoppable,
 	nameSession,
 	resumable,
+	type ResumeResult,
 	type Session,
 	type SessionSource,
 } from '../lib/entire';
@@ -35,6 +37,8 @@ export interface LifecycleUi {
 	chooseSessionOrId(title: string, sessions: readonly Session[]): Promise<ChosenSession | undefined>;
 	/** A commit, a ref, or `HEAD` when the person takes the default. */
 	chooseCommit(): Promise<string | undefined>;
+	/** Workspace files the editor holds with unsaved changes, as names the person knows. */
+	unsavedFiles(): readonly string[];
 	inform(message: string): Promise<void>;
 	warn(message: string): Promise<void>;
 }
@@ -52,11 +56,18 @@ export interface LifecycleDependencies {
 	readonly resumeWatchMs: () => number;
 	readonly pollMs?: number;
 	readonly sleep?: (milliseconds: number) => Promise<void>;
+	/** Branches whose resume is being watched now. Shared so a second Resume is noticed. */
+	readonly watching?: Set<string>;
+	/** Stops resume watches, e.g. on deactivate. */
+	readonly signal?: AbortSignal;
 }
 
 /** How a command ended, for the caller that wants to know. */
 /** `unconfirmed` is a resume that ran but whose session was not seen to come back. */
 export type LifecycleResult = 'cancelled' | 'done' | 'failed' | 'unconfirmed';
+
+/** Branches being watched when the caller gives no set of its own. */
+const sharedWatching = new Set<string>();
 
 async function listed(deps: LifecycleDependencies): Promise<readonly Session[]> {
 	return (await deps.sessions()).sessions;
@@ -226,17 +237,52 @@ export async function resumeStoppedSession(deps: LifecycleDependencies, target?:
 		return 'failed';
 	}
 
-	const result = await resumeSession(
-		{
-			lifecycle: deps.lifecycle,
-			sessions: deps.sessions,
-			launch: deps.launch,
-			watchMs: deps.resumeWatchMs,
-			pollMs: deps.pollMs,
-			sleep: deps.sleep,
-		},
-		session.branch,
-	);
+	const watching = deps.watching ?? sharedWatching;
+	if (watching.has(session.branch)) {
+		await deps.ui.inform(`A resume of ${session.branch} is already being watched. Check its terminal.`);
+		return 'cancelled';
+	}
+
+	const unsaved = deps.ui.unsavedFiles();
+	if (unsaved.length > 0) {
+		await deps.ui.warn(describeUnsavedRefusal(session.branch, unsaved));
+		return 'cancelled';
+	}
+
+	const confirmed = await deps.ui.confirm({
+		message: `Resume ${session.branch}?`,
+		detail:
+			`This checks out the branch ${session.branch} in this workspace and restores the session's log. ` +
+			'It opens a terminal where Entire may ask you questions.',
+		action: 'Resume',
+	});
+	if (!confirmed) {
+		return 'cancelled';
+	}
+	// Taken after the awaits above, so two quick clicks cannot both pass the check.
+	if (watching.has(session.branch)) {
+		await deps.ui.inform(`A resume of ${session.branch} is already being watched. Check its terminal.`);
+		return 'cancelled';
+	}
+
+	watching.add(session.branch);
+	let result: ResumeResult;
+	try {
+		result = await resumeSession(
+			{
+				lifecycle: deps.lifecycle,
+				sessions: deps.sessions,
+				launch: deps.launch,
+				watchMs: deps.resumeWatchMs,
+				pollMs: deps.pollMs,
+				sleep: deps.sleep,
+				signal: deps.signal,
+			},
+			session.branch,
+		);
+	} finally {
+		watching.delete(session.branch);
+	}
 	await deps.refresh();
 
 	const message = describeResume(session.branch, result);

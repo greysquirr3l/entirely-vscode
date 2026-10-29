@@ -2,10 +2,12 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import * as vscode from 'vscode';
 
 import {
 	activeOnBranch,
 	adoptArguments,
+	describeUnsavedRefusal,
 	asksForAgreement,
 	attachArguments,
 	cleanCliText,
@@ -29,6 +31,7 @@ import {
 	type SessionListing,
 	type SessionSource,
 } from '../lib/entire';
+import { EditorLifecycleUi } from '../commands/lifecycleUi';
 import { SessionsProvider } from '../providers/sessionsProvider';
 import { CliLocator } from '../services/cli/locator';
 import { CliRunner } from '../services/cli/runner';
@@ -514,6 +517,7 @@ function fakeUi(options: {
 	pick?: Session;
 	pickId?: string;
 	commit?: string;
+	unsaved?: readonly string[];
 } = {}): RecordedUi {
 	const confirmations: Confirmation[] = [];
 	const informed: string[] = [];
@@ -530,6 +534,7 @@ function fakeUi(options: {
 		chooseSessionOrId: async () =>
 			options.pickId ? { id: options.pickId } : options.pick ? { id: options.pick.id, session: options.pick } : undefined,
 		chooseCommit: async () => options.commit ?? 'HEAD',
+		unsavedFiles: () => options.unsaved ?? [],
 		inform: async message => void informed.push(message),
 		warn: async message => void warned.push(message),
 	};
@@ -916,6 +921,126 @@ suite('Resume session', () => {
 		);
 		assert.strictEqual(missing, 'failed');
 		assert.ok(gone.warned[0].includes('Could not resume'));
+	});
+});
+
+suite('Resume safety', () => {
+	const stopped = session({ status: 'ended' });
+
+	function counting(): { launches: () => number; launch: ResumeLauncher } {
+		let launches = 0;
+		return {
+			launches: () => launches,
+			launch: () => {
+				launches += 1;
+				return { status: () => ({ ended: true, exitCode: 0 }) };
+			},
+		};
+	}
+
+	test('unsaved files block a resume, name the files, and nothing is launched', async () => {
+		const cli = fakeCli();
+		const ui = fakeUi({ unsaved: ['src/a.ts', 'README.md'] });
+		const run = counting();
+		const deps = dependencies(cli, ui, { launch: run.launch, listing: resumeSource([[stopped]]).source });
+
+		assert.strictEqual(await resumeStoppedSession(deps, stopped), 'cancelled');
+		assert.ok(ui.warned[0].includes('src/a.ts') && ui.warned[0].includes('README.md'));
+		assert.strictEqual(ui.confirmations.length, 0);
+		assert.strictEqual(run.launches(), 0);
+		assert.deepStrictEqual(cli.mutations(), []);
+		assert.ok(describeUnsavedRefusal('b', Array.from({ length: 10 }, (_, i) => `f${i}`)).includes('and 2 more'));
+	});
+
+	test('a declined confirmation starts nothing, and the confirmation names the branch', async () => {
+		const ui = fakeUi({ confirm: false });
+		const run = counting();
+		const deps = dependencies(fakeCli(), ui, { launch: run.launch, listing: resumeSource([[stopped]]).source });
+
+		assert.strictEqual(await resumeStoppedSession(deps, stopped), 'cancelled');
+		assert.ok(ui.confirmations[0].message.includes('feat/x'));
+		assert.strictEqual(run.launches(), 0);
+	});
+
+	test('a second resume of the same branch while one is watched starts nothing new', async () => {
+		const ui = fakeUi();
+		const run = counting();
+		let release: () => void = () => undefined;
+		const gate = new Promise<void>(resolve => (release = resolve));
+		let reads = 0;
+		const deps = dependencies(fakeCli(), ui, {
+			launch: run.launch,
+			watching: new Set<string>(),
+			listing: async () => {
+				reads += 1;
+				if (reads === 2) {
+					await gate;
+				}
+				return { sessions: [stopped] };
+			},
+		});
+
+		const first = resumeStoppedSession(deps, stopped);
+		while (reads < 2) {
+			await new Promise(resolve => setTimeout(resolve, 1));
+		}
+		assert.strictEqual(await resumeStoppedSession(deps, stopped), 'cancelled');
+		assert.ok(ui.informed.some(text => text.includes('already being watched')));
+		assert.strictEqual(run.launches(), 1);
+
+		release();
+		await first;
+		assert.strictEqual(deps.watching?.size, 0);
+	});
+
+	test('cancelling stops the watch promptly and leaves the terminal alone', async () => {
+		const controller = new AbortController();
+		const started = Date.now();
+		const outcome = resumeSession(
+			{
+				lifecycle: serviceFor(fakeCli()),
+				sessions: resumeSource([[stopped]]).source,
+				launch: () => ({ status: () => ({ ended: false }) }),
+				watchMs: () => 60000,
+				pollMs: 30000,
+				signal: controller.signal,
+			},
+			'feat/x',
+		);
+		setTimeout(() => controller.abort(), 20);
+		const result = await outcome;
+		assert.strictEqual(result.kind, 'stopped-watching');
+		assert.ok(Date.now() - started < 1500);
+		assert.ok(describeResume('feat/x', result).includes('terminal is still open'));
+	});
+});
+
+suite('Unsaved files in the editor', () => {
+	teardown(async () => {
+		await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+	});
+
+	test('an untitled buffer does not count, and a dirty workspace file does', async () => {
+		const ui = new EditorLifecycleUi(undefined, () => undefined);
+		const untitled = await vscode.workspace.openTextDocument({ content: 'scratch' });
+		const untitledEditor = await vscode.window.showTextDocument(untitled);
+		await untitledEditor.edit(edit => edit.insert(new vscode.Position(0, 0), 'x'));
+		assert.deepStrictEqual(ui.unsavedFiles(), []);
+
+		const folder = vscode.workspace.workspaceFolders?.[0];
+		assert.ok(folder);
+		const file = path.join(folder.uri.fsPath, 'unsaved-resume-guard.txt');
+		fs.writeFileSync(file, 'one\n');
+		try {
+			const document = await vscode.workspace.openTextDocument(file);
+			const editor = await vscode.window.showTextDocument(document);
+			await editor.edit(edit => edit.insert(new vscode.Position(0, 0), 'x'));
+			assert.deepStrictEqual(ui.unsavedFiles(), ['unsaved-resume-guard.txt']);
+			await vscode.commands.executeCommand('workbench.action.files.revert');
+		} finally {
+			await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+			fs.rmSync(file, { force: true });
+		}
 	});
 });
 

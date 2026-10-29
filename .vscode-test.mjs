@@ -10,5 +10,9 @@ export default defineConfig({
 	workspaceFolder: 'test-workspace',
 	mocha: {
 		ui: 'tdd',
+		// Many tests start the fake CLI as a real child process, several times
+		// each. On a loaded machine or CI runner that passes mocha's 2000ms
+		// default now and then, so the limit is raised for the whole suite.
+		timeout: 10000,
 	},
 });

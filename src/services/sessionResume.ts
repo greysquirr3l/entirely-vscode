@@ -21,12 +21,23 @@ export interface ResumeDependencies {
 	readonly pollMs?: number;
 	/** Waits. Replaceable so a test need not. */
 	readonly sleep?: (milliseconds: number) => Promise<void>;
+	/** Stops the watch when aborted. The terminal itself is left alone. */
+	readonly signal?: AbortSignal;
 }
 
 const DEFAULT_POLL_MS = 2000;
 
-function wait(milliseconds: number): Promise<void> {
-	return new Promise(resolve => setTimeout(resolve, milliseconds));
+/** Waits, and returns early when the signal aborts. */
+function wait(milliseconds: number, signal?: AbortSignal): Promise<void> {
+	return new Promise(resolve => {
+		const finish = (): void => {
+			clearTimeout(timer);
+			signal?.removeEventListener('abort', finish);
+			resolve();
+		};
+		const timer = setTimeout(finish, milliseconds);
+		signal?.addEventListener('abort', finish, { once: true });
+	});
 }
 
 /**
@@ -41,6 +52,9 @@ function wait(milliseconds: number): Promise<void> {
  * happens after the user asked to resume.
  */
 export async function resumeSession(deps: ResumeDependencies, branch: string): Promise<ResumeResult> {
+	if (deps.signal?.aborted) {
+		return { kind: 'stopped-watching' };
+	}
 	const launch = await deps.lifecycle.prepareResume(branch);
 	if (!launch.ok) {
 		return { kind: 'failed', detail: launch.detail };
@@ -53,12 +67,15 @@ export async function resumeSession(deps: ResumeDependencies, branch: string): P
 	}
 
 	const process = deps.launch(launch);
-	const sleep = deps.sleep ?? wait;
+	const sleep = deps.sleep ?? ((milliseconds: number) => wait(milliseconds, deps.signal));
 	const pollMs = deps.pollMs ?? DEFAULT_POLL_MS;
 	const deadline = Date.now() + deps.watchMs();
 	let unreadable: string | undefined;
 
 	for (;;) {
+		if (deps.signal?.aborted) {
+			return { kind: 'stopped-watching' };
+		}
 		const listing = await deps.sessions();
 		const found = activeOnBranch(listing.sessions, branch)[0];
 		if (found) {
@@ -66,6 +83,9 @@ export async function resumeSession(deps: ResumeDependencies, branch: string): P
 		}
 		unreadable = listing.sessions.length === 0 ? listing.emptyReason : undefined;
 
+		if (deps.signal?.aborted) {
+			return { kind: 'stopped-watching' };
+		}
 		const { ended, exitCode } = process.status();
 		if (ended || Date.now() >= deadline) {
 			return { kind: 'not-seen', ended, exitCode, unreadable };

@@ -272,8 +272,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		timeoutSeconds: () => readExtensionSettings().lifecycleActionTimeout,
 	});
 
+	// One resume per branch at a time, and every watch stops when the window closes.
+	const resumeWatches = new AbortController();
+	context.subscriptions.push({ dispose: () => resumeWatches.abort() });
+
 	registerCommands(context, {
 		lifecycle: {
+			watching: new Set<string>(),
+			signal: resumeWatches.signal,
 			lifecycle,
 			sessions: sessionSource,
 			ui: new EditorLifecycleUi(git, workspaceFolder),

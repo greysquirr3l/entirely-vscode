@@ -122,6 +122,9 @@ the refresh timer. Each command's flags are read from `entire agent-help session
   it does not assume the work started: it watches the session list for up to
   `entirely.resumeWatchTimeout` seconds and reports that the session is active
   again, or that none appeared (with the terminal's exit code if it had ended).
+  Resume asks you to confirm the branch it will check out, and refuses while any
+  file in the workspace has unsaved changes (it names them). A second Resume on a
+  branch already being watched starts nothing, and closing the window stops the watch.
 
 `entirely.lifecycleActionTimeout` sets how long stop, attach and adopt may take.
 

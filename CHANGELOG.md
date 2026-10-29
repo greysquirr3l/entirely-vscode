@@ -18,6 +18,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
   with the exit code) rather than assuming it started. Flags are read from the
   CLI's own help; a missing, old or refusing CLI is reported as a failure. New
   settings `entirely.lifecycleActionTimeout` and `entirely.resumeWatchTimeout`.
+  Resume confirms the branch it will check out, refuses (naming the files) while
+  the workspace has unsaved changes, ignores a second Resume on a branch already
+  being watched, and stops watching when the window closes.
 - **File blame.** **Entirely: Blame This File** (palette and editor context menu)
   runs `entire blame` once on the saved file and marks every line in the editor:
   a recorded change, a recorded change that has not synced yet, or no recorded
