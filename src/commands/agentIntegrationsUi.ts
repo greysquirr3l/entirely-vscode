@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import { describeSupport } from '../lib/entire';
+import { describeBridging } from '../lib/entire';
 import type { AgentListing } from '../services/agentIntegrations';
 import type { AgentAction, AgentConfirmation, AgentUi } from './agentIntegrations';
 
@@ -13,8 +13,8 @@ export class EditorAgentUi implements AgentUi {
 	async chooseAgent(agents: readonly AgentListing[]): Promise<AgentListing | undefined> {
 		const picks: AgentPick[] = agents.map(agent => ({
 			label: `${agent.installed ? '$(check) ' : ''}${agent.name}`,
-			description: agent.installed ? 'installed' : 'not installed',
-			detail: agent.support ? describeSupport(agent.support) : undefined,
+			description: `${agent.installed ? 'installed' : 'not installed'}${agent.bridging?.kind === 'not-bridged' ? ', not bridged' : agent.bridging ? ', bridged' : ''}`,
+			detail: agent.bridging ? describeBridging(agent.bridging) : undefined,
 			agent,
 		}));
 		const picked = await vscode.window.showQuickPick(picks, {

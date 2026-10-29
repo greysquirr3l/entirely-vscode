@@ -312,6 +312,12 @@
           "maximum": 600,
           "markdownDescription": "How long, in seconds, to wait for the Entire CLI to hand over a session transcript before giving up. A long session produces a large transcript, so raise this if opening one times out."
         },
+        "entirely.editorHookAgent": {
+          "type": "string",
+          "default": "copilot-cli",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "markdownDescription": "The agent integration whose hook payload layout matches the editor's own agent events (the name `entire agent list` prints). Entirely forwards the editor's events to this agent and to no other: every other integration runs its own hooks and is installed, listed and removed here but not bridged."
+        },
         "entirely.lifecycleActionTimeout": {
           "type": "number",
           "default": 60,

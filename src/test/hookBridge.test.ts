@@ -16,7 +16,7 @@ import {
 } from '../services/hookBridge';
 import type { CliRunner } from '../services/cli';
 import { makeTempDir } from './support/tempDir';
-import { FixedTargets, supportedTarget } from './support/hookTargets';
+import { FixedTargets, bridgedTarget } from './support/hookTargets';
 
 /** A runner that records what it was asked to run. */
 class RecordingRunner {
@@ -74,7 +74,7 @@ function bridgeWith(
 	return new HookBridge({
 		runner: runner.asRunner(),
 		workspaceRoot: () => workspaceRoot,
-		agents: new FixedTargets([supportedTarget('copilot-cli')]),
+		agents: new FixedTargets(bridgedTarget('copilot-cli')),
 		env,
 		homeDir: '/home/tester',
 	});
@@ -281,9 +281,9 @@ suite('Entire hook delivery', () => {
 		const bridge = new HookBridge({
 			runner: runner.asRunner(),
 			workspaceRoot: () => '/work/repo',
-			agents: new FixedTargets([
-				supportedTarget('copilot-cli', undefined, [`${EDITOR_LOADED_HOOKS_DIRECTORY}entire.json`]),
-			]),
+			agents: new FixedTargets(
+				bridgedTarget('copilot-cli', [`${EDITOR_LOADED_HOOKS_DIRECTORY}entire.json`]),
+			),
 		});
 
 		const results = await bridge.deliverToAgents('SessionStart', {});

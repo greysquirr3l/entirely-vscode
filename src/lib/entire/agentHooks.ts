@@ -1,5 +1,3 @@
-import { carriedEvents, type EditorHookEvent } from './hookEvents';
-
 /**
  * The verbs an agent's hook configuration calls.
  *
@@ -18,55 +16,55 @@ export function findHookVerbs(agent: string, configuration: string): readonly st
 	return [...verbs];
 }
 
-/** Whether the extension can report editor activity to an installed agent. */
-export type HookSupport =
+/**
+ * Whether Entirely forwards the editor's own agent events to an agent.
+ *
+ * Installing an integration and bridging it are separate things. Every
+ * integration the CLI ships runs its own hooks through its own program, and
+ * those hooks call `entire hooks <agent> <verb>` with that program's own
+ * payload. The editor's events carry a different layout, and a verb with the
+ * same name does not make the two compatible: the CLI exits 0 for a payload
+ * it cannot read and records nothing. So the bridge forwards editor events
+ * to one agent only, the one whose layout the editor's matches, and never
+ * claims to capture any other.
+ */
+export type HookBridging =
 	| {
-			readonly kind: 'supported';
+			readonly kind: 'bridged';
 			readonly agent: string;
-			readonly verbs: readonly string[];
-			/** The configuration files the verbs were read from, relative to the workspace. */
+			/** Whether the CLI lists the agent as installed in this repository. */
+			readonly installed: boolean;
+			/** The configuration files that hold the agent's hook commands, relative to the workspace. */
 			readonly files: readonly string[];
-			/** The editor events the agent's verbs can carry. */
-			readonly events: readonly EditorHookEvent[];
 	  }
-	| { readonly kind: 'unsupported'; readonly agent: string; readonly reason: string };
+	| { readonly kind: 'not-bridged'; readonly agent: string; readonly reason: string };
 
 /**
- * Decides whether an installed agent's events are understood.
+ * Decides whether an agent is the one the editor's events belong to.
  *
- * An agent is supported when its hook configuration was found and at least
- * one of its verbs carries an event the editor reports. Otherwise the
- * extension does not know how to speak to it, and says so rather than
- * counting a session that captured nothing.
+ * `editorAgent` is the integration whose hook payload layout matches the
+ * editor's. Any other agent is not bridged, whatever verbs its hook file
+ * names.
  */
 export function classifyAgent(
 	agent: string,
-	found: { readonly verbs: readonly string[]; readonly files: readonly string[] },
-): HookSupport {
-	if (found.verbs.length === 0) {
+	editorAgent: string,
+	found: { readonly installed: boolean; readonly files: readonly string[] },
+): HookBridging {
+	if (agent !== editorAgent) {
 		return {
-			kind: 'unsupported',
+			kind: 'not-bridged',
 			agent,
-			reason: `Entirely could not find the hook commands that Entire installed for ${agent}, so it does not know which events ${agent} sends`,
+			reason: `${agent} runs its own hooks; Entirely does not forward editor events to it`,
 		};
 	}
-
-	const events = carriedEvents(found.verbs);
-	if (events.length === 0) {
-		return {
-			kind: 'unsupported',
-			agent,
-			reason: `${agent} names its events differently from the editor (${found.verbs.join(', ')}), and the Entire CLI does not say how they correspond`,
-		};
-	}
-
-	return { kind: 'supported', agent, verbs: found.verbs, files: found.files, events };
+	return { kind: 'bridged', agent, installed: found.installed, files: found.files };
 }
 
-/** One line saying what Entirely does for an agent, for the setup list. */
-export function describeSupport(support: HookSupport): string {
-	if (support.kind === 'unsupported') {
-		return `Not supported by Entirely: ${support.reason}.`;
+/** One line saying what Entirely does, or does not do, for an agent. */
+export function describeBridging(bridging: HookBridging): string {
+	if (bridging.kind === 'not-bridged') {
+		return `Not bridged: ${bridging.reason}. Its own hooks report to Entire.`;
 	}
-	return `Entirely reports ${support.events.length} editor event${support.events.length === 1 ? '' : 's'} to ${support.agent}.`;
+	return `Bridged: Entirely forwards this editor's own agent events to ${bridging.agent}.`;
 }

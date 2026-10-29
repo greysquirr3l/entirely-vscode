@@ -86,28 +86,3 @@ export function resolveHookName(
 
 	return route.hook;
 }
-
-/**
- * Whether an agent's hook handler has a verb that carries an editor event.
- *
- * `verbs` are the verbs the agent's installed hooks call, read from the
- * hook configuration the CLI wrote. An event the agent has no matching verb
- * for is not understood by that agent, and is not sent to it.
- */
-export function agentCarries(
-	verbs: readonly string[],
-	event: EditorHookEvent,
-	terminal = false,
-): boolean {
-	const verb = resolveHookName(event, terminal);
-	return verb !== undefined && verbs.includes(verb);
-}
-
-/** The editor events an agent's verbs can carry, in table order. */
-export function carriedEvents(verbs: readonly string[]): readonly EditorHookEvent[] {
-	return HOOK_EVENTS.filter(
-		route =>
-			(route.hook !== undefined && verbs.includes(route.hook)) ||
-			(route.terminalHook !== undefined && verbs.includes(route.terminalHook)),
-	).map(route => route.event);
-}

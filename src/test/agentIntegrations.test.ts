@@ -4,16 +4,15 @@ import * as path from 'path';
 
 import {
 	agentAddArguments,
-	agentCarries,
 	agentRemoveArguments,
-	carriedEvents,
 	classifyAgent,
-	describeSupport,
+	describeBridging,
 	findHookVerbs,
 	isAgentName,
 	parseAgentList,
 	planAgentAddFlags,
 	readWrittenFiles,
+	type HookBridging,
 } from '../lib/entire';
 import {
 	describeOutcome,
@@ -133,6 +132,7 @@ function fakeCli(options: FakeOptions = {}): FakeCli {
 		'\t\tmkdir -p ".$name"; : > ".$name/hooks.json"',
 		'\t\tfor v in $verbs; do echo "sh -c \'exec entire hooks $name $v\'" >> ".$name/hooks.json"; done',
 		'\t\techo "  Agent: $name"; echo "Ready."; echo; echo "Make sure to commit these files to your Git repo:"; echo "  .entire/settings.json"; echo "  .$name/hooks.json" ;;',
+		'\thooks\\ *) cat > /dev/null; exit 0 ;;',
 		'\t"agent remove")',
 		'\t\tfor name; do :; done',
 		'\t\tgrep -vx "$name" "$S/installed" > "$S/installed.tmp"; mv "$S/installed.tmp" "$S/installed"; rm -rf ".$name"',
@@ -159,8 +159,13 @@ function fakeCli(options: FakeOptions = {}): FakeCli {
 	};
 }
 
-function serviceFor(cli: FakeCli): AgentIntegrationService {
-	return new AgentIntegrationService({ runner: cli.runner, workspaceRoot: () => cli.dir, timeoutSeconds: () => 20 });
+function serviceFor(cli: FakeCli, editorAgent = 'alpha-agent'): AgentIntegrationService {
+	return new AgentIntegrationService({
+		runner: cli.runner,
+		workspaceRoot: () => cli.dir,
+		timeoutSeconds: () => 20,
+		editorAgent: () => editorAgent,
+	});
 }
 
 /** A runner that records the hooks the bridge sends. */
@@ -177,10 +182,15 @@ class RecordingRunner {
 	}
 }
 
-function bridgeFor(cli: FakeCli, recorder: RecordingRunner, log?: (line: string) => void): HookBridge {
+function bridgeFor(
+	cli: FakeCli,
+	recorder: { asRunner(): CliRunnerType },
+	log?: (line: string) => void,
+	editorAgent = 'alpha-agent',
+): HookBridge {
 	return new HookBridge({
 		runner: recorder.asRunner(),
-		agents: serviceFor(cli),
+		agents: serviceFor(cli, editorAgent),
 		workspaceRoot: () => cli.dir,
 		env: {},
 		homeDir: '/home/tester',
@@ -250,7 +260,20 @@ suite('Agent list parsing', () => {
 
 	test('reports output it does not understand rather than an empty list', () => {
 		assert.strictEqual(parseAgentList('something else entirely'), undefined);
-		assert.strictEqual(parseAgentList('Agents:\n  --force\n'), undefined);
+		assert.deepStrictEqual(parseAgentList('Agents:\n  --force\n'), []);
+	});
+
+	test('reads a list with no tick marks as all not installed', () => {
+		assert.deepStrictEqual(parseAgentList('Agents:\n    one\n    two\n'), [
+			{ name: 'one', installed: false },
+			{ name: 'two', installed: false },
+		]);
+	});
+
+	test('skips a line it does not recognise and tolerates trailing lines', () => {
+		const list = parseAgentList("Agents:\n  ✓ one\n  not an agent line\n    two\n  --odd\nUse 'entire agent add <name>'\nlast-line\n");
+		assert.deepStrictEqual(list?.map(agent => [agent.name, agent.installed]), [['one', true], ['two', false], ['last-line', false]]);
+		assert.deepStrictEqual(parseAgentList('Agents:\n\n  ✓ one\n\n  ignored\n'), [{ name: 'one', installed: true }]);
 	});
 
 	test('accepts only names that cannot be read as a flag', () => {
@@ -303,32 +326,17 @@ suite('Agent hook support', () => {
 		assert.deepStrictEqual(findHookVerbs('c.dex', 'entire hooks codex stop'), []);
 	});
 
-	test('an agent whose verbs carry editor events is supported', () => {
-		const support = classifyAgent('a', { verbs: ['session-start', 'agent-stop'], files: ['.a/hooks.json'] });
-		assert.strictEqual(support.kind, 'supported');
-		assert.ok(support.kind === 'supported' && support.events.includes('SessionStart'));
-		assert.ok(describeSupport(support).startsWith('Entirely reports 2 editor events'));
-	});
+	test('only the editor agent is bridged, whatever verbs another agent names', () => {
+		const found = { installed: true, files: ['.a/hooks.json'] };
+		const bridged = classifyAgent('copilot-cli', 'copilot-cli', found);
+		assert.strictEqual(bridged.kind, 'bridged');
+		assert.ok(describeBridging(bridged).startsWith('Bridged:'));
 
-	test('an agent with no readable hook commands is unsupported', () => {
-		const support = classifyAgent('a', { verbs: [], files: [] });
-		assert.strictEqual(support.kind, 'unsupported');
-		assert.ok(describeSupport(support).startsWith('Not supported by Entirely'));
-	});
-
-	test('an agent that names its events differently is unsupported, not empty', () => {
-		const support = classifyAgent('a', { verbs: ['turn-begin', 'turn-end'], files: ['.a/x.json'] });
-		assert.strictEqual(support.kind, 'unsupported');
-		assert.ok(support.kind === 'unsupported' && support.reason.includes('turn-begin'));
-	});
-
-	test('carries an event only when the agent has the verb the table names', () => {
-		assert.ok(agentCarries(['session-start'], 'SessionStart'));
-		assert.ok(!agentCarries(['session-start'], 'UserPromptSubmit'));
-		assert.ok(agentCarries(['session-end'], 'Stop', true));
-		assert.ok(!agentCarries(['session-end'], 'Stop', false));
-		assert.ok(!agentCarries(['pre-compact'], 'PreCompact'));
-		assert.deepStrictEqual(carriedEvents(['session-start', 'session-end']), ['SessionStart', 'Stop']);
+		const other = classifyAgent('claude-code', 'copilot-cli', found);
+		assert.strictEqual(other.kind, 'not-bridged');
+		assert.ok(other.kind === 'not-bridged' && other.reason.includes('runs its own hooks; Entirely does not forward editor events to it'));
+		assert.ok(describeBridging(other).startsWith('Not bridged:'));
+		assert.ok(!/captured/i.test(describeBridging(other)));
 	});
 });
 
@@ -402,7 +410,7 @@ suite('Agent integrations (fake CLI)', () => {
 		assert.deepStrictEqual(cli.installed(), ['alpha-agent']);
 		if (outcome.kind === 'done') {
 			assert.deepStrictEqual(outcome.files, ['.entire/settings.json', '.alpha-agent/hooks.json']);
-			assert.strictEqual(outcome.support?.kind, 'supported');
+			assert.strictEqual(outcome.bridging?.kind, 'bridged');
 		}
 	});
 
@@ -417,7 +425,7 @@ suite('Agent integrations (fake CLI)', () => {
 		assert.ok(ui.confirmations[0].detail.includes('beta-agent stay installed'));
 		assert.ok(ui.informed[0].includes('alpha-agent is installed'));
 		assert.ok(ui.informed[0].includes('.alpha-agent/hooks.json'));
-		assert.ok(ui.informed[0].includes('Entirely reports 5 editor events to alpha-agent'));
+		assert.ok(ui.informed[0].includes("Bridged: Entirely forwards this editor's own agent events to alpha-agent"));
 		assert.deepStrictEqual(cli.installed().sort(), ['alpha-agent', 'beta-agent']);
 	});
 
@@ -518,6 +526,20 @@ suite('Agent integrations (fake CLI)', () => {
 		assert.ok(describeOutcome('a', 'remove', { kind: 'done', summary: 'a hooks removed.', files: [] }).startsWith('a was removed'));
 	});
 
+	test('the install confirmation says plainly that the files cannot be listed beforehand, and the removal names the files', async () => {
+		const agents: AgentListing[] = [{ name: 'a', installed: true, hookFiles: ['.a/hooks.json'] }, { name: 'b', installed: false }];
+		const install = installConfirmation(agents[1], agents, false).detail;
+		assert.ok(install.includes('cannot say which files in advance'));
+		assert.ok(install.includes('lists the files to commit when it finishes'));
+		assert.ok(removeConfirmation(agents[0], agents).detail.includes('.a/hooks.json'));
+		assert.ok(installConfirmation(agents[0], agents, true).detail.includes('.a/hooks.json'));
+
+		const cli = fakeCli({ installed: ['alpha-agent'], files: [['.alpha-agent/hooks.json', 'entire hooks alpha-agent session-start']] });
+		const listed = await serviceFor(cli).list();
+		assert.ok(listed.ok);
+		assert.deepStrictEqual(listed.agents.find(agent => agent.name === 'alpha-agent')?.hookFiles, ['.alpha-agent/hooks.json']);
+	});
+
 	test('a second change is refused while one is running', async () => {
 		const cli = fakeCli();
 		const ui = fakeUi({ agent: 'alpha-agent' });
@@ -540,86 +562,95 @@ suite('Agent integrations (fake CLI)', () => {
 });
 
 suite('Hook bridge across installed agents', () => {
-	test('two installed agents each get the event, addressed to their own name', async () => {
-		const cli = fakeCli({ installed: ['alpha-agent', 'beta-agent'] });
+	const editorHook = 'entire hooks alpha-agent session-start; entire hooks alpha-agent agent-stop';
+
+	test('the editor agent is bridged and addressed by its own name', async () => {
+		const cli = fakeCli({ installed: ['alpha-agent'], files: [['.alpha-agent/hooks.json', editorHook]] });
 		const recorder = new RecordingRunner();
-		const bridge = bridgeFor(cli, recorder);
 
-		// Both are written by the CLI itself, so their hook files exist.
-		for (const name of ['alpha-agent', 'beta-agent']) {
-			fs.mkdirSync(path.join(cli.dir, `.${name}`), { recursive: true });
-			fs.writeFileSync(path.join(cli.dir, `.${name}`, 'hooks.json'), `exec entire hooks ${name} session-start; exec entire hooks ${name} agent-stop`);
-		}
+		const results = await bridgeFor(cli, recorder).deliverToAgents('SessionStart', {});
 
-		const results = await bridge.deliverToAgents('SessionStart', {});
-
-		assert.deepStrictEqual(results.map(result => [result.agent, result.delivered]), [['alpha-agent', true], ['beta-agent', true]]);
-		assert.deepStrictEqual(recorder.calls.map(call => call.args), [
-			['hooks', 'alpha-agent', 'session-start'],
-			['hooks', 'beta-agent', 'session-start'],
-		]);
+		assert.deepStrictEqual(results, [{ agent: 'alpha-agent', delivered: true }]);
+		assert.deepStrictEqual(recorder.calls.map(call => call.args), [['hooks', 'alpha-agent', 'session-start']]);
 	});
 
-	test('each agent gets its own verb for an event', async () => {
-		const cli = fakeCli({ installed: ['alpha-agent', 'beta-agent'] });
-		fs.mkdirSync(path.join(cli.dir, '.alpha-agent'));
-		fs.mkdirSync(path.join(cli.dir, '.beta-agent'));
-		fs.writeFileSync(path.join(cli.dir, '.alpha-agent', 'h.json'), 'entire hooks alpha-agent agent-stop entire hooks alpha-agent session-end');
-		fs.writeFileSync(path.join(cli.dir, '.beta-agent', 'h.json'), 'entire hooks beta-agent session-end');
+	test('the editor agent is bridged even before it is installed, as the bridge always was', async () => {
+		const cli = fakeCli();
 		const recorder = new RecordingRunner();
-		const bridge = bridgeFor(cli, recorder);
 
-		const results = await bridge.deliverToAgents('Stop', {});
-
-		assert.deepStrictEqual(recorder.calls.map(call => call.args), [['hooks', 'alpha-agent', 'agent-stop']]);
-		assert.deepStrictEqual(results.find(result => result.agent === 'beta-agent')?.skipped, 'event-not-carried');
+		assert.strictEqual(await bridgeFor(cli, recorder).deliver('UserPromptSubmit', { prompt: 'p' }), true);
+		assert.deepStrictEqual(recorder.calls.map(call => call.args), [['hooks', 'alpha-agent', 'user-prompt-submitted']]);
 	});
 
-	test('unknown-agent: an agent whose events are not understood is reported unsupported, not captured', async () => {
-		const cli = fakeCli({ installed: ['alpha-agent'], files: [['.alpha-agent/hooks.json', 'entire hooks alpha-agent turn-begin; entire hooks alpha-agent turn-end']] });
+	test('claude-code, codex and cursor style agents are not bridged and never invoked', async () => {
+		const names = ['claude-code', 'codex', 'cursor'];
+		const cli = fakeCli({
+			agents: ['alpha-agent', ...names],
+			installed: names,
+			files: names.map(name => [`.${name}/hooks.json`, `entire hooks ${name} session-start; entire hooks ${name} session-end`] as const),
+		});
 		const recorder = new RecordingRunner();
 		const lines: string[] = [];
 		const bridge = bridgeFor(cli, recorder, line => lines.push(line));
 
 		const results = await bridge.deliverToAgents('SessionStart', {});
-		await bridge.deliverToAgents('SessionStart', {});
+		await bridge.deliverToAgents('Stop', { terminal: true });
 
-		assert.deepStrictEqual(results, [{ agent: 'alpha-agent', delivered: false, skipped: 'unsupported' }]);
-		assert.strictEqual(await bridge.deliver('SessionStart', {}), false);
-		assert.strictEqual(recorder.calls.length, 0);
-		assert.strictEqual(lines.filter(line => line.startsWith('unsupported agent alpha-agent')).length, 1);
+		for (const name of names) {
+			assert.deepStrictEqual(results.find(result => result.agent === name), { agent: name, delivered: false, skipped: 'not-bridged' });
+		}
+		assert.ok(recorder.calls.every(call => call.args[1] === 'alpha-agent'));
+		assert.ok(recorder.calls.every(call => !names.includes(call.args[1])));
+		assert.strictEqual(lines.filter(line => line.startsWith('not bridged claude-code')).length, 1);
 
 		const listed = await serviceFor(cli).list();
 		assert.ok(listed.ok);
-		const support = listed.agents.find(agent => agent.name === 'alpha-agent')?.support;
-		assert.strictEqual(support?.kind, 'unsupported');
-		assert.ok(support && describeSupport(support).startsWith('Not supported by Entirely'));
+		for (const name of names) {
+			const bridging: HookBridging | undefined = listed.agents.find(agent => agent.name === name)?.bridging;
+			assert.strictEqual(bridging?.kind, 'not-bridged');
+			assert.ok(bridging && describeBridging(bridging).includes('runs its own hooks'));
+		}
 	});
 
-	test('unknown-agent: an installed agent with no readable hook commands is unsupported', async () => {
-		const cli = fakeCli({ installed: ['alpha-agent'] });
-		const targets = await serviceFor(cli).targets();
+	test('a CLI that exits 0 for hooks but records nothing is never reported as captured for another agent', async () => {
+		const cli = fakeCli({
+			agents: ['claude-code', 'alpha-agent'],
+			installed: ['claude-code'],
+			files: [['.claude-code/hooks.json', 'entire hooks claude-code session-start; entire hooks claude-code agent-stop']],
+		});
+		const bridge = bridgeFor(cli, { asRunner: () => cli.runner }, undefined, 'alpha-agent');
 
-		assert.ok(targets.ok);
-		assert.strictEqual(targets.supported.length, 0);
-		assert.strictEqual(targets.unsupported[0].agent, 'alpha-agent');
+		const results = await bridge.deliverToAgents('SessionStart', {});
+
+		assert.strictEqual(results.find(result => result.agent === 'claude-code')?.delivered, false);
+		assert.ok(cli.invocations().every(line => !line.startsWith('hooks claude-code')));
 	});
 
-	test('with no agent installed nothing is sent, and no agent is assumed', async () => {
-		const cli = fakeCli();
+	test('with no editor agent in the CLI list nothing is sent, and no agent is assumed', async () => {
+		const cli = fakeCli({ agents: ['beta-agent'] });
 		const recorder = new RecordingRunner();
 
 		assert.strictEqual(await bridgeFor(cli, recorder).deliver('SessionStart', {}), false);
 		assert.strictEqual(recorder.calls.length, 0);
 	});
 
-	test('an agent whose hook file the editor loads itself is not sent the same events again', async () => {
+	test('the editor agent is chosen by setting, not by a name in the code', async () => {
+		const cli = fakeCli({ agents: ['alpha-agent', 'beta-agent'], installed: ['alpha-agent'] });
+		const recorder = new RecordingRunner();
+
+		const results = await bridgeFor(cli, recorder, undefined, 'beta-agent').deliverToAgents('SessionStart', {});
+
+		assert.deepStrictEqual(recorder.calls.map(call => call.args), [['hooks', 'beta-agent', 'session-start']]);
+		assert.strictEqual(results.find(result => result.agent === 'alpha-agent')?.skipped, 'not-bridged');
+	});
+
+	test('an editor agent whose hook file the editor loads itself is not sent the same events again', async () => {
 		const cli = fakeCli({ installed: ['alpha-agent'], files: [['.github/hooks/entire.json', 'entire hooks alpha-agent session-start']] });
 		const recorder = new RecordingRunner();
 
 		const results = await bridgeFor(cli, recorder).deliverToAgents('SessionStart', {});
 
-		assert.strictEqual(results[0].skipped, 'already-reported');
+		assert.deepStrictEqual(results, [{ agent: 'alpha-agent', delivered: false, skipped: 'already-reported' }]);
 		assert.strictEqual(recorder.calls.length, 0);
 	});
 
@@ -638,5 +669,71 @@ suite('Hook bridge across installed agents', () => {
 
 		assert.ok(lines.length > 0);
 		assert.ok(lines.every(line => !line.includes('secret')));
+	});
+});
+
+suite('Agent lookup cache', () => {
+	const lists = (cli: FakeCli): number => cli.invocations().filter(line => line === 'agent list').length;
+
+	test('many editor events cost one lookup', async () => {
+		const cli = fakeCli({ installed: ['alpha-agent'] });
+		const bridge = bridgeFor(cli, new RecordingRunner());
+
+		await Promise.all([1, 2, 3, 4, 5].map(() => bridge.deliver('SessionStart', {})));
+		await bridge.deliver('UserPromptSubmit', {});
+		await bridge.deliver('PostToolUse', {});
+
+		assert.strictEqual(lists(cli), 1);
+	});
+
+	test('an install makes the next event look again', async () => {
+		const cli = fakeCli({ agents: ['alpha-agent', 'beta-agent'], installed: ['beta-agent'] });
+		const service = serviceFor(cli);
+		const bridge = new HookBridge({ runner: new RecordingRunner().asRunner(), agents: service, workspaceRoot: () => cli.dir, env: {} });
+
+		await bridge.deliver('SessionStart', {});
+		const before = lists(cli);
+		assert.strictEqual(before, 1);
+
+		assert.strictEqual((await service.install('alpha-agent')).kind, 'done');
+		const afterInstall = lists(cli);
+		await bridge.deliver('SessionStart', {});
+		await bridge.deliver('SessionStart', {});
+
+		assert.strictEqual(lists(cli), afterInstall, 'the install already read the fresh list, so events reuse it');
+		const targets = await service.targets();
+		assert.ok(targets.ok && targets.bridged?.installed === true);
+	});
+
+	test('invalidate, a removal and a changed setting each force a fresh lookup, and a failure is not kept', async () => {
+		const cli = fakeCli({ installed: ['alpha-agent'] });
+		const service = serviceFor(cli);
+
+		await service.targets();
+		await service.targets();
+		assert.strictEqual(lists(cli), 1);
+
+		service.invalidate();
+		await service.targets();
+		assert.strictEqual(lists(cli), 2);
+
+		await service.remove('alpha-agent');
+		const afterRemove = lists(cli);
+		const targets = await service.targets();
+		assert.ok(targets.ok && targets.bridged?.installed === false);
+		assert.strictEqual(lists(cli), afterRemove, 'the removal re-read the list');
+
+		let editor = 'alpha-agent';
+		const switching = new AgentIntegrationService({ runner: cli.runner, workspaceRoot: () => cli.dir, timeoutSeconds: () => 20, editorAgent: () => editor });
+		await switching.targets();
+		const count = lists(cli);
+		editor = 'beta-agent';
+		await switching.targets();
+		assert.strictEqual(lists(cli), count + 1);
+
+		const absent = fakeCli({ noCli: true });
+		const missing = serviceFor(absent);
+		assert.strictEqual((await missing.targets()).ok, false);
+		assert.strictEqual((await missing.targets()).ok, false);
 	});
 });

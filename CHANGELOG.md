@@ -18,12 +18,16 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
   once. Reinstall appears only when `agent add --help` describes a reinstall flag. The
   setup button on a workspace that is not set up now asks which agent, instead of always
   choosing Copilot CLI.
-- **The hook bridge addresses each installed agent by its own name.** Editor events go to
-  `entire hooks <agent> <verb>` for every installed agent whose hook commands (read from
-  the configuration the CLI wrote, not from a table of agents) carry the event. An agent
-  whose events cannot be matched is listed as "Not supported by Entirely" and is sent
-  nothing, so it is never counted as a captured or empty session. With no agent
-  installed the bridge sends nothing.
+- **The hook bridge forwards editor events to one agent, and says so.** Installing an
+  agent and bridging it are separate: every integration runs its own hooks, so the bridge
+  sends the editor's own events only to the integration whose payload layout matches the
+  editor's, named by the new `entirely.editorHookAgent` setting (default `copilot-cli`,
+  the agent the bridge always addressed). Other installed agents are listed as "not
+  bridged" and are never sent an `entire hooks` call, so a hook that exits 0 and records
+  nothing cannot be counted as captured. The Copilot stand-down for hook files the editor
+  loads itself is unchanged. The install confirmation states that `agent add` cannot
+  preview the files it writes, and the agent lookup is remembered between editor events.
+  `entire agent list` output with an unrecognised or trailing line is still read.
 
 - **Import past agent history.** **Entirely: Import Past Agent History as Read-Only
   Checkpoints** lists the agents `entire import --help` offers, lets you import all

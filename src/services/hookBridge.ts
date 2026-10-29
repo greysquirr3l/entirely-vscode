@@ -7,7 +7,6 @@ import type { CliRunner } from './cli';
 
 import {
 	HOOK_EVENTS,
-	agentCarries,
 	resolveHookName,
 	type CliHookName,
 	type EditorHookEvent,
@@ -98,18 +97,24 @@ export function transcriptPath(sessionId: string, home: string): string {
  */
 export const EDITOR_LOADED_HOOKS_DIRECTORY = '.github/hooks/';
 
-/** What became of an event for one installed agent. */
+/**
+ * What became of an event for one agent.
+ *
+ * `delivered` means the CLI accepted the hook command for the agent the
+ * editor's events belong to, nothing more. It is never true for an agent
+ * the editor's payload layout does not match.
+ */
 export interface HookDelivery {
 	readonly agent: string;
 	readonly delivered: boolean;
 	/** Why it was not delivered. */
-	readonly skipped?: 'unsupported' | 'already-reported' | 'event-not-carried' | 'failed';
+	readonly skipped?: 'not-bridged' | 'already-reported' | 'failed';
 }
 
 /** What the bridge needs to do its job. */
 export interface HookBridgeOptions {
 	readonly runner: CliRunner;
-	/** Which installed agents the editor's events are addressed to. */
+	/** Which agent the editor's events are addressed to, and which installed agents they are not. */
 	readonly agents: AgentHookSource;
 	/** The workspace root the agents' hooks are installed in. */
 	readonly workspaceRoot: () => string | undefined;
@@ -132,14 +137,14 @@ export interface HookBridgeOptions {
  * Reports editor-side agent activity to Entire.
  *
  * The bridge speaks the CLI's hook protocol: it invokes
- * `entire hooks copilot-cli <event>` with the event as JSON on stdin, and
+ * `entire hooks <editor agent> <event>` with the event as JSON on stdin, and
  * the CLI does the writing. Nothing here ever throws, and nothing here
  * ever waits on the user: a hook that has not finished must never stand
  * between the user and the thing they asked for.
  */
 export class HookBridge {
 	private readonly sessionIds = new Map<string, string>();
-	private readonly unsupportedNoted = new Set<string>();
+	private readonly notBridgedNoted = new Set<string>();
 
 	constructor(private readonly options: HookBridgeOptions) {}
 
@@ -186,13 +191,14 @@ export class HookBridge {
 	}
 
 	/**
-	 * Reports an event to every installed agent that understands it.
+	 * Reports an event to the agent whose payload layout matches the editor's.
 	 *
-	 * Each installed agent is addressed by its own name and its own verb,
-	 * so two integrations installed together each receive the event on
-	 * their own command. An agent whose hooks cannot be read, or whose
-	 * verbs do not carry the event, is named in the result as skipped and
-	 * is never counted as delivered.
+	 * Every other installed agent is named in the result as not bridged and is
+	 * never invoked: those agents run their own hooks, and a hook verb with the
+	 * same name as an editor event does not make their payload layout the same.
+	 * The CLI accepts a payload it cannot read and records nothing, so there
+	 * would be no way to tell. The editor's agent is also left alone when its
+	 * hook file is one the editor loads itself, which would double the events.
 	 */
 	async deliverToAgents(
 		event: EditorHookEvent,
@@ -205,7 +211,7 @@ export class HookBridge {
 		}
 	}
 
-	/** Does the work of delivering one event to every agent. */
+	/** Does the work of delivering one event. */
 	private async sendAll(
 		event: EditorHookEvent,
 		details: HookEventDetails,
@@ -223,35 +229,33 @@ export class HookBridge {
 		}
 
 		const results: HookDelivery[] = [];
-		for (const agent of targets.unsupported) {
-			this.noteUnsupported(agent.agent, agent.reason);
-			results.push({ agent: agent.agent, delivered: false, skipped: 'unsupported' });
+		for (const other of targets.notBridged) {
+			this.noteNotBridged(other.agent, other.reason);
+			results.push({ agent: other.agent, delivered: false, skipped: 'not-bridged' });
 		}
-		for (const target of targets.supported) {
-			if (target.files.some(file => file.startsWith(EDITOR_LOADED_HOOKS_DIRECTORY))) {
-				// The editor reads this agent's hook file itself, so the same
-				// activity is already being reported. Reporting it again
-				// would double it.
-				results.push({ agent: target.agent, delivered: false, skipped: 'already-reported' });
-				continue;
-			}
-			if (!agentCarries(target.verbs, event, details.terminal ?? false)) {
-				results.push({ agent: target.agent, delivered: false, skipped: 'event-not-carried' });
-				continue;
-			}
-			const delivered = await this.send(target.agent, event, details);
-			results.push(delivered ? { agent: target.agent, delivered } : { agent: target.agent, delivered, skipped: 'failed' });
+		const target = targets.bridged;
+		if (!target) {
+			return results;
 		}
+		if (target.installed && target.files.some(file => file.startsWith(EDITOR_LOADED_HOOKS_DIRECTORY))) {
+			// The editor reads this agent's hook file itself, so the same
+			// activity is already being reported. Reporting it again
+			// would double it.
+			results.push({ agent: target.agent, delivered: false, skipped: 'already-reported' });
+			return results;
+		}
+		const delivered = await this.send(target.agent, event, details);
+		results.push(delivered ? { agent: target.agent, delivered } : { agent: target.agent, delivered, skipped: 'failed' });
 		return results;
 	}
 
-	/** Says once per agent that its events are not understood. */
-	private noteUnsupported(agent: string, reason: string): void {
-		if (this.unsupportedNoted.has(agent)) {
+	/** Says once per agent that editor events are not forwarded to it. */
+	private noteNotBridged(agent: string, reason: string): void {
+		if (this.notBridgedNoted.has(agent)) {
 			return;
 		}
-		this.unsupportedNoted.add(agent);
-		this.options.log?.(`unsupported agent ${agent}: ${reason}`);
+		this.notBridgedNoted.add(agent);
+		this.options.log?.(`not bridged ${agent}: ${reason}`);
 	}
 
 	/** Delivers one event to one agent. */

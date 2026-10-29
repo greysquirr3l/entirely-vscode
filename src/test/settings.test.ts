@@ -262,6 +262,7 @@ suite('Entire extension settings', () => {
 			'entirely.minimumCliVersion',
 			'entirely.logLevel',
 			'entirely.debug',
+			'entirely.editorHookAgent',
 		]) {
 			assert.ok(properties[key], `the setting '${key}' is not declared`);
 		}
@@ -277,6 +278,7 @@ suite('Entire effective log level', () => {
 				transcriptTimeout: 60,
 				searchDebounce: 400,
 				lifecycleActionTimeout: 60,
+				editorHookAgent: 'copilot-cli',
 				importTimeout: 300,
 				resumeWatchTimeout: 60,
 				blameMaxDecoratedLines: 5000,
@@ -297,6 +299,7 @@ suite('Entire effective log level', () => {
 				transcriptTimeout: 60,
 				searchDebounce: 400,
 				lifecycleActionTimeout: 60,
+				editorHookAgent: 'copilot-cli',
 				importTimeout: 300,
 				resumeWatchTimeout: 60,
 				blameMaxDecoratedLines: 5000,
@@ -317,6 +320,7 @@ suite('Entire effective log level', () => {
 				transcriptTimeout: 60,
 				searchDebounce: 400,
 				lifecycleActionTimeout: 60,
+				editorHookAgent: 'copilot-cli',
 				importTimeout: 300,
 				resumeWatchTimeout: 60,
 				blameMaxDecoratedLines: 5000,

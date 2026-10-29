@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import { DEFAULT_MINIMUM_CLI_VERSION } from '../lib/entire';
+import { DEFAULT_MINIMUM_CLI_VERSION, isAgentName } from '../lib/entire';
 import { readLogLevel, shouldLog, type LogLevel } from './logger';
 
 /** The extension's own settings. */
@@ -15,6 +15,13 @@ export interface ExtensionSettings {
 	 * identity on a host that already has one is saved as `HANDLE@HOST`.
 	 */
 	readonly cliContext?: string;
+	/**
+	 * The agent integration whose hook payload layout matches the editor's.
+	 *
+	 * The hook bridge forwards the editor's own agent events to this agent
+	 * and to no other.
+	 */
+	readonly editorHookAgent: string;
 	/** How often, in seconds, the extension re-reads the CLI. */
 	readonly refreshInterval: number;
 	/** How long, in seconds, the CLI may take to hand over a session transcript. */
@@ -176,7 +183,10 @@ export function readExtensionSettings(): ExtensionSettings {
 		.get<string>('minimumCliVersion', DEFAULT_MINIMUM_CLI_VERSION)
 		.trim();
 
+	const editorHookAgent = configuration.get<string>('editorHookAgent', 'copilot-cli').trim();
+
 	return {
+		editorHookAgent: isAgentName(editorHookAgent) ? editorHookAgent : 'copilot-cli',
 		cliPath: cliPath.length > 0 ? cliPath : undefined,
 		cliContext: cliContext.length > 0 ? cliContext : undefined,
 		refreshInterval: clampRefreshInterval(configuration.get<number>('refreshInterval', 30)),

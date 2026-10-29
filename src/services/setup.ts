@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 
-import { describeSupport } from '../lib/entire';
+import { describeBridging } from '../lib/entire';
 import { AgentIntegrationService } from './agentIntegrations';
 import type { CliRunner } from './cli';
+import { readExtensionSettings } from './configuration';
 
 /**
  * Asks which of the CLI's agents to set Entire up for.
@@ -12,7 +13,9 @@ import type { CliRunner } from './cli';
  * reported, and setup stops rather than guessing an agent.
  */
 async function chooseSetupAgent(runner: CliRunner, cwd: string | undefined): Promise<string | undefined> {
-	const service = new AgentIntegrationService({ runner, workspaceRoot: () => cwd, timeoutSeconds: () => 60 });
+	const service = new AgentIntegrationService({ runner, workspaceRoot: () => cwd, timeoutSeconds: () => 60,
+		editorAgent: () => readExtensionSettings().editorHookAgent,
+	});
 	const listed = await service.list();
 	if (!listed.ok) {
 		await vscode.window.showErrorMessage(`Entirely could not list the agents Entire supports: ${listed.detail}.`);
@@ -23,7 +26,7 @@ async function chooseSetupAgent(runner: CliRunner, cwd: string | undefined): Pro
 		listed.agents.map(agent => ({
 			label: agent.name,
 			description: agent.installed ? 'installed' : undefined,
-			detail: agent.support ? describeSupport(agent.support) : undefined,
+			detail: agent.bridging ? describeBridging(agent.bridging) : undefined,
 		})),
 		{ title: 'Set up Entire for which agent?', placeHolder: 'You can add more agents later with Set Up Agent Integrations' },
 	);

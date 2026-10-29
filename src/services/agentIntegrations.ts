@@ -9,7 +9,7 @@ import {
 	planAgentAddFlags,
 	readWrittenFiles,
 	type AgentEntry,
-	type HookSupport,
+	type HookBridging,
 } from '../lib/entire';
 import type { CliRunner } from './cli';
 import { hooksOf, scanHookConfig } from './hookConfigScan';
@@ -20,12 +20,25 @@ export interface AgentIntegrationOptions {
 	readonly workspaceRoot: () => string | undefined;
 	/** How long, in seconds, an install or removal may take. */
 	readonly timeoutSeconds: () => number;
+	/**
+	 * The integration whose hook payload layout matches the editor's.
+	 *
+	 * Read for each lookup, so changing the setting takes effect without a
+	 * restart. It is the only agent the editor's events are forwarded to.
+	 */
+	readonly editorAgent: () => string;
 }
 
 /** An agent the CLI supports, with what Entirely knows about its hooks. */
 export interface AgentListing extends AgentEntry {
-	/** Present for an installed agent: whether Entirely understands its events. */
-	readonly support?: HookSupport;
+	/**
+	 * Whether Entirely forwards editor events to this agent. Present for the
+	 * editor's agent and for every installed agent; an agent that is neither
+	 * has nothing to say.
+	 */
+	readonly bridging?: HookBridging;
+	/** The files that hold this agent's hook commands now, when it is installed. */
+	readonly hookFiles?: readonly string[];
 }
 
 /** The agents the CLI supports, or why they cannot be listed. */
@@ -40,8 +53,8 @@ export type AgentOutcome =
 			readonly summary: string;
 			/** The files the CLI listed to commit, which can include other integrations' files. */
 			readonly files: readonly string[];
-			/** For an install: whether the agent's events are understood. */
-			readonly support?: HookSupport;
+			/** For an install: whether Entirely forwards editor events to the agent. */
+			readonly bridging?: HookBridging;
 	  }
 	| { readonly kind: 'failed'; readonly detail: string };
 
@@ -54,12 +67,13 @@ export interface AgentIntegrationSource {
 	remove(name: string): Promise<AgentOutcome>;
 }
 
-/** The installed agents the editor can report to, and those it cannot. */
+/** The agent the editor's events go to, and the installed agents they do not. */
 export type AgentHookTargets =
 	| {
 			readonly ok: true;
-			readonly supported: readonly Extract<HookSupport, { kind: 'supported' }>[];
-			readonly unsupported: readonly Extract<HookSupport, { kind: 'unsupported' }>[];
+			/** The editor's agent, when the CLI lists it. */
+			readonly bridged?: Extract<HookBridging, { kind: 'bridged' }>;
+			readonly notBridged: readonly Extract<HookBridging, { kind: 'not-bridged' }>[];
 	  }
 	| { readonly ok: false; readonly detail: string };
 
@@ -71,41 +85,77 @@ export interface AgentHookSource {
 /**
  * Lists, installs and removes the CLI's agent integrations.
  *
- * The agents are whatever `entire agent list` prints, read for each call and
- * never remembered, so an agent the CLI adds later appears and a failed read
- * is not kept. Names go after the end-of-options marker, and only a name the
- * CLI just listed is passed on. More than one integration can be installed:
- * installing one never touches another. After a change the list is read
- * again, so "installed" is what the CLI reports and not what its exit status
- * implied.
+ * The agents are whatever `entire agent list` prints. The hook bridge asks
+ * for them on every editor event, so the lookup (the list plus a scan of
+ * the hook files) is remembered, and forgotten when an install or removal
+ * runs, when a hook file changes (`invalidate`), when the workspace or the
+ * editor-agent setting changes, and when it failed. The list shown to the
+ * person is always read fresh. Names go after the end-of-options marker,
+ * and only a name the CLI just listed is passed on. More than one
+ * integration can be installed: installing one never touches another.
+ * After a change the list is read again, so "installed" is what the CLI
+ * reports and not what its exit status implied.
  */
 export class AgentIntegrationService implements AgentIntegrationSource, AgentHookSource {
+	private remembered: { readonly key: string; readonly lookup: Promise<AgentListResult> } | undefined;
+
 	constructor(private readonly options: AgentIntegrationOptions) {}
 
+	/** Forgets the last lookup, so the next one asks the CLI again. */
+	invalidate(): void {
+		this.remembered = undefined;
+	}
+
 	async list(): Promise<AgentListResult> {
+		return this.remember(true);
+	}
+
+	async targets(): Promise<AgentHookTargets> {
+		const listed = await this.remember(false);
+		if (!listed.ok) {
+			return listed;
+		}
+		const bridgings = listed.agents.flatMap(agent => (agent.bridging ? [agent.bridging] : []));
+		return {
+			ok: true,
+			bridged: bridgings.find((bridging): bridging is Extract<HookBridging, { kind: 'bridged' }> => bridging.kind === 'bridged'),
+			notBridged: bridgings.filter((bridging): bridging is Extract<HookBridging, { kind: 'not-bridged' }> => bridging.kind === 'not-bridged'),
+		};
+	}
+
+	private remember(fresh: boolean): Promise<AgentListResult> {
+		const key = `${this.options.workspaceRoot() ?? ''}\n${this.options.editorAgent()}`;
+		if (!fresh && this.remembered?.key === key) {
+			return this.remembered.lookup;
+		}
+		const lookup = this.lookUp();
+		this.remembered = { key, lookup };
+		// A failure is not kept: the CLI may be installed a moment later.
+		const forgetFailure = (failed: boolean): void => {
+			if (failed && this.remembered?.lookup === lookup) {
+				this.remembered = undefined;
+			}
+		};
+		void lookup.then(result => forgetFailure(!result.ok), () => forgetFailure(true));
+		return lookup;
+	}
+
+	private async lookUp(): Promise<AgentListResult> {
 		const read = await this.readAgents();
 		if (!read.ok) {
 			return read;
 		}
 		const root = this.options.workspaceRoot();
+		const editorAgent = this.options.editorAgent();
 		const files = root && read.agents.some(agent => agent.installed) ? await scanHookConfig(root) : [];
-		const agents = read.agents.map<AgentListing>(agent =>
-			agent.installed ? { ...agent, support: classifyAgent(agent.name, hooksOf(agent.name, files)) } : agent,
-		);
+		const agents = read.agents.map<AgentListing>(agent => {
+			const hooks = hooksOf(agent.name, files);
+			const bridging = agent.installed || agent.name === editorAgent
+				? classifyAgent(agent.name, editorAgent, { installed: agent.installed, files: hooks.files })
+				: undefined;
+			return agent.installed ? { ...agent, bridging, hookFiles: hooks.files } : { ...agent, bridging };
+		});
 		return { ok: true, agents };
-	}
-
-	async targets(): Promise<AgentHookTargets> {
-		const listed = await this.list();
-		if (!listed.ok) {
-			return listed;
-		}
-		const supports = listed.agents.flatMap(agent => (agent.support ? [agent.support] : []));
-		return {
-			ok: true,
-			supported: supports.filter((support): support is Extract<HookSupport, { kind: 'supported' }> => support.kind === 'supported'),
-			unsupported: supports.filter((support): support is Extract<HookSupport, { kind: 'unsupported' }> => support.kind === 'unsupported'),
-		};
 	}
 
 	async canReinstall(): Promise<boolean> {
@@ -127,6 +177,7 @@ export class AgentIntegrationService implements AgentIntegrationSource, AgentHoo
 			flag = plan.reinstall;
 		}
 
+		this.invalidate();
 		const result = await this.options.runner.run(agentAddArguments(name, flag), this.runOptions());
 		if (!result.ok) {
 			return { kind: 'failed', detail: explain(result) };
@@ -144,7 +195,7 @@ export class AgentIntegrationService implements AgentIntegrationSource, AgentHoo
 			kind: 'done',
 			summary: cleanCliText(result.stdout || result.stderr),
 			files: readWrittenFiles(result.stdout),
-			support: now.support,
+			bridging: now.bridging,
 		};
 	}
 
@@ -157,12 +208,13 @@ export class AgentIntegrationService implements AgentIntegrationSource, AgentHoo
 			return { kind: 'failed', detail: `${name} is not installed in this repository` };
 		}
 
+		this.invalidate();
 		const result = await this.options.runner.run(agentRemoveArguments(name), this.runOptions());
 		if (!result.ok) {
 			return { kind: 'failed', detail: explain(result) };
 		}
 
-		const after = await this.readAgents();
+		const after = await this.list();
 		if (after.ok && after.agents.find(agent => agent.name === name)?.installed) {
 			return { kind: 'failed', detail: `the Entire CLI reported success but still lists ${name} as installed` };
 		}

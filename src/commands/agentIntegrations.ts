@@ -1,4 +1,4 @@
-import { describeSupport } from '../lib/entire';
+import { describeBridging } from '../lib/entire';
 import type { AgentIntegrationSource, AgentListing, AgentOutcome } from '../services/agentIntegrations';
 
 /** What the person is asked to agree to. */
@@ -46,23 +46,32 @@ function othersOf(agent: AgentListing, all: readonly AgentListing[]): string {
 
 /** What an install is about to do to the workspace, in words. */
 export function installConfirmation(agent: AgentListing, all: readonly AgentListing[], reinstall: boolean): AgentConfirmation {
+	// `agent add` has no dry run, so the files it writes cannot be listed
+	// before it runs. Saying so is better than guessing at a list.
+	const known = reinstall && agent.hookFiles && agent.hookFiles.length > 0
+		? ` The hooks for ${agent.name} are in ${agent.hookFiles.join(', ')} now; those are rewritten.`
+		: '';
 	return {
 		message: `${reinstall ? 'Reinstall' : 'Install'} the ${agent.name} integration in this workspace?`,
 		detail:
 			`Entire will write the hook configuration for ${agent.name} into this repository, and may create or update ` +
-			"Entire's own settings in .entire/. It lists the files to commit when it finishes; nothing is committed " +
-			`for you. ${othersOf(agent, all)}`,
+			"Entire's own settings in .entire/. The Entire CLI cannot say which files in advance (agent add has no " +
+			`preview), so this message cannot list them. It lists the files to commit when it finishes, and Entirely ` +
+			`shows that list; nothing is committed for you.${known} ${othersOf(agent, all)}`,
 		action: reinstall ? 'Reinstall' : 'Install',
 	};
 }
 
 /** What a removal is about to do, in words. */
 export function removeConfirmation(agent: AgentListing, all: readonly AgentListing[]): AgentConfirmation {
+	const files = agent.hookFiles && agent.hookFiles.length > 0
+		? `The hooks for ${agent.name} are in ${agent.hookFiles.join(', ')}; those files change. The CLI has no preview, so it may touch others. `
+		: 'The Entire CLI has no preview for this, so Entirely cannot list the files it changes. ';
 	return {
 		message: `Remove the ${agent.name} integration from this workspace?`,
 		detail:
-			`Entire will take its hooks for ${agent.name} out of this repository's configuration. Sessions already ` +
-			`recorded stay in the history. ${othersOf(agent, all)}`,
+			`Entire will take its hooks for ${agent.name} out of this repository's configuration. ${files}` +
+			`Sessions already recorded stay in the history. ${othersOf(agent, all)}`,
 		action: 'Remove',
 	};
 }
@@ -135,6 +144,6 @@ export function describeOutcome(name: string, action: AgentAction, outcome: Extr
 		return `${name} was removed. ${outcome.summary}`.trim();
 	}
 	const files = outcome.files.length > 0 ? ` Entire lists these files to commit so the integration works across clones: ${outcome.files.join(', ')}.` : '';
-	const support = outcome.support ? ` ${describeSupport(outcome.support)}` : '';
-	return `${name} is installed.${files}${support}`;
+	const bridging = outcome.bridging ? ` ${describeBridging(outcome.bridging)}` : '';
+	return `${name} is installed.${files}${bridging}`;
 }

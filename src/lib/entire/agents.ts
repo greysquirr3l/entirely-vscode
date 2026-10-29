@@ -22,9 +22,11 @@ export function isAgentName(value: string): boolean {
  * Reads `entire agent list`.
  *
  * The output is a heading, then one agent per line, with a tick in front of
- * the installed ones. Returns undefined when the heading is missing, so a
- * CLI that changes the format is reported as unreadable rather than as an
- * empty list.
+ * the installed ones. Lines that are not an agent (a note after the list, a
+ * format the CLI adds later) are skipped rather than failing the whole
+ * list, and a list with no tick marks everything as not installed. Returns
+ * undefined only when the heading is missing, so a CLI that changes the
+ * format is reported as unreadable rather than as an empty list.
  */
 export function parseAgentList(stdout: string): readonly AgentEntry[] | undefined {
 	const lines = stdout.split('\n');
@@ -36,13 +38,15 @@ export function parseAgentList(stdout: string): readonly AgentEntry[] | undefine
 	const entries: AgentEntry[] = [];
 	for (const line of lines.slice(heading + 1)) {
 		if (line.trim().length === 0) {
-			break;
+			if (entries.length > 0) {
+				break;
+			}
+			continue;
 		}
 		const match = /^\s*(✓)?\s*(\S+)\s*$/.exec(line);
-		if (!match || !isAgentName(match[2])) {
-			return undefined;
+		if (match && isAgentName(match[2])) {
+			entries.push({ name: match[2], installed: match[1] !== undefined });
 		}
-		entries.push({ name: match[2], installed: match[1] !== undefined });
 	}
 	return entries;
 }
