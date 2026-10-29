@@ -58,9 +58,6 @@ function attribution(info: SessionInfo): string[] {
 	if (info.lastCheckpointId) {
 		lines.push(`- Last checkpoint: ${info.lastCheckpointId}`);
 	}
-	if (info.tokens?.total !== undefined) {
-		lines.push(`- Tokens: ${info.tokens.total}`);
-	}
 	return lines;
 }
 

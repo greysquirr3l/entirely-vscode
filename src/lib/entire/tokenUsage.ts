@@ -40,6 +40,12 @@ export interface TokenReport {
 	readonly model?: string;
 	readonly models: readonly string[];
 	readonly usage?: TokenUsage;
+	/**
+	 * Whether the CLI sent a `tokens` block with content, none of which was
+	 * recognised. That is real data in a shape this version cannot read, which
+	 * is different from the CLI having nothing to report.
+	 */
+	readonly usageUnrecognised: boolean;
 	/** The CLI's own statements of what it could not report. */
 	readonly limitations: readonly string[];
 }
@@ -77,6 +83,14 @@ function decodeUsage(value: unknown): TokenUsage | undefined {
 	return Object.values(usage).every(entry => entry === undefined) ? undefined : usage;
 }
 
+/** Whether a `tokens` value holds something, as opposed to being absent or empty. */
+function hasContent(value: unknown): boolean {
+	if (value === undefined || value === null) {
+		return false;
+	}
+	return typeof value === 'object' ? Object.keys(value).length > 0 : true;
+}
+
 function decodeStringList(value: unknown): readonly string[] {
 	const array = decodeArray(value ?? [], 'list');
 	return array.ok ? array.value.filter((entry): entry is string => typeof entry === 'string') : [];
@@ -112,6 +126,8 @@ export function decodeTokenReport(
 	}
 
 	const models = decodeStringList(optionalRaw(read, 'models'));
+	const rawTokens = optionalRaw(read, 'tokens');
+	const usage = decodeUsage(rawTokens);
 
 	return {
 		ok: true,
@@ -120,7 +136,8 @@ export function decodeTokenReport(
 			agent: agent.value,
 			model: model.value,
 			models: models.length > 0 ? models : model.value ? [model.value] : [],
-			usage: decodeUsage(optionalRaw(read, 'tokens')),
+			usage,
+			usageUnrecognised: usage === undefined && hasContent(rawTokens),
 			limitations: decodeStringList(optionalRaw(read, 'limitations')),
 		},
 	};
@@ -128,6 +145,9 @@ export function decodeTokenReport(
 
 /** What is shown where a count is missing. It is words, never a zero. */
 export const NOT_REPORTED = 'Not reported';
+
+/** What is shown where the CLI sent usage this version cannot read. */
+export const NOT_RECOGNISED = 'Not recognised';
 
 /** One line of a usage breakdown. */
 export interface UsageLine {
@@ -159,7 +179,7 @@ export function describeTokenReport(report: TokenReport): UsageView {
 	const usage = report.usage;
 	if (!usage) {
 		return {
-			summary: NOT_REPORTED,
+			summary: report.usageUnrecognised ? NOT_RECOGNISED : NOT_REPORTED,
 			reported: false,
 			lines: report.limitations.map(text => ({ label: 'Note', value: text })),
 		};

@@ -2,7 +2,6 @@ import {
 	decodeRecord,
 	fields,
 	optionalNumber,
-	optionalRaw,
 	optionalString,
 	optionalStringArray,
 	optionalTimestamp,
@@ -11,52 +10,23 @@ import {
 import { decodeSession } from './session';
 import type { Session, Timestamp } from './types';
 
-/** The token counts the CLI recorded for a session. Every count is optional. */
-export interface SessionTokens {
-	readonly total?: number;
-	readonly input?: number;
-	readonly output?: number;
-	readonly cacheRead?: number;
-	readonly cacheWrite?: number;
-}
-
 /**
  * A session as `entire session info --json` reports it.
  *
  * The list payload carries the same core fields, so this is a session with
  * the parts only the detail command knows. The CLI says the payload holds no
  * transcript bytes: the transcript is a separate, explicit request.
+ *
+ * The `tokens` block is deliberately not decoded: `session info` sends all
+ * zeros for a session with no recorded usage. Usage comes from `session tokens`.
  */
 export interface SessionInfo extends Session {
 	/** When the session ended. Absent for a session still running. */
 	readonly endedAt?: Timestamp;
 	/** The newest checkpoint made from the session. */
 	readonly lastCheckpointId?: string;
-	readonly tokens?: SessionTokens;
 	/** The files the session touched, when the CLI lists them. */
 	readonly filesTouched?: readonly string[];
-}
-
-/** Reads the token block, ignoring any count that is not a number. */
-function decodeTokens(value: unknown): SessionTokens | undefined {
-	const record = decodeRecord(value, 'tokens');
-	if (!record.ok) {
-		return undefined;
-	}
-
-	const read = fields(record.value, 'tokens');
-	const count = (key: string): number | undefined => {
-		const result = optionalNumber(read, key);
-		return result.ok ? result.value : undefined;
-	};
-
-	return {
-		total: count('total'),
-		input: count('input'),
-		output: count('output'),
-		cacheRead: count('cache_read'),
-		cacheWrite: count('cache_write'),
-	};
 }
 
 /** Decodes the payload of `entire session info <id> --json`. */
@@ -94,7 +64,6 @@ export function decodeSessionInfo(value: unknown): DecodeResult<SessionInfo> {
 			...session.value,
 			endedAt: endedAt.value,
 			lastCheckpointId: lastCheckpointId.value,
-			tokens: decodeTokens(optionalRaw(read, 'tokens')),
 			filesTouched: filesTouched.value,
 		},
 	};

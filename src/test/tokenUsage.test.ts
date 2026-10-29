@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import {
+	NOT_RECOGNISED,
 	NOT_REPORTED,
 	decodeCheckpoint,
 	decodeTokenReport,
@@ -176,6 +177,23 @@ suite('Entire token usage decoding', () => {
 		assert.strictEqual(reportOf({ ...SESSION_WITHOUT_USAGE, tokens: null }).usage, undefined);
 	});
 
+	test('a tokens block with content but no recognised field is not recognised, not absent', () => {
+		const report = reportOf({ ...SESSION_WITHOUT_USAGE, tokens: { prompt_tokens: 5, window: 'big' } });
+		assert.strictEqual(report.usage, undefined);
+		assert.strictEqual(report.usageUnrecognised, true);
+
+		const view = describeTokenReport(report);
+		assert.strictEqual(view.summary, NOT_RECOGNISED);
+		assert.strictEqual(view.reported, false);
+		assert.notStrictEqual(NOT_RECOGNISED, NOT_REPORTED);
+
+		for (const absent of [undefined, null, {}]) {
+			const none = reportOf({ ...SESSION_WITHOUT_USAGE, tokens: absent });
+			assert.strictEqual(none.usageUnrecognised, false);
+			assert.strictEqual(describeTokenReport(none).summary, NOT_REPORTED);
+		}
+	});
+
 	test('a missing field says so, and a real zero stays a zero', () => {
 		const report = reportOf({
 			session_id: 's',
@@ -217,6 +235,9 @@ suite('Entire token usage decoding', () => {
 	});
 
 	test('no source file names a model, a provider or a context window', () => {
+		// A tripwire, not proof. The Claude Code transcript parser names the
+		// format it reads, so that one file is exempt from the `claude` word only.
+		const transcriptFormats = path.join('lib', 'entire', 'transcript.ts');
 		const root = path.resolve(__dirname, '..', '..', 'src');
 		const found: string[] = [];
 		const walk = (dir: string): void => {
@@ -228,7 +249,10 @@ suite('Entire token usage decoding', () => {
 					}
 				} else if (entry.name.endsWith('.ts')) {
 					const text = fs.readFileSync(full, 'utf8');
-					if (/\b(gpt-?\d|gemini|llama|mistral|sonnet|opus|haiku|context[ _-]?window)\b/i.test(text)) {
+					const names =
+						/\b(gpt-?\d|gemini|llama|mistral|sonnet|opus|haiku|anthropic|openai|context[ _-]?window)\b/i;
+					const claude = full.endsWith(transcriptFormats) ? false : /\bclaude\b/i.test(text);
+					if (names.test(text) || claude) {
 						found.push(full);
 					}
 				}
@@ -349,6 +373,33 @@ suite('Entire session usage view', () => {
 		}
 	});
 
+	test('says the usage is not available when selecting a session whose tokens command fails', async () => {
+		// The fake CLI has no answer for `session tokens` once the case is removed.
+		const cli = fakeCli({ session: SESSION_WITH_USAGE });
+		fs.writeFileSync(
+			path.join(cli.dir, '.local', 'bin', 'entire'),
+			[
+				'#!/bin/sh',
+				'case "$1 $2" in',
+				'\t"version "*) echo "entire 0.12.2" ;;',
+				`\t"session info") echo '{"session_id":"sess-1","agent":"A","status":"ended","worktree_path":"/w"}' ;;`,
+				'\t*) echo "boom" >&2; exit 1 ;;',
+				'esac',
+			].join('\n') + '\n',
+			'utf8',
+		);
+		const view = select(cli);
+		try {
+			await view.run('sess-1');
+			const row = view.detail.getChildren().find(node => node.kind === 'field' && node.label === 'Tokens');
+			assert.ok(row && row.kind === 'field');
+			assert.strictEqual(row.value, 'Not available');
+			assert.notStrictEqual(row.value, '0');
+		} finally {
+			view.dispose();
+		}
+	});
+
 	test('says the usage is unavailable when the tokens command fails', async () => {
 		const cli = fakeCli({});
 		const view = select(cli);
@@ -425,6 +476,39 @@ suite('Entire checkpoint usage view', () => {
 
 		assert.strictEqual(item.description, NOT_REPORTED);
 		assert.ok(String(item.tooltip).includes('No token usage recorded for this checkpoint.'));
+	});
+
+	test('reads checkpoint usage only when a checkpoint is expanded, and once', async () => {
+		const decoded = decodeCheckpoint(LISTED);
+		if (!decoded.ok) {
+			throw new Error('bad fixture');
+		}
+		const cli = fakeCli({ checkpoint: CHECKPOINT_WITH_USAGE });
+		const provider = new CheckpointsProvider(
+			async () => ({ checkpoints: [decoded.value] }),
+			async id => ({ id, filesTouched: ['a.ts'], sessionCount: 1, sessions: [], partial: false }),
+			() => 0,
+			serviceFor(cli),
+		);
+		const tokenRuns = (): number =>
+			cli.invocations().filter(line => line.startsWith('checkpoint tokens')).length;
+		try {
+			await provider.refresh();
+			const checkpoint = provider.getChildren()[0];
+			assert.strictEqual(tokenRuns(), 0);
+
+			provider.getChildren(checkpoint);
+			await waitFor(() => provider.getChildren(checkpoint).some(node => node.kind === 'usage'));
+			await waitFor(() => provider.getChildren(checkpoint).some(node => node.kind === 'file'));
+			assert.strictEqual(tokenRuns(), 1);
+
+			provider.getChildren(checkpoint);
+			provider.getChildren(checkpoint);
+			await new Promise(resolve => setTimeout(resolve, 50));
+			assert.strictEqual(tokenRuns(), 1);
+		} finally {
+			provider.dispose();
+		}
 	});
 
 	test('says the usage is not available when the CLI fails', () => {

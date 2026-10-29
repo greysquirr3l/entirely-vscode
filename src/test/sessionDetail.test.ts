@@ -179,8 +179,7 @@ suite('Entire session info', () => {
 		assert.strictEqual(info.id, 'sess-ended');
 		assert.strictEqual(info.endedAt?.raw, ENDED_INFO.ended_at);
 		assert.strictEqual(info.lastCheckpointId, ENDED_INFO.last_checkpoint_id);
-		assert.strictEqual(info.tokens?.total, 1200);
-		assert.strictEqual(info.tokens?.cacheRead, 0);
+		assert.ok(!('tokens' in info), 'usage must come from session tokens, not session info');
 		assert.deepStrictEqual(info.filesTouched, ['src/a.ts', 'src/b.ts']);
 		assert.strictEqual(info.model, 'some-vendor/some-model');
 	});
@@ -189,7 +188,6 @@ suite('Entire session info', () => {
 		const result = decodeSessionInfo(listEntry('plain'));
 		assert.ok(result.ok);
 		assert.strictEqual(result.value.endedAt, undefined);
-		assert.strictEqual(result.value.tokens, undefined);
 		assert.strictEqual(result.value.filesTouched, undefined);
 	});
 
@@ -295,6 +293,19 @@ suite('Entire transcript reading', () => {
 		assert.match(text, /### User/);
 		assert.match(text, /- Tool: bash — npm test/);
 		assert.ok(!text.includes('only the first'), 'a whole transcript was called partial');
+	});
+
+	test('does not print a token count from session info, which sends zeros for unreported usage', async () => {
+		const zeroed = decodeSessionInfo({
+			...ENDED_INFO,
+			tokens: { total: 0, input: 0, output: 0, cache_read: 0, cache_write: 0 },
+		});
+		assert.ok(zeroed.ok);
+		const transcript = await parseTranscript(COPILOT_TRANSCRIPT);
+		const text = renderTranscript(zeroed.value, { transcript, raw: '', receivedBytes: 10, truncated: false });
+
+		assert.ok(!text.includes('Tokens: 0'));
+		assert.ok(!/Tokens:/.test(text));
 	});
 
 	test('says so when the transcript was cut short', async () => {
