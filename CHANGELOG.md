@@ -8,6 +8,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 
+- **File blame.** **Entirely: Blame This File** (palette and editor context menu)
+  runs `entire blame` once on the saved file and marks every line in the editor:
+  a recorded change, a recorded change that has not synced yet, or no recorded
+  change ("Not attributed to any recorded change"). The whole-file answer opens
+  in the same panel as Why Does This Line Exist, through the same renderer, and
+  hovering a marked line offers that command for the line. Marks are dropped when
+  the text changes. An unsaved file asks to be saved first. New setting
+  `entirely.blameMaxDecoratedLines`; **Entirely: Clear Blame** removes the marks.
 - **Checkpoint search.** Search the Checkpoints view as you type. It runs
   `entire checkpoint search`, with the flags read from the CLI's own help, and
   lists the matches. "No checkpoint matched" and "The search failed" are

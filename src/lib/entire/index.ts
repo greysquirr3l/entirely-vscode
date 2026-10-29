@@ -40,6 +40,13 @@ export type {
 	CheckpointSession,
 } from './types';
 export { decodeWhyAnswer, isAttributed } from './why';
+export { blameArguments, decodeBlameAnswer, lineAnswerFrom } from './blame';
+export type { BlameAnswer } from './blame';
+export { planBlameMarks } from './blameMarks';
+export type { BlameMark, BlamePlan } from './blameMarks';
+export { lineState, UNATTRIBUTED_LABEL, UNSYNCED_LABEL } from './lineState';
+export type { LineState } from './lineState';
+export { answerNamesFile, workspaceRelative } from './workspacePath';
 export {
 	decodeEntireSettings,
 	resolveEntireSettings,

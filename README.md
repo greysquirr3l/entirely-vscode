@@ -27,6 +27,7 @@ Entirely (this extension)
 | **Session detail** | The selected session in full, ended ones included: agent, model, tokens, files touched and tool calls, with the transcript opening in a read-only editor |
 | **Checkpoint history** | Recorded checkpoints, opening straight into the native diff editor |
 | **Why this line** | Which agent edit introduced the line under the cursor, and why |
+| **File blame** | `entire blame` for the active file: every line marked as attributed, recorded but not synced, or not attributed to any recorded change |
 | **Account view** | Who the CLI is signed in as, and which jurisdiction the account belongs to — with sign-in and sign-out |
 | **Hook bridge** | Reports the editor's own agent activity to Entire, so editor work lands in the same session history |
 | **Terminal PATH repair** | Puts the Entire CLI on the integrated terminal's PATH, through the editor's own settings — no shell profile, no shell command |
@@ -96,6 +97,24 @@ written to the `Entire` output channel, not even at the debug level.
 The filter button in the Sessions view narrows the tree to the session that
 belongs to this workspace, using `entire session current`. A session the CLI
 reports as belonging to another worktree is not offered.
+
+## Blaming a file
+
+**Entirely: Blame This File** runs `entire blame` on the active file when you ask,
+never on a timer or while you type. Each line gets a coloured bar and a short note:
+purple for a recorded change (agent or commit), orange for a recorded change whose
+checkpoint has not synced to this machine yet, and grey for a line with no recorded
+change at all, which reads "Not attributed to any recorded change". The whole-file
+answer opens in the same panel as **Why Does This Line Exist?**, drawn by the same
+code, and the hover on a line links to that command, so the answer for a line is the
+same either way.
+
+The CLI blames the saved file, so a file with unsaved changes asks to be saved
+first. Marks are removed when you edit the file (the line numbers would no longer
+match) or run **Entirely: Clear Blame**. Files longer than
+`entirely.blameMaxDecoratedLines` (default 5000) are blamed and shown in the panel
+but not marked in the editor. `entire blame` is a labs command and the CLI may change
+its output.
 
 ## Searching checkpoints
 

@@ -37,6 +37,8 @@ import { createLogger } from './services/logger';
 import { StatusBar } from './services/statusBar';
 import { StatusController } from './services/statusController';
 import { onTerminalPath } from './services/terminalPath';
+import { BlameDecorations } from './providers/blameDecorations';
+import { BlameService } from './services/blameService';
 import { WhyService } from './services/whyService';
 
 /** The workspace folder the CLI is run in. */
@@ -256,6 +258,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	void onboarding.offer();
 
 	const why = new WhyService({ runner, workspaceRoot });
+	const blame = new BlameService({ runner, workspaceRoot });
+	const blameDecorations = new BlameDecorations();
+	context.subscriptions.push(blameDecorations);
 
 	registerCommands(context, {
 		sessions,
@@ -271,6 +276,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		git,
 		workspaceFolder,
 		why,
+		blame,
+		blameDecorations,
 		runner,
 		accounts,
 		checkpointDetail: createCheckpointDetailSource(runner, workspaceRoot),

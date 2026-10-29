@@ -1,9 +1,9 @@
-import * as path from 'path';
-
 import {
+	answerNamesFile,
 	decodeWhyAnswer,
 	fileArguments,
 	unwrap,
+	workspaceRelative,
 	type WhyAnswer,
 } from '../lib/entire';
 import type { CliRunner } from './cli';
@@ -59,8 +59,8 @@ export class WhyService {
 			return { kind: 'failed', detail: 'there is no open workspace' };
 		}
 
-		const relative = path.relative(root, file);
-		if (relative.length === 0 || relative.startsWith('..') || path.isAbsolute(relative)) {
+		const relative = workspaceRelative(root, file);
+		if (relative === undefined) {
 			return { kind: 'outside-workspace', file };
 		}
 
@@ -85,7 +85,7 @@ export class WhyService {
 		// different file is refused rather than shown: the user asked
 		// about one line of one file, and an explanation of another file
 		// would be confident and wrong.
-		if (!this.answersAbout(relative, result.value)) {
+		if (!answerNamesFile(relative, result.value.file)) {
 			return {
 				kind: 'failed',
 				detail: 'the CLI answered about a different file than the one that was asked about',
@@ -93,27 +93,5 @@ export class WhyService {
 		}
 
 		return { kind: 'answered', answer: result.value };
-	}
-
-	/**
-	 * Whether the answer is about the file that was asked about.
-	 *
-	 * The CLI names the file it answered about, relative to the
-	 * repository root rather than to the workspace root. The extension
-	 * asks about a path relative to the workspace root, so the two are
-	 * compared by their last segments: the answer must end with the path
-	 * that was asked about, and must not name a different file.
-	 */
-	private answersAbout(relative: string, answer: WhyAnswer): boolean {
-		const asked = relative.split(path.sep).filter(segment => segment.length > 0);
-		const answered = answer.file.split('/').filter(segment => segment.length > 0);
-
-		if (asked.length === 0 || answered.length < asked.length) {
-			return false;
-		}
-
-		const tail = answered.slice(answered.length - asked.length);
-
-		return tail.every((segment, index) => segment === asked[index]);
 	}
 }

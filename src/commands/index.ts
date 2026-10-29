@@ -4,6 +4,8 @@ import { doctor } from './doctor';
 import { dumpCliOutput } from './dumpCliOutput';
 import { openCheckpointFile } from './openCheckpoint';
 import { repairTerminalPath } from './terminalPath';
+import { blameFile, clearBlame } from './blameFile';
+import { readExtensionSettings } from '../services/configuration';
 import { explainCheckpoint, whyThisLine } from './whyThisLine';
 import { clearCheckpointSearch, searchCheckpoints } from './checkpointSearch';
 import { checkpointDestination } from './checkpointDestination';
@@ -23,6 +25,8 @@ import type { AuthenticationService } from '../services/authentication';
 import type { AuthenticationProvider } from '../providers/authenticationProvider';
 import type { CliRunner } from '../services/cli';
 import type { CliInvocationRecorder } from '../services/cli/recorder';
+import type { BlameDecorations } from '../providers/blameDecorations';
+import type { BlameService } from '../services/blameService';
 import type { WhyService } from '../services/whyService';
 
 /** The surfaces the command handlers act on. */
@@ -45,6 +49,10 @@ export interface CommandDependencies {
 	readonly git: GitService | undefined;
 	readonly workspaceFolder: () => vscode.Uri | undefined;
 	readonly why: WhyService;
+	/** Blames a whole file. */
+	readonly blame: BlameService;
+	/** Draws a blamed file's attribution in the editor. */
+	readonly blameDecorations: BlameDecorations;
 	/** The CLI the extension talks to. */
 	readonly runner: CliRunner;
 	/** Which login the CLI is acting as. */
@@ -164,11 +172,26 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 			});
 		}),
 
-		vscode.commands.registerCommand('entirely.whyThisLine', async () => {
-			await whyThisLine({
-				why: deps.why,
-				checkpointDetail: deps.checkpointDetail,
+		vscode.commands.registerCommand('entirely.whyThisLine', async (line?: unknown) => {
+			await whyThisLine(
+				{
+					why: deps.why,
+					checkpointDetail: deps.checkpointDetail,
+				},
+				line,
+			);
+		}),
+
+		vscode.commands.registerCommand('entirely.blameFile', async () => {
+			await blameFile({
+				blame: deps.blame,
+				decorations: deps.blameDecorations,
+				maxDecoratedLines: () => readExtensionSettings().blameMaxDecoratedLines,
 			});
+		}),
+
+		vscode.commands.registerCommand('entirely.clearBlame', () => {
+			clearBlame(deps.blameDecorations);
 		}),
 
 		// The drill-down from a line that a checkpoint owns. It is reached

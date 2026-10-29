@@ -166,6 +166,16 @@
         "category": "Entirely"
       },
       {
+        "command": "entirely.blameFile",
+        "title": "Blame This File",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.clearBlame",
+        "title": "Clear Blame",
+        "category": "Entirely"
+      },
+      {
         "command": "entirely.explainCheckpoint",
         "title": "Explain Checkpoint",
         "category": "Entirely"
@@ -272,6 +282,13 @@
           "maximum": 600,
           "markdownDescription": "How long, in seconds, to wait for the Entire CLI to hand over a session transcript before giving up. A long session produces a large transcript, so raise this if opening one times out."
         },
+        "entirely.blameMaxDecoratedLines": {
+          "type": "number",
+          "default": 5000,
+          "minimum": 100,
+          "maximum": 100000,
+          "markdownDescription": "The longest file, in lines, that **Entirely: Blame This File** draws in the editor. A longer file is still blamed and shown in the panel, but nothing is drawn beside its lines."
+        },
         "entirely.searchDebounce": {
           "type": "number",
           "default": 400,
@@ -337,6 +354,11 @@
           "command": "entirely.whyThisLine",
           "group": "1_entirely@1",
           "when": "editorTextFocus"
+        },
+        {
+          "command": "entirely.blameFile",
+          "group": "1_entirely@2",
+          "when": "editorTextFocus && resourceScheme == file"
         }
       ],
       "view/item/context": [
