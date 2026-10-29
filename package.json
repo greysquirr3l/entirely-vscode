@@ -69,6 +69,10 @@
         {
           "id": "entirely.checkpoints",
           "name": "Checkpoints"
+        },
+        {
+          "id": "entirely.authentication",
+          "name": "Account"
         }
       ],
       "explorer": [
@@ -95,6 +99,10 @@
       {
         "view": "entirely.explorerSessions",
         "contents": "No sessions yet.\nSessions are recorded automatically when an agent runs in a repository that Entire tracks.\n[Refresh](command:entirely.refresh)"
+      },
+      {
+        "view": "entirely.authentication",
+        "contents": "Not signed in.\n[Sign in to Entire](command:entirely.signIn)"
       }
     ],
     "commands": [
@@ -159,6 +167,18 @@
         "category": "Entirely"
       },
       {
+        "command": "entirely.signIn",
+        "title": "Sign In to Entire",
+        "category": "Entirely",
+        "icon": "$(sign-in)"
+      },
+      {
+        "command": "entirely.signOut",
+        "title": "Sign Out of Entire",
+        "category": "Entirely",
+        "icon": "$(sign-out)"
+      },
+      {
         "command": "entirely.dumpCliOutput",
         "title": "Doctor: Show the Last Entire CLI Output",
         "category": "Entirely"
@@ -217,7 +237,19 @@
       }
     },
     "menus": {
-      "commandPalette": [
+      "view/title": [
+      {
+        "command": "entirely.signIn",
+        "when": "view == entirely.authentication && !entirely.signedIn",
+        "group": "navigation@1"
+      },
+      {
+        "command": "entirely.signOut",
+        "when": "view == entirely.authentication && entirely.signedIn",
+        "group": "navigation@1"
+      }
+    ],
+    "commandPalette": [
         {
           "command": "entirely.statusBar",
           "when": "false"
