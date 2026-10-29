@@ -41,6 +41,14 @@ export interface RunOptions {
 	 * which login the CLI would use on its own.
 	 */
 	readonly ignoreContext?: boolean;
+	/**
+	 * Keeps the output out of the invocation record.
+	 *
+	 * A transcript is the user's own conversation with an agent. The record
+	 * still says how many bytes came back, but neither the debug excerpt in
+	 * the output channel nor the dump command can reach the text.
+	 */
+	readonly withholdBodies?: boolean;
 }
 
 /** One invocation, and the bodies it produced. */
@@ -314,11 +322,13 @@ export class CliRunner {
 		const inputBytes = byteLength(options.input);
 		const stdoutBytes = byteLength(outcome.stdout);
 		const stderrBytes = byteLength(outcome.stderr);
-		const bodies: CliInvocationBodies = {
-			input: options.input,
-			stdout: outcome.stdout,
-			stderr: outcome.stderr,
-		};
+		const bodies: CliInvocationBodies = options.withholdBodies
+			? {}
+			: {
+					input: options.input,
+					stdout: outcome.stdout,
+					stderr: outcome.stderr,
+				};
 
 		if (!outcome.ok) {
 			return {

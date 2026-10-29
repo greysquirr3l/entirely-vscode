@@ -273,6 +273,7 @@ suite('Entire effective log level', () => {
 			effectiveLogLevel({
 				cliPath: undefined,
 				refreshInterval: 30,
+				transcriptTimeout: 60,
 				showSessionsInExplorer: false,
 				minimumCliVersion: '0.12.2',
 				logLevel: 'warn',
@@ -287,6 +288,7 @@ suite('Entire effective log level', () => {
 			effectiveLogLevel({
 				cliPath: undefined,
 				refreshInterval: 30,
+				transcriptTimeout: 60,
 				showSessionsInExplorer: false,
 				minimumCliVersion: '0.12.2',
 				logLevel: 'info',
@@ -301,6 +303,7 @@ suite('Entire effective log level', () => {
 			effectiveLogLevel({
 				cliPath: undefined,
 				refreshInterval: 30,
+				transcriptTimeout: 60,
 				showSessionsInExplorer: false,
 				minimumCliVersion: '0.12.2',
 				logLevel: 'trace',

@@ -6,8 +6,11 @@ import { openCheckpointFile } from './openCheckpoint';
 import { repairTerminalPath } from './terminalPath';
 import { explainCheckpoint, whyThisLine } from './whyThisLine';
 import { checkpointDestination } from './checkpointDestination';
+import { openTranscript, selectSession, setOwnSessionFilter } from './sessionDetail';
 import type { CheckpointFileNode, CheckpointsProvider } from '../providers/checkpointsProvider';
 import type { SessionDetailProvider } from '../providers/sessionDetailProvider';
+import type { TranscriptContentProvider } from '../providers/transcriptDocument';
+import type { SessionDetailSource } from '../services/sessionDetail';
 import type { SessionItemNode, SessionsProvider } from '../providers/sessionsProvider';
 import type { CheckpointDetail } from '../lib/entire';
 import type { GitService } from '../services/gitService';
@@ -24,6 +27,10 @@ export interface CommandDependencies {
 	readonly sessions: SessionsProvider;
 	readonly sessionDetail: SessionDetailProvider;
 	readonly checkpoints: CheckpointsProvider;
+	/** Reads one session in full. */
+	readonly sessionDetailSource: SessionDetailSource;
+	/** Serves transcripts as read-only documents. */
+	readonly transcripts: TranscriptContentProvider;
 	readonly statusController: StatusController;
 	/** Who the CLI is signed in as. */
 	readonly authentication: AuthenticationService;
@@ -82,9 +89,37 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 			await deps.statusController.offerToSetUp();
 		}),
 
-		vscode.commands.registerCommand('entirely.selectSession', (element: SessionItemNode) => {
-			deps.sessions.select(element);
-			deps.sessionDetail.show(element?.session);
+		vscode.commands.registerCommand('entirely.selectSession', async (element: SessionItemNode) => {
+			await selectSession(
+				{
+					sessions: deps.sessions,
+					sessionDetail: deps.sessionDetail,
+					detail: deps.sessionDetailSource,
+				},
+				element,
+			);
+		}),
+
+		// The transcript opens in a read-only editor. It is reached from the
+		// detail view and from a session's context menu.
+		vscode.commands.registerCommand('entirely.openTranscript', async (target?: string | SessionItemNode) => {
+			const id = typeof target === 'string' ? target : target?.session.id;
+			await openTranscript(
+				{
+					sessionDetail: deps.sessionDetail,
+					detail: deps.sessionDetailSource,
+					documents: deps.transcripts,
+				},
+				id,
+			);
+		}),
+
+		vscode.commands.registerCommand('entirely.showOwnSession', async () => {
+			await setOwnSessionFilter(deps.sessions, true);
+		}),
+
+		vscode.commands.registerCommand('entirely.showAllSessions', async () => {
+			await setOwnSessionFilter(deps.sessions, false);
 		}),
 
 		vscode.commands.registerCommand('entirely.openCheckpointFile', async (element: CheckpointFileNode) => {

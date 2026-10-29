@@ -24,6 +24,7 @@ Entirely (this extension)
 |---|---|
 | **Status bar** | Whether the workspace is tracked by Entire, and whether an agent session is live right now |
 | **Entire view** | Every session Entire tracks for the repository — across all worktrees, not just the open folder |
+| **Session detail** | The selected session in full, ended ones included: agent, model, tokens, files touched and tool calls, with the transcript opening in a read-only editor |
 | **Checkpoint history** | Recorded checkpoints, opening straight into the native diff editor |
 | **Why this line** | Which agent edit introduced the line under the cursor, and why |
 | **Account view** | Who the CLI is signed in as, and which jurisdiction the account belongs to — with sign-in and sign-out |
@@ -63,6 +64,29 @@ selected one beside them:
 Every CLI invocation the extension made, in the `Entire` output channel:
 
 ![The Entire output channel, showing each CLI invocation and what it returned](images/output.png)
+
+## Session detail and transcripts
+
+Select a session and the Session view fills in from `entire session info`:
+when it ended, its last checkpoint, token count, the files it touched and how
+many times each tool was called. A session that has ended is inspected the
+same way as a live one.
+
+The transcript is not in the tree. **Transcript** in the Session view, or the
+button on a session, opens it in a read-only editor beside its attribution
+and a tool call summary. It is read from `entire session info --transcript`,
+which streams the agent's own format; Claude Code, Cursor, Codex and Copilot
+CLI transcripts are understood, and any other format is shown as raw text.
+The editor holds the first 4 million characters, and the extension reads at
+most 16 MB from the CLI, saying so when it cuts a transcript short.
+`entirely.transcriptTimeout` sets how long to wait for the CLI.
+
+The transcript is your own conversation with the agent, so it is never
+written to the `Entire` output channel, not even at the debug level.
+
+The filter button in the Sessions view narrows the tree to the session that
+belongs to this workspace, using `entire session current`. A session the CLI
+reports as belonging to another worktree is not offered.
 
 ## The terminal PATH
 

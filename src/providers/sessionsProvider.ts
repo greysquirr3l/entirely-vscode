@@ -128,6 +128,7 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionNode> {
 	private timer: NodeJS.Timeout | undefined;
 	private selected: SessionItemNode | undefined;
 	private emptyReasonText: string | undefined;
+	private ownOnly = false;
 
 	readonly onDidChangeTreeData: vscode.Event<SessionNode | undefined> = this.changed.event;
 
@@ -151,9 +152,20 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionNode> {
 		return this.emptyReasonText;
 	}
 
+	/** Whether the tree shows only the workspace's own session. */
+	get showsOwnSessionOnly(): boolean {
+		return this.ownOnly;
+	}
+
+	/** Narrows the tree to the workspace's own session, or widens it again. */
+	async setOwnSessionOnly(ownOnly: boolean): Promise<void> {
+		this.ownOnly = ownOnly;
+		await this.refresh();
+	}
+
 	/** Re-reads the sessions and re-renders the tree. */
 	async refresh(): Promise<void> {
-		const listing = await this.source();
+		const listing = await this.source({ ownOnly: this.ownOnly });
 		this.groups = buildGroups(listing.sessions);
 		this.emptyReasonText = listing.sessions.length === 0 ? listing.emptyReason : undefined;
 		this.changed.fire(undefined);

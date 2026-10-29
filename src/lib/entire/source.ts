@@ -17,5 +17,11 @@ export interface SessionListing {
 	readonly emptyReason?: string;
 }
 
+/** What the tree asks the source for. */
+export interface SessionQuery {
+	/** Only the session that belongs to this workspace. */
+	readonly ownOnly?: boolean;
+}
+
 /** Where the sessions come from. */
-export type SessionSource = () => Promise<SessionListing>;
+export type SessionSource = (query?: SessionQuery) => Promise<SessionListing>;

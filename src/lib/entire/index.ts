@@ -9,8 +9,16 @@ export type { DecodeIssue, DecodeIssueKind, DecodeResult } from './decode';
 export { unwrap } from './decode';
 export { canBeSetUp, decodeWorkspaceStatus, isTracked } from './status';
 export { decodeCurrentSession, decodeSession, decodeSessionList } from './session';
+export { decodeSessionInfo, isSessionId } from './sessionInfo';
+export type { SessionInfo, SessionTokens } from './sessionInfo';
+export { NO_OWN_SESSION, ownSessionOnly } from './sessionFilter';
+export type { OwnSessionResult } from './sessionFilter';
+export { countToolCalls, parseTranscript } from './transcript';
+export type { ToolCallCount, Transcript, TranscriptItem, TranscriptRole } from './transcript';
+export { MAX_DOCUMENT_CHARACTERS, MAX_MESSAGE_CHARACTERS, MAX_RAW_CHARACTERS, renderTranscript } from './transcriptView';
+export type { TranscriptSource } from './transcriptView';
 export { escapeMarkdown, humanizeStatus, oneLine, pluralise, truncatePrompt } from './text';
-export type { SessionListing, SessionSource } from './source';
+export type { SessionListing, SessionQuery, SessionSource } from './source';
 export {
 	checkpointRef,
 	decodeCheckpoint,

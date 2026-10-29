@@ -6,6 +6,17 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Added
+
+- **Session detail.** Selecting a session reads `entire session info`, so the
+  view shows when it ended, its last checkpoint, tokens, files touched and a
+  count of each tool it called. Ended sessions work the same as live ones.
+- **Transcripts.** Open a session's transcript in a read-only editor, with its
+  attribution and tool calls. It never goes in the tree and never in the
+  output channel. New setting: `entirely.transcriptTimeout`.
+- **Workspace-only sessions.** A filter on the Sessions view that shows just
+  the session `entire session current` reports for this workspace.
+
 ## [0.1.0] - 2026-10-27
 
 The first release with a working editor surface. The extension talks to the

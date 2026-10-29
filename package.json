@@ -137,6 +137,24 @@
         "category": "Entirely"
       },
       {
+        "command": "entirely.openTranscript",
+        "title": "Open Session Transcript",
+        "category": "Entirely",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "entirely.showOwnSession",
+        "title": "Show Only This Workspace's Session",
+        "category": "Entirely",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "entirely.showAllSessions",
+        "title": "Show All Sessions",
+        "category": "Entirely",
+        "icon": "$(clear-all)"
+      },
+      {
         "command": "entirely.openCheckpointFile",
         "title": "Open Checkpoint Diff",
         "category": "Entirely"
@@ -233,23 +251,40 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "Say more in the Entire output channel: the exact command line, working directory and exit code of every Entire CLI invocation, and an excerpt of what it produced. Equivalent to setting `entirely.logLevel` to `debug`, and it does not add a second channel."
+        },
+        "entirely.transcriptTimeout": {
+          "type": "number",
+          "default": 60,
+          "minimum": 5,
+          "maximum": 600,
+          "markdownDescription": "How long, in seconds, to wait for the Entire CLI to hand over a session transcript before giving up. A long session produces a large transcript, so raise this if opening one times out."
         }
       }
     },
     "menus": {
       "view/title": [
-      {
-        "command": "entirely.signIn",
-        "when": "view == entirely.authentication && !entirely.signedIn",
-        "group": "navigation@1"
-      },
-      {
-        "command": "entirely.signOut",
-        "when": "view == entirely.authentication && entirely.signedIn",
-        "group": "navigation@1"
-      }
-    ],
-    "commandPalette": [
+        {
+          "command": "entirely.signIn",
+          "when": "view == entirely.authentication && !entirely.signedIn",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.signOut",
+          "when": "view == entirely.authentication && entirely.signedIn",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.showOwnSession",
+          "when": "view == entirely.sessions && !entirely.ownSessionOnly",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.showAllSessions",
+          "when": "view == entirely.sessions && entirely.ownSessionOnly",
+          "group": "navigation@1"
+        }
+      ],
+      "commandPalette": [
         {
           "command": "entirely.statusBar",
           "when": "false"
@@ -272,6 +307,13 @@
           "command": "entirely.whyThisLine",
           "group": "1_entirely@1",
           "when": "editorTextFocus"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "entirely.openTranscript",
+          "when": "view == entirely.sessions && viewItem == entirely.session",
+          "group": "inline"
         }
       ]
     }

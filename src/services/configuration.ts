@@ -17,6 +17,8 @@ export interface ExtensionSettings {
 	readonly cliContext?: string;
 	/** How often, in seconds, the extension re-reads the CLI. */
 	readonly refreshInterval: number;
+	/** How long, in seconds, the CLI may take to hand over a session transcript. */
+	readonly transcriptTimeout: number;
 	/** Whether the sessions tree is also shown in the Explorer. */
 	readonly showSessionsInExplorer: boolean;
 	/** How much the extension says. */
@@ -54,6 +56,20 @@ export const MAX_REFRESH_INTERVAL_SECONDS = 3600;
  * A value of zero still means "do not poll", because that is a thing a
  * user may reasonably want.
  */
+export const MIN_TRANSCRIPT_TIMEOUT_SECONDS = 5;
+export const MAX_TRANSCRIPT_TIMEOUT_SECONDS = 600;
+
+/** Puts the transcript timeout inside the range the extension will wait for. */
+export function clampTranscriptTimeout(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return 60;
+	}
+	return Math.min(
+		MAX_TRANSCRIPT_TIMEOUT_SECONDS,
+		Math.max(MIN_TRANSCRIPT_TIMEOUT_SECONDS, Math.floor(seconds)),
+	);
+}
+
 export function clampRefreshInterval(seconds: number): number {
 	if (!Number.isFinite(seconds)) {
 		return 30;
@@ -91,6 +107,7 @@ export function readExtensionSettings(): ExtensionSettings {
 		cliPath: cliPath.length > 0 ? cliPath : undefined,
 		cliContext: cliContext.length > 0 ? cliContext : undefined,
 		refreshInterval: clampRefreshInterval(configuration.get<number>('refreshInterval', 30)),
+		transcriptTimeout: clampTranscriptTimeout(configuration.get<number>('transcriptTimeout', 60)),
 		showSessionsInExplorer: configuration.get<boolean>('showSessionsInExplorer', false),
 		logLevel: readLogLevel(configuration.get<string>('logLevel', 'info')),
 		debug: configuration.get<boolean>('debug', false),

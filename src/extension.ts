@@ -6,6 +6,8 @@ import { AuthenticationPanel } from './providers/authenticationPanel';
 import { CheckpointsProvider } from './providers/checkpointsProvider';
 import { SessionDetailProvider } from './providers/sessionDetailProvider';
 import { SessionsProvider } from './providers/sessionsProvider';
+import { TRANSCRIPT_SCHEME, TranscriptContentProvider } from './providers/transcriptDocument';
+import { SessionDetailService } from './services/sessionDetail';
 import { CliInvocationRecorder, CliRunner } from './services/cli';
 import { AccountContextService } from './services/accountContext';
 import { AuthenticationService } from './services/authentication';
@@ -115,6 +117,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	const sessionDetail = new SessionDetailProvider();
 	context.subscriptions.push(sessionDetail);
 
+	// Transcripts open as read-only documents, never as tree nodes.
+	const transcripts = new TranscriptContentProvider();
+	context.subscriptions.push(
+		transcripts,
+		vscode.workspace.registerTextDocumentContentProvider(TRANSCRIPT_SCHEME, transcripts),
+	);
+	const sessionDetailSource = new SessionDetailService({
+		runner,
+		workspaceRoot,
+		transcriptTimeoutSeconds: () => readExtensionSettings().transcriptTimeout,
+	});
+
 	const checkpoints = new CheckpointsProvider(
 		createCheckpointSource(runner, workspaceRoot),
 		createCheckpointDetailSource(runner, workspaceRoot),
@@ -221,6 +235,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	registerCommands(context, {
 		sessions,
 		sessionDetail,
+		sessionDetailSource,
+		transcripts,
 		checkpoints,
 		authentication,
 		authenticationProvider,
