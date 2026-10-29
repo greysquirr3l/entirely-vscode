@@ -30,6 +30,9 @@ function factsWith(overrides: Partial<DoctorFacts> = {}): DoctorFacts {
 		failure: undefined,
 		minimumCliVersion: '0.12.2',
 		checkpointDestination: undefined,
+		accountContext: undefined,
+		contextMechanism:
+			'--context flag on CLI commands, ENTIRE_CONTEXT environment variable for hooks and plugin commands',
 		...overrides,
 	};
 }
@@ -93,5 +96,63 @@ suite('Entirely doctor report', () => {
 		);
 
 		assert.match(report, /- Destination: this machine only/);
+	});
+
+	test('names the login it is acting as and how many there are', () => {
+		const report = renderDoctorReport(
+			factsWith({
+				accountContext: {
+					acting: {
+						name: 'us.auth.entire.io',
+						handle: 'greysquirr3l',
+						server: 'https://us.auth.entire.io',
+						active: false,
+					},
+					pinned: true,
+					saved: [
+						{
+							name: 'us.auth.entire.io',
+							handle: 'greysquirr3l',
+							server: 'https://us.auth.entire.io',
+							active: false,
+						},
+						{
+							name: 'sosh-ncampbell@us.auth.entire.io',
+							handle: 'sosh-ncampbell',
+							server: 'https://us.auth.entire.io',
+							active: true,
+						},
+					],
+					problem: undefined,
+				},
+			}),
+		);
+
+		assert.match(report, /- Login: greysquirr3l \(us\.auth\.entire\.io\)/);
+		assert.match(report, /- Chosen by: the entirely\.cliContext setting/);
+		assert.match(report, /- Saved logins: 2/);
+	});
+
+	test('says which mechanism each command path used', () => {
+		const report = renderDoctorReport(factsWith());
+
+		assert.match(report, /--context flag on CLI commands/);
+		assert.match(report, /ENTIRE_CONTEXT environment variable for hooks and plugin commands/);
+	});
+
+	test('says when the login in the settings is not one the CLI has', () => {
+		const report = renderDoctorReport(
+			factsWith({
+				accountContext: {
+					acting: undefined,
+					pinned: true,
+					saved: [],
+					problem: 'The Entire CLI has no saved login called "nobody".',
+				},
+			}),
+		);
+
+		assert.match(report, /- Login: \(none\)/);
+		assert.match(report, /no saved login called "nobody"/);
 	});
 });

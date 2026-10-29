@@ -116,6 +116,21 @@ into an issue.
 Turn the volume up with `entirely.debug`, or with `entirely.logLevel` for
 finer control. There is still only one channel.
 
+## Two Entire accounts
+
+If you have more than one Entire login, the status bar tooltip says which one
+the extension is acting as, and the doctor report counts the saved logins.
+
+`entirely.cliContext` pins one of them for the extension. The name is the one
+`entire auth contexts` prints — `us.auth.entire.io`, or
+`handle@us.auth.entire.io` for a second identity on a host that already has
+one. Leave it empty and the extension follows the login the CLI is using on
+its own.
+
+The pin changes what the extension does. The CLI keeps the login it would have
+used in your terminal, and a workspace the pinned login cannot see is said to
+be invisible to that login rather than to be untracked.
+
 ## Requirements
 
 * The [Entire CLI](https://docs.entire.com/installation) — `entire version`

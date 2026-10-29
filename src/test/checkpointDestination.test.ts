@@ -163,6 +163,87 @@ suite('Entire checkpoint destination inspection', () => {
 		assert.match(report.remedy ?? '', /hosted on Entire/);
 	});
 
+	test('says the acting login cannot see the checkpoint repository', async () => {
+		const runner = runnerFor(cliBody(JSON.stringify(DEDICATED_STATUS), '[]'));
+
+		const report = await inspectCheckpointDestination(
+			runner,
+			undefined,
+			tracked({
+				checkpointSyncRemote: 'greysquirr3l/entirely-vscode-checkpoints',
+				checkpointSyncRemoteSource: 'dedicated',
+			}),
+			settings,
+		);
+
+		assert.strictEqual(report.visible, false);
+	});
+
+	test('says the acting login can see the checkpoint repository', async () => {
+		const visible = JSON.stringify([
+			{
+				repo: '/gh/greysquirr3l/entirely-vscode-checkpoints',
+				private: true,
+				status: 'ready',
+			},
+		]);
+		const runner = runnerFor(cliBody(JSON.stringify(DEDICATED_STATUS), visible));
+
+		const report = await inspectCheckpointDestination(
+			runner,
+			undefined,
+			tracked({
+				checkpointSyncRemote: 'greysquirr3l/entirely-vscode-checkpoints',
+				checkpointSyncRemoteSource: 'dedicated',
+			}),
+			settings,
+		);
+
+		assert.strictEqual(report.visible, true);
+	});
+
+	test('says the acting login cannot see the workspace itself', async () => {
+		const body = [
+			'case "$1" in',
+			'\tversion) echo "entire 0.12.2" ;;',
+			`\tstatus) echo '{"enabled":true,"agents":[],"active_sessions":[],"checkpoint_sync_remote":"origin","checkpoint_sync_remote_source":"default"}' ;;`,
+			'\trepo) echo \'no repo matching "owner/repo" visible from your login\' >&2; exit 1 ;;',
+			'\t*) echo "unknown command" >&2; exit 2 ;;',
+			'esac',
+		].join('\n');
+		const runner = runnerFor(body);
+
+		const report = await inspectCheckpointDestination(
+			runner,
+			undefined,
+			tracked({ checkpointSyncRemote: 'origin', checkpointSyncRemoteSource: 'default' }),
+			{},
+		);
+
+		assert.strictEqual(report.visible, false);
+	});
+
+	test('says nothing about visibility when the CLI could not answer', async () => {
+		const body = [
+			'case "$1" in',
+			'\tversion) echo "entire 0.12.2" ;;',
+			`\tstatus) echo '{"enabled":true,"agents":[],"active_sessions":[],"checkpoint_sync_remote":"origin","checkpoint_sync_remote_source":"default"}' ;;`,
+			'\trepo) echo "the network is down" >&2; exit 1 ;;',
+			'\t*) echo "unknown command" >&2; exit 2 ;;',
+			'esac',
+		].join('\n');
+		const runner = runnerFor(body);
+
+		const report = await inspectCheckpointDestination(
+			runner,
+			undefined,
+			tracked({ checkpointSyncRemote: 'origin', checkpointSyncRemoteSource: 'default' }),
+			{},
+		);
+
+		assert.strictEqual(report.visible, undefined);
+	});
+
 	test('reports what it found, in a form a bug report can carry', async () => {
 		const runner = runnerFor(cliBody(JSON.stringify(DEDICATED_STATUS), '[]'));
 

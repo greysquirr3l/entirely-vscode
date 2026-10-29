@@ -3,6 +3,7 @@ import {
 	decodeRepoIdentity,
 	decodeVisibleRepos,
 	describeDestination,
+	isInvisibleToLogin,
 	oneLine,
 	parseForgeRef,
 	resolveCheckpointDestination,
@@ -37,6 +38,16 @@ export interface CheckpointDestinationReport {
 	 * answer it.
 	 */
 	readonly checkpointRepoVisible?: boolean;
+	/**
+	 * Whether the acting login can see where the checkpoints are going.
+	 *
+	 * This is the question a workspace that looks untracked actually
+	 * turns on: the checkpoints are on the server, but the login the
+	 * extension is acting as cannot reach them. Absent when the question
+	 * does not apply — the checkpoints stay on this machine, or where they
+	 * go is not known — or when the CLI could not answer it.
+	 */
+	readonly visible?: boolean;
 	/** Why the checkpoint repository cannot be reached, when it cannot be. */
 	readonly problem?: string;
 	/** What could be done about it. */
@@ -76,6 +87,7 @@ interface MutableReport {
 	destination: CheckpointDestination;
 	workspaceRepo?: RepoIdentity;
 	checkpointRepoVisible?: boolean;
+	visible?: boolean;
 	problem?: string;
 	remedy?: string;
 	remedyCommand?: readonly string[];
@@ -109,10 +121,12 @@ export async function inspectCheckpointDestination(
 	// The workspace's own repository and the list of repositories the
 	// login can reach do not depend on each other, so they are asked for
 	// at the same time rather than one after the other.
-	const [workspaceRepo, visible] = await Promise.all([
+	const [workspace, visible] = await Promise.all([
 		readWorkspaceRepo(runner, cwd),
 		ref ? readVisibleRepos(runner, cwd, ref) : Promise.resolve(undefined),
 	]);
+
+	const workspaceRepo = workspace.ok ? workspace.repo : undefined;
 
 	const report: MutableReport = { destination, workspaceRepo };
 
@@ -132,6 +146,15 @@ export async function inspectCheckpointDestination(
 	}
 
 	if (destination.kind === 'same-repo') {
+		// The checkpoints are on the workspace's own repository, so
+		// whether the login can see that repository is whether the
+		// checkpoints can be seen.
+		if (!workspace.ok) {
+			report.visible = workspace.invisible ? false : undefined;
+		} else {
+			report.visible = true;
+		}
+
 		// Checkpoints that go to this repository are on the forge that
 		// hosts it, so the forge is the workspace's own.
 		if (workspaceRepo && workspaceRepo.ref.forge === 'entire') {
@@ -160,6 +183,7 @@ export async function inspectCheckpointDestination(
 	}
 
 	report.checkpointRepoVisible = canSeeRepo(visible.value, ref);
+	report.visible = report.checkpointRepoVisible;
 
 	if (report.checkpointRepoVisible) {
 		return report;
@@ -212,6 +236,17 @@ export function renderCheckpointDestination(report: CheckpointDestinationReport)
 }
 
 /**
+ * What reading the workspace's own repository found.
+ *
+ * The distinction that matters is between a repository the login cannot
+ * see and a repository the CLI could not name: the first is a fact about
+ * the account, and the second is only a fact about the command.
+ */
+type WorkspaceRepoReading =
+	| { readonly ok: true; readonly repo: RepoIdentity }
+	| { readonly ok: false; readonly detail: string; readonly invisible: boolean };
+
+/**
  * Reads the repository the workspace is on.
  *
  * The CLI resolves it from the clone's own remote, so it follows the
@@ -221,7 +256,7 @@ export function renderCheckpointDestination(report: CheckpointDestinationReport)
 async function readWorkspaceRepo(
 	runner: CliRunner,
 	cwd: string | undefined,
-): Promise<RepoIdentity | undefined> {
+): Promise<WorkspaceRepoReading> {
 	const result = await runner.runJson(
 		['repo', 'view', '--json'],
 		value => unwrap(decodeRepoIdentity(value)),
@@ -229,10 +264,14 @@ async function readWorkspaceRepo(
 	);
 
 	if (!result.ok) {
-		return undefined;
+		return {
+			ok: false,
+			detail: result.detail,
+			invisible: isInvisibleToLogin(result.stderr),
+		};
 	}
 
-	return result.value;
+	return { ok: true, repo: result.value };
 }
 
 /**

@@ -11,6 +11,7 @@ import type { SessionItemNode, SessionsProvider } from '../providers/sessionsPro
 import type { CheckpointDetail } from '../lib/entire';
 import type { GitService } from '../services/gitService';
 import type { StatusController } from '../services/statusController';
+import type { AccountContextService } from '../services/accountContext';
 import type { CliRunner } from '../services/cli';
 import type { CliInvocationRecorder } from '../services/cli/recorder';
 import type { WhyService } from '../services/whyService';
@@ -26,6 +27,8 @@ export interface CommandDependencies {
 	readonly why: WhyService;
 	/** The CLI the extension talks to. */
 	readonly runner: CliRunner;
+	/** Which login the CLI is acting as. */
+	readonly accounts: AccountContextService;
 	/** Reads one checkpoint's story. */
 	readonly checkpointDetail: (id: string) => Promise<CheckpointDetail | undefined>;
 	/** What the CLI has been asked to do so far. */
@@ -124,6 +127,7 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 		vscode.commands.registerCommand('entirely.doctor', async () => {
 			await doctor({
 				runner: deps.runner,
+				accounts: deps.accounts,
 				recorder: deps.recorder,
 				workspaceRoot: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
 				output: deps.output,

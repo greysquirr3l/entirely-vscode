@@ -5,6 +5,7 @@ import * as path from 'path';
 
 import { doctor, type ReportSink } from '../commands/doctor';
 import { dumpCliOutput } from '../commands/dumpCliOutput';
+import { AccountContextService } from '../services/accountContext';
 import {
 	byteLength,
 	excerptPayload,
@@ -264,6 +265,7 @@ suite('Entire diagnostics', () => {
 
 		await doctor({
 			runner,
+			accounts: new AccountContextService(runner),
 			recorder,
 			workspaceRoot: () => workspace,
 			output: sink,
@@ -286,6 +288,7 @@ suite('Entire diagnostics', () => {
 
 		await doctor({
 			runner,
+			accounts: new AccountContextService(runner),
 			recorder,
 			workspaceRoot: () => workspace,
 			output: sink,
@@ -305,6 +308,7 @@ suite('Entire diagnostics', () => {
 
 		await doctor({
 			runner,
+			accounts: new AccountContextService(runner),
 			recorder,
 			workspaceRoot: () => workspace,
 			output: sink,

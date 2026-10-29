@@ -8,6 +8,7 @@ import {
 } from '../lib/entire';
 import type { CliRunner } from '../services/cli';
 import type { CliInvocationRecorder } from '../services/cli/recorder';
+import type { AccountContextReading, AccountContextService } from '../services/accountContext';
 import {
 	inspectCheckpointDestination,
 	type CheckpointDestinationReport,
@@ -20,6 +21,16 @@ import { readEntireSettings } from '../services/settingsSource';
 /** The id the extension is published under. */
 const EXTENSION_ID = 'greysquirr3l.entirely';
 
+/**
+ * How the acting login reaches the CLI.
+ *
+ * The flag is inherited by the CLI's own commands, and the environment
+ * variable is what reaches the plugin commands and the processes the CLI
+ * spawns, so both are set.
+ */
+const CONTEXT_MECHANISM =
+	'--context flag on CLI commands, ENTIRE_CONTEXT environment variable for hooks and plugin commands';
+
 /** Where the report is written. */
 export interface ReportSink {
 	appendLine(line: string): void;
@@ -30,6 +41,8 @@ export interface ReportSink {
 export interface DoctorDependencies {
 	/** The CLI the extension talks to. */
 	readonly runner: CliRunner;
+	/** Which login the CLI is acting as. */
+	readonly accounts: AccountContextService;
 	/** What the CLI has been asked to do so far. */
 	readonly recorder: CliInvocationRecorder;
 	/** The folder the workspace is in. */
@@ -69,8 +82,13 @@ async function collectFacts(deps: DoctorDependencies): Promise<DoctorFacts> {
 
 	let status: WorkspaceStatus | undefined;
 	let statusError: string | undefined;
+	let accountContext: AccountContextReading | undefined;
 
 	if (discovery.state === 'available') {
+		// The login is read first, because every command after this has
+		// to act as the right one.
+		accountContext = await deps.accounts.refresh(root);
+
 		const result = await deps.runner.runJson(
 			['status', '--json'],
 			value => unwrap(decodeWorkspaceStatus(value)),
@@ -115,6 +133,8 @@ async function collectFacts(deps: DoctorDependencies): Promise<DoctorFacts> {
 		minimumCliVersion: settings.minimumCliVersion,
 		failure,
 		checkpointDestination,
+		accountContext,
+		contextMechanism: CONTEXT_MECHANISM,
 	};
 }
 

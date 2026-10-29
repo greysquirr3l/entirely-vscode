@@ -1,4 +1,5 @@
 import { describeDestination, describeUnsupportedCli, oneLine, type WorkspaceStatus } from '../lib/entire';
+import type { AccountContextReading } from './accountContext';
 import type { CliDiscovery } from './cli/types';
 import type { CheckpointDestinationReport } from './checkpointDestination';
 
@@ -59,6 +60,18 @@ export interface DoctorFacts {
 	 * be read.
 	 */
 	readonly checkpointDestination: CheckpointDestinationReport | undefined;
+	/**
+	 * Which login the extension is acting as, when that could be read.
+	 */
+	readonly accountContext: AccountContextReading | undefined;
+	/**
+	 * How the login reaches the CLI.
+	 *
+	 * The flag is inherited by the CLI's own commands and the
+	 * environment variable is what reaches the plugin commands and the
+	 * processes the CLI spawns, so both are set and the report says so.
+	 */
+	readonly contextMechanism: string;
 }
 
 /** How the workspace's tracking state is described. */
@@ -163,6 +176,33 @@ export function renderDoctorReport(facts: DoctorFacts): string {
 	}
 
 	lines.push('');
+	lines.push('### Account');
+	lines.push('');
+
+	const account = facts.accountContext;
+	if (!account) {
+		lines.push('- Login: (unknown)');
+	} else {
+		lines.push(
+			`- Login: ${account.acting ? oneLine(account.acting.handle) : '(none)'}${
+				account.acting ? ` (${oneLine(account.acting.name)})` : ''
+			}`,
+		);
+		lines.push(
+			`- Chosen by: ${
+				account.pinned ? 'the entirely.cliContext setting' : "the CLI's own active login"
+			}`,
+		);
+		lines.push(`- Saved logins: ${account.saved.length}`);
+
+		if (account.problem) {
+			lines.push(`- Problem: ${oneLine(account.problem)}`);
+		}
+	}
+
+	lines.push(`- Mechanism: ${oneLine(facts.contextMechanism)}`);
+
+	lines.push('');
 	lines.push('### Checkpoint destination');
 	lines.push('');
 
@@ -184,6 +224,10 @@ export function renderDoctorReport(facts: DoctorFacts): string {
 			lines.push(
 				`- Entire can reach it: ${destination.checkpointRepoVisible ? 'yes' : 'no'}`,
 			);
+		}
+
+		if (destination.visible !== undefined && destination.checkpointRepoVisible === undefined) {
+			lines.push(`- The acting login can see it: ${destination.visible ? 'yes' : 'no'}`);
 		}
 
 		if (destination.problem) {

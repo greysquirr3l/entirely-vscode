@@ -15,6 +15,8 @@ export type StatusDisplay =
 			readonly checkpointDestination?: string;
 			/** What is wrong with where the checkpoints are going. */
 			readonly checkpointProblem?: string;
+			/** The handle of the login the extension is acting as. */
+			readonly context?: string;
 	  }
 	/** The workspace is tracked and no agent session is running. */
 	| {
@@ -23,11 +25,36 @@ export type StatusDisplay =
 			readonly checkpointDestination?: string;
 			/** What is wrong with where the checkpoints are going. */
 			readonly checkpointProblem?: string;
+			/** The handle of the login the extension is acting as. */
+			readonly context?: string;
 	  }
 	/** The workspace is a git repository Entire has not been set up for. */
 	| { readonly kind: 'not-set-up'; readonly settings?: readonly string[] }
 	/** The workspace is not a git repository, so it cannot be tracked. */
 	| { readonly kind: 'not-a-repository' }
+	/**
+	 * The workspace is tracked, but the login being used cannot see it.
+	 *
+	 * This is not the same as a workspace that is not tracked: the
+	 * workspace is set up, under a login the user is not currently
+	 * acting as.
+	 */
+	| {
+			readonly kind: 'invisible-to-context';
+			/** The handle of the login the extension is acting as. */
+			readonly context: string;
+			/** The name that login is saved under. */
+			readonly contextName?: string;
+			/** What the CLI said about it. */
+			readonly detail?: string;
+	  }
+	/**
+	 * The login the user asked for is not one the CLI has.
+	 *
+	 * This is a mistake in the settings rather than a command that
+	 * failed, and it is shown as one.
+	 */
+	| { readonly kind: 'context-error'; readonly detail: string }
 	/** The CLI could not be read. */
 	| { readonly kind: 'error'; readonly detail: string };
 
@@ -91,6 +118,21 @@ function warningMark(problem: string | undefined): string {
 }
 
 /**
+ * The login the extension is acting as, as a line for the tooltip.
+ *
+ * The handle is used rather than the name the login is saved under,
+ * because the handle is how the account is known to the person who owns
+ * it.
+ */
+function contextLine(context: string | undefined): string {
+	if (!context) {
+		return '';
+	}
+
+	return `\n\nActing as ${context}.`;
+}
+
+/**
  * The priority the item is shown at.
  *
  * The source control widget sits on the left of the status bar. Matching
@@ -117,6 +159,7 @@ function render(display: StatusDisplay): Rendering {
 						: 'Entire is tracking this workspace. An agent session is running.') +
 					problemLine(display.checkpointProblem) +
 					destinationLine(display.checkpointDestination) +
+					contextLine(display.context) +
 					settingsLine(display.settings),
 			};
 		case 'tracked':
@@ -126,6 +169,7 @@ function render(display: StatusDisplay): Rendering {
 					'Entire is tracking this workspace. No agent session is running.' +
 					problemLine(display.checkpointProblem) +
 					destinationLine(display.checkpointDestination) +
+					contextLine(display.context) +
 					settingsLine(display.settings),
 			};
 		case 'not-set-up':
@@ -139,6 +183,22 @@ function render(display: StatusDisplay): Rendering {
 			return {
 				text: '$(circle-outline) Entire',
 				tooltip: 'This workspace is not a git repository, so Entire cannot track it.',
+			};
+		case 'invisible-to-context':
+			return {
+				text: '$(eye-closed) Entire',
+				tooltip:
+					`Entire is tracking this workspace, but the login it is acting as ("${display.context}") cannot see ${
+						display.detail ?? 'where its checkpoints are'
+					}.` +
+					(display.contextName
+						? ` Set \`entirely.cliContext\` to the login that tracks it.`
+						: ''),
+			};
+		case 'context-error':
+			return {
+				text: '$(error) Entire',
+				tooltip: `Entirely is set to use a login the Entire CLI does not have. ${display.detail}`,
 			};
 		case 'error':
 			return {

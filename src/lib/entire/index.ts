@@ -74,3 +74,15 @@ export type {
 	WhyLine,
 	WhySummary,
 } from './why';
+export {
+	decodeAccountContexts,
+	describeAccountContext,
+	describeUnknownContext,
+	isInvisibleToLogin,
+	isUnknownContextError,
+	selectAccountContext,
+} from './accountContext';
+export type {
+	AccountContext,
+	AccountContextSelection,
+} from './accountContext';
