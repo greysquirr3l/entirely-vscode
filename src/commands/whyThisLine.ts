@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import type { CheckpointDetail } from '../lib/entire';
+import { parseRequestedLine, type CheckpointDetail } from '../lib/entire';
 import { WhyPanel } from '../providers/whyPanel';
 import type { WhyService } from '../services/whyService';
 
@@ -30,10 +30,7 @@ export async function whyThisLine(deps: WhyCommandDependencies, requestedLine?: 
 	const file = editor.document.uri.fsPath;
 	// The blame hover passes the line it was drawn on. Anything that is
 	// not a positive whole number falls back to the cursor.
-	const line =
-		typeof requestedLine === 'number' && Number.isSafeInteger(requestedLine) && requestedLine >= 1
-			? requestedLine
-			: editor.selection.active.line + 1;
+	const line = parseRequestedLine(requestedLine) ?? editor.selection.active.line + 1;
 
 	const result = await deps.why.explainLine(file, line);
 

@@ -49,7 +49,9 @@ export function planBlameMarks(answer: BlameAnswer, limit: number): BlamePlan {
 				? UNATTRIBUTED_LABEL
 				: state === 'unsynced'
 					? UNSYNCED_LABEL
-					: 'Attributed to a recorded change',
+					: line.attribution === 'commit'
+						? 'Committed (no checkpoint recorded)'
+						: 'Attributed to a recorded change',
 		];
 		if (line.author) {
 			facts.push(`Author: ${line.author}`);

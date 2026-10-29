@@ -9,10 +9,19 @@ import * as path from 'path';
  */
 export function workspaceRelative(root: string, file: string): string | undefined {
 	const relative = path.relative(root, file);
-	if (relative.length === 0 || relative.startsWith('..') || path.isAbsolute(relative)) {
+	if (relative.length === 0 || isParentSegment(relative) || path.isAbsolute(relative)) {
 		return undefined;
 	}
 	return relative;
+}
+
+/** Whether a relative path climbs out of its root: `..` alone or `..` then a separator. */
+function isParentSegment(relative: string): boolean {
+	return (
+		relative === '..' ||
+		relative.startsWith('../') ||
+		relative.startsWith(`..${path.sep}`)
+	);
 }
 
 /**

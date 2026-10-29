@@ -47,6 +47,7 @@ export type { BlameMark, BlamePlan } from './blameMarks';
 export { lineState, UNATTRIBUTED_LABEL, UNSYNCED_LABEL } from './lineState';
 export type { LineState } from './lineState';
 export { answerNamesFile, workspaceRelative } from './workspacePath';
+export { parseRequestedLine } from './requestedLine';
 export {
 	decodeEntireSettings,
 	resolveEntireSettings,

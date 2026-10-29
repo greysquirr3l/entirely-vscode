@@ -46,7 +46,17 @@ export async function blameFile(deps: BlameCommandDependencies): Promise<void> {
 		}
 	}
 
+	const versionAtStart = document.version;
 	const result = await deps.blame.blameFile(document.uri.fsPath);
+
+	// An edit made while the CLI was working has moved the lines, so the
+	// answer no longer fits the buffer. Drawing it would mark the wrong lines.
+	if (result.kind === 'answered' && document.version !== versionAtStart) {
+		await vscode.window.showInformationMessage(
+			'The file changed while blame was running, so the marks were not drawn. Save it and blame again.',
+		);
+		return;
+	}
 
 	switch (result.kind) {
 		case 'answered': {

@@ -11,12 +11,13 @@ import {
 	decodeBlameAnswer,
 	lineAnswerFrom,
 	lineState,
+	parseRequestedLine,
 	planBlameMarks,
 	unwrap,
 	workspaceRelative,
 	type BlameAnswer,
 } from '../lib/entire';
-import { clearBlame } from '../commands/blameFile';
+import { blameFile, clearBlame } from '../commands/blameFile';
 import { BlameDecorations } from '../providers/blameDecorations';
 import { renderWhyBody } from '../providers/whyView';
 import { BlameService } from '../services/blameService';
@@ -284,6 +285,25 @@ suite('Entire blame: workspace paths and settings', () => {
 		assert.strictEqual(workspaceRelative('/w', '/w/../x/b.ts'), undefined);
 	});
 
+	test('rejects only a real parent segment, not a name that starts with two dots', () => {
+		assert.strictEqual(workspaceRelative('/w', '/w/..foo.ts'), '..foo.ts');
+		assert.strictEqual(workspaceRelative('/w', '/x/y.ts'), undefined);
+		assert.strictEqual(workspaceRelative('/w/a', '/w/x.ts'), undefined);
+		assert.strictEqual(workspaceRelative('/w/a', '/w'), undefined);
+		assert.strictEqual(workspaceRelative('/w', '/w/../x'), undefined);
+	});
+
+	test('reads a requested line only when it is a positive whole number', () => {
+		assert.strictEqual(parseRequestedLine(7), 7);
+		assert.strictEqual(parseRequestedLine(0), undefined);
+		assert.strictEqual(parseRequestedLine(-3), undefined);
+		assert.strictEqual(parseRequestedLine(2.5), undefined);
+		assert.strictEqual(parseRequestedLine(Number.NaN), undefined);
+		assert.strictEqual(parseRequestedLine('4'), undefined);
+		assert.strictEqual(parseRequestedLine(vscode.Uri.file('/w/a.ts')), undefined);
+		assert.strictEqual(parseRequestedLine(undefined), undefined);
+	});
+
 	test('matches the answered file by its trailing segments', () => {
 		assert.ok(answerNamesFile(path.join('src', 'a.ts'), 'pkg/src/a.ts'));
 		assert.ok(!answerNamesFile(path.join('src', 'a.ts'), 'src/b.ts'));
@@ -334,6 +354,44 @@ suite('Entire blame decorations', () => {
 		}
 	});
 
+	test('words a commit line as committed, not as a recorded change', () => {
+		const plan = planBlameMarks(blamed(), 100);
+		if (plan.kind !== 'marks') {
+			assert.fail('expected marks');
+			return;
+		}
+		assert.ok(plan.marks[3].facts.includes('Committed (no checkpoint recorded)'));
+		assert.ok(plan.marks[0].facts.includes('Attributed to a recorded change'));
+	});
+
+	test('draws nothing when the file is edited while the CLI is working', async () => {
+		const decorations = new BlameDecorations();
+		const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-race-'));
+		try {
+			const file = path.join(directory, 'a.txt');
+			fs.writeFileSync(file, 'one\ntwo\n', 'utf8');
+			const document = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
+			const editor = await vscode.window.showTextDocument(document);
+			const blame = {
+				blameFile: async () => {
+					await editor.edit(edit => edit.insert(new vscode.Position(0, 0), 'x'));
+					return { kind: 'answered', answer: blamed() };
+				},
+			} as unknown as BlameService;
+
+			await Promise.race([
+				blameFile({ blame, decorations, maxDecoratedLines: () => 100 }),
+				new Promise(resolve => setTimeout(resolve, 1500)),
+			]);
+
+			assert.ok(!decorations.has(document));
+		} finally {
+			decorations.dispose();
+			await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+			fs.rmSync(directory, { recursive: true, force: true });
+		}
+	});
+
 	test('clears the active editor on request', async () => {
 		const decorations = new BlameDecorations();
 		try {
@@ -361,20 +419,22 @@ suite('Entire blame against the real CLI', function () {
 		}
 	});
 
-	test('attributes committed lines and marks an uncommitted line as not attributed', async () => {
+	test('attributes committed lines and marks an uncommitted line as not attributed', async function (this: Mocha.Context) {
 		const locator = new CliLocator();
 		if ((await locator.current()).state !== 'available') {
-			return;
+			this.skip();
 		}
 		const runner = new CliRunner(locator);
 
 		directory = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-blame-'));
 		execFileSync('git', ['init', '--quiet'], { cwd: directory });
+		execFileSync('git', ['config', 'user.name', 'T'], { cwd: directory });
+		execFileSync('git', ['config', 'user.email', 't@example.com'], { cwd: directory });
 		fs.writeFileSync(path.join(directory, 'file.txt'), 'one\ntwo\n', 'utf8');
 		execFileSync('git', ['add', '--all'], { cwd: directory });
 		execFileSync(
 			'git',
-			['-c', 'user.email=t@example.com', '-c', 'user.name=T', 'commit', '--quiet', '-m', 'start'],
+			['-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'start'],
 			{ cwd: directory },
 		);
 		fs.appendFileSync(path.join(directory, 'file.txt'), 'three\n', 'utf8');
