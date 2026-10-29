@@ -178,8 +178,13 @@ export interface TrailMergePlan {
 	readonly reasons: readonly string[];
 	/** Whether a gate would be bypassed by merging anyway. */
 	readonly wouldBypass: boolean;
-	/** Whether the CLI says the merge happened. A dry run reports false. */
-	readonly merged: boolean;
+	/**
+	 * Whether the CLI says the merge happened, when it says anything.
+	 *
+	 * Absent when the payload has no `merged` key: the documentation does
+	 * not show the success payload, so absence is not the same as false.
+	 */
+	readonly merged?: boolean;
 }
 
 /** The list of trails the CLI returned. */
@@ -841,7 +846,7 @@ export function decodeTrailMergePlan(value: unknown): DecodeResult<TrailMergePla
 			blockers: decodeStringArray(read.record.blockers, 'merge.blockers'),
 			reasons: decodeStringArray(read.record.reasons, 'merge.reasons'),
 			wouldBypass: wouldBypass ?? false,
-			merged: merged ?? false,
+			merged,
 		},
 	};
 }

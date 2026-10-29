@@ -485,7 +485,10 @@ export class TrailService {
 			return { kind: 'failed', detail: decoded.issue.detail };
 		}
 
-		if (!decoded.value.merged) {
+		// The documentation does not show the success payload, so a missing
+		// `merged` key must not turn a successful exit into a failure. Only
+		// an explicit `merged: false` overrides the zero exit status.
+		if (decoded.value.merged === false) {
 			const why = [...decoded.value.blockers, ...decoded.value.reasons].join('; ');
 
 			return {

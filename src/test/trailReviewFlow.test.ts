@@ -221,6 +221,24 @@ suite('Entire trail review flow', function () {
 		assert.ok(errors.length > 0, 'the failed merge was not reported');
 	});
 
+	test('a merge whose zero-exit payload has no merged key is reported as merged', async () => {
+		const { merged: _omitted, ...withoutMerged } = MERGE_PLAN;
+		const { runner } = fakeTrailCli({
+			mergeRun: JSON.stringify({ ...withoutMerged, dryRun: false }),
+		});
+
+		const { infos, errors } = await withPrompts({ pick: 0, confirm: 'Merge' }, () =>
+			mergeChange(dependenciesFor(runner)),
+		);
+
+		assert.strictEqual(errors.length, 0, 'a successful merge was reported as failed');
+		assert.strictEqual(
+			infos.filter(message => /merged/i.test(message)).length,
+			1,
+			'a successful merge was not reported',
+		);
+	});
+
 	test('a merge whose payload says merged:false is not reported as merged', async () => {
 		const { runner } = fakeTrailCli({
 			mergeRun: JSON.stringify({ ...MERGE_PLAN, merged: false, dryRun: false }),
@@ -291,6 +309,41 @@ suite('Entire trail review flow', function () {
 
 		await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
 		await vscode.workspace.fs.delete(file);
+	});
+
+	test('a dirty file outside the workspace does not block a checkout', async () => {
+		const { runner, log } = fakeTrailCli();
+
+		const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'entirely-outside-'));
+		const file = vscode.Uri.file(path.join(directory, 'notes.txt'));
+		fs.writeFileSync(file.fsPath, 'saved text');
+
+		try {
+			const document = await vscode.workspace.openTextDocument(file);
+			assert.strictEqual(
+				vscode.workspace.getWorkspaceFolder(file),
+				undefined,
+				'the temporary file is inside a workspace folder',
+			);
+
+			const editor = await vscode.window.showTextDocument(document);
+			await editor.edit(edit => edit.insert(new vscode.Position(0, 0), 'unsaved '));
+			assert.strictEqual(document.isDirty, true, 'the document was not left unsaved');
+
+			const { errors } = await withPrompts({ pick: 0, confirm: 'Check Out' }, () =>
+				checkoutChange(dependenciesFor(runner)),
+			);
+
+			assert.strictEqual(errors.length, 0, 'a file outside the workspace blocked the checkout');
+			assert.strictEqual(
+				invocations(log).filter(line => line.startsWith('trail checkout')).length,
+				1,
+				'the checkout did not happen',
+			);
+		} finally {
+			await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+			fs.rmSync(directory, { recursive: true, force: true });
+		}
 	});
 
 	test('a checkout with no unsaved work asks before it moves the working tree', async () => {
