@@ -134,7 +134,8 @@ the refresh timer. Each command's flags are read from `entire agent-help session
 existing local transcripts (the CLI reads the past month) into Entire. It runs only
 when you choose it. The agents come from `entire import --help`, and the flags from
 `entire import <agent> --help`, because the CLI's `agent-help` does not list
-experimental commands.
+experimental commands. The CLI's import is itself experimental, so its behaviour and
+output may change between CLI versions, and the confirmation says so.
 
 1. Pick the agent, then all sessions or the session ids you type.
 2. The extension runs the CLI's dry run (`--dry-run`) and shows its report, such as

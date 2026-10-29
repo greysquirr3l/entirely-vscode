@@ -43,9 +43,11 @@ function attribution(info: SessionInfo): string[] {
 		`- Agent: ${info.agent}`,
 		`- Status: ${humanizeStatus(info.status)}`,
 		`- Branch: ${info.branch ?? 'not on a branch'}`,
-		`- Worktree: ${info.worktreePath}`,
 		`- Session: ${info.id}`,
 	];
+	if (info.worktreePath) {
+		lines.splice(3, 0, `- Worktree: ${info.worktreePath}`);
+	}
 	if (info.model) {
 		lines.push(`- Model: ${info.model}`);
 	}

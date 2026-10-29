@@ -48,7 +48,7 @@ function confirmation(scope: ImportScope, preview: ImportPreview): ImportConfirm
 	return {
 		message: `Import ${scope.agent} ${which} as read-only checkpoints?`,
 		detail:
-			`The Entire CLI reports:\n\n${preview.text}\n\n` +
+			`This uses an experimental Entire CLI command. The CLI reports:\n\n${preview.text}\n\n` +
 			'Imported checkpoints are read-only: they cannot be resumed or rewound, and are not linked to a commit. ' +
 			'Nothing has been written yet.',
 		action: 'Import',
