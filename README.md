@@ -26,6 +26,7 @@ Entirely (this extension)
 | **Entire view** | Every session Entire tracks for the repository — across all worktrees, not just the open folder |
 | **Checkpoint history** | Recorded checkpoints, opening straight into the native diff editor |
 | **Why this line** | Which agent edit introduced the line under the cursor, and why |
+| **Account view** | Who the CLI is signed in as, and which jurisdiction the account belongs to — with sign-in and sign-out |
 | **Hook bridge** | Reports the editor's own agent activity to Entire, so editor work lands in the same session history |
 | **Terminal PATH repair** | Puts the Entire CLI on the integrated terminal's PATH, through the editor's own settings — no shell profile, no shell command |
 | **BYOK models** | Works with whatever model Copilot Chat is using — hosted, BYOK, or local — without the extension knowing the model exists |
@@ -119,7 +120,8 @@ finer control. There is still only one channel.
 ## Two Entire accounts
 
 If you have more than one Entire login, the status bar tooltip says which one
-the extension is acting as, and the doctor report counts the saved logins.
+the extension is acting as, the Account view says the same thing, and the
+doctor report counts the saved logins.
 
 `entirely.cliContext` pins one of them for the extension. The name is the one
 `entire auth contexts` prints — `us.auth.entire.io`, or
@@ -130,6 +132,30 @@ its own.
 The pin changes what the extension does. The CLI keeps the login it would have
 used in your terminal, and a workspace the pinned login cannot see is said to
 be invisible to that login rather than to be untracked.
+
+## Signing in and out
+
+The Account view reads `entire auth status --json` and shows the handle the
+CLI is signed in as and the jurisdiction of the account — the country whose
+law the account falls under, which is not always the country you are in. When
+nobody is signed in, the view says so and offers to sign in; when the CLI
+could not be asked, it says it does not know, rather than claiming that nobody
+is signed in.
+
+**Sign In to Entire** uses the CLI's device-code flow, so it works on a
+machine with no graphical display, where the browser redirect has nowhere to
+open. The code you have to type is shown in a panel while the command waits,
+because the command does not finish until you approve it.
+
+**Sign Out of Entire** says what it is about to do before it does it: every
+login saved on this machine is signed out, not only the one in use, and every
+CLI session on the login server ends too. The CLI will not narrow that, and
+the extension does not pretend otherwise.
+
+The extension never reads the credential store — the keychain, the secret
+service, or the file-backed fallback — and never asks the CLI for a
+credential. What it shows you is where the credentials are kept, not the
+credentials themselves.
 
 ## Requirements
 

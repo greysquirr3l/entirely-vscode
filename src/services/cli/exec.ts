@@ -1,4 +1,4 @@
-import { execFile } from 'child_process';
+import { spawn } from 'child_process';
 
 /** How a CLI invocation should be run. */
 export interface ExecOptions {
@@ -10,6 +10,17 @@ export interface ExecOptions {
 	readonly input?: string;
 	/** The environment for the command. Defaults to this process's. */
 	readonly env?: NodeJS.ProcessEnv;
+	/**
+	 * Called with each piece of stdout as it arrives.
+	 *
+	 * A command that waits for a person — a sign-in that needs a code
+	 * entered in a browser — produces the thing the person needs long
+	 * before the command finishes, and a caller that cannot see the
+	 * output until the end has nothing to show them in the meantime.
+	 */
+	readonly onStdout?: (chunk: string) => void;
+	/** Called with each piece of stderr as it arrives. */
+	readonly onStderr?: (chunk: string) => void;
 }
 
 /** The outcome of running a process. */
@@ -34,6 +45,41 @@ export type ExecOutcome =
 
 /** The most output the extension will read from one command. */
 const MAX_BUFFER_BYTES = 16 * 1024 * 1024;
+
+/**
+ * Collects what a process wrote, up to a limit.
+ *
+ * The limit matters because a command that printed without end would
+ * otherwise fill the memory of the extension host. What is past the limit
+ * is dropped, because a payload that is too large is not one the
+ * extension could read anyway.
+ */
+class BoundedBuffer {
+	private readonly chunks: string[] = [];
+	private size = 0;
+	private truncated = false;
+
+	/** Adds a piece of output. */
+	add(chunk: string): void {
+		if (this.truncated) {
+			return;
+		}
+
+		const size = Buffer.byteLength(chunk, 'utf8');
+		if (this.size + size > MAX_BUFFER_BYTES) {
+			this.truncated = true;
+			return;
+		}
+
+		this.size += size;
+		this.chunks.push(chunk);
+	}
+
+	/** What was collected. */
+	get text(): string {
+		return this.chunks.join('');
+	}
+}
 
 /**
  * Runs a command and captures its output.
@@ -61,70 +107,103 @@ export function execute(
 	const startedAt = Date.now();
 
 	return new Promise<ExecOutcome>(resolve => {
-		const child = execFile(
-			binary,
-			[...args],
-			{
-				cwd: options.cwd,
-				timeout: options.timeoutMs,
-				env: options.env ?? process.env,
-				encoding: 'utf8',
-				maxBuffer: MAX_BUFFER_BYTES,
-				windowsHide: true,
-			},
-			(error, stdout, stderr) => {
-				const durationMs = Date.now() - startedAt;
-				const out = stdout ?? '';
-				const err = stderr ?? '';
+		const stdout = new BoundedBuffer();
+		const stderr = new BoundedBuffer();
 
-				if (!error) {
-					resolve({ ok: true, stdout: out, stderr: err, exitCode: 0, durationMs });
-					return;
-				}
+		const child = spawn(binary, [...args], {
+			cwd: options.cwd,
+			env: options.env ?? process.env,
+			shell: false,
+			windowsHide: true,
+			stdio: ['pipe', 'pipe', 'pipe'],
+		});
 
-				const killed = (error as { killed?: boolean }).killed === true;
-				if (killed) {
-					resolve({
-						ok: false,
-						reason: 'timeout',
-						detail: `the command did not finish within ${options.timeoutMs}ms`,
-						stdout: out,
-						stderr: err,
-						exitCode: undefined,
-						durationMs,
-					});
-					return;
-				}
+		let settled = false;
 
-				const code = (error as { code?: string | number }).code;
-				if (code === 'ENOENT' || code === 'EACCES' || code === 'EPERM') {
-					resolve({
-						ok: false,
-						reason: 'spawn-failed',
-						detail: `the command could not be started: ${String(code)}`,
-						stdout: out,
-						stderr: err,
-						exitCode: undefined,
-						durationMs,
-					});
-					return;
-				}
+		/** Finishes the invocation, once. */
+		const finish = (outcome: ExecOutcome): void => {
+			if (settled) {
+				return;
+			}
+			settled = true;
+			clearTimeout(timer);
+			resolve(outcome);
+		};
 
-				const exitCode = typeof code === 'number' ? code : -1;
-				resolve({
-					ok: false,
-					reason: 'exit-code',
-					detail: `the command exited with code ${exitCode}`,
-					stdout: out,
-					stderr: err,
-					exitCode,
+		const timer = setTimeout(() => {
+			// The streams are closed before the process is killed, because
+			// a command that leaves a grandchild behind keeps the pipes
+			// open, and the invocation would then wait for that grandchild
+			// rather than for the command it asked about.
+			child.stdout?.destroy();
+			child.stderr?.destroy();
+			child.kill('SIGTERM');
+
+			finish({
+				ok: false,
+				reason: 'timeout',
+				detail: `the command did not finish within ${options.timeoutMs}ms`,
+				stdout: stdout.text,
+				stderr: stderr.text,
+				exitCode: undefined,
+				durationMs: Date.now() - startedAt,
+			});
+		}, options.timeoutMs);
+
+		child.stdout?.setEncoding('utf8');
+		child.stdout?.on('data', (chunk: string) => {
+			stdout.add(chunk);
+			options.onStdout?.(chunk);
+		});
+
+		child.stderr?.setEncoding('utf8');
+		child.stderr?.on('data', (chunk: string) => {
+			stderr.add(chunk);
+			options.onStderr?.(chunk);
+		});
+
+		child.on('error', (error: NodeJS.ErrnoException) => {
+			finish({
+				ok: false,
+				reason: 'spawn-failed',
+				detail: `the command could not be started: ${String(error.code ?? error.message)}`,
+				stdout: stdout.text,
+				stderr: stderr.text,
+				exitCode: undefined,
+				durationMs: Date.now() - startedAt,
+			});
+		});
+
+		child.on('close', (code: number | null) => {
+			const durationMs = Date.now() - startedAt;
+			const exitCode = code ?? -1;
+
+			if (exitCode === 0) {
+				finish({
+					ok: true,
+					stdout: stdout.text,
+					stderr: stderr.text,
+					exitCode: 0,
 					durationMs,
 				});
-			},
-		);
+				return;
+			}
+
+			finish({
+				ok: false,
+				reason: 'exit-code',
+				detail: `the command exited with code ${exitCode}`,
+				stdout: stdout.text,
+				stderr: stderr.text,
+				exitCode,
+				durationMs,
+			});
+		});
 
 		if (options.input !== undefined) {
 			child.stdin?.end(options.input);
+		} else {
+			child.stdin?.end();
 		}
 	});
 }
