@@ -186,6 +186,11 @@
         "category": "Entirely"
       },
       {
+        "command": "entirely.manageAgents",
+        "title": "Set Up Agent Integrations",
+        "category": "Entirely"
+      },
+      {
         "command": "entirely.importHistory",
         "title": "Import Past Agent History as Read-Only Checkpoints",
         "category": "Entirely"

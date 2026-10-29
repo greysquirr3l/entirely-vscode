@@ -6,6 +6,7 @@ import * as path from 'path';
 
 import { CliRunner } from '../services/cli';
 import { makeTempDir } from './support/tempDir';
+import { FixedTargets, supportedTarget } from './support/hookTargets';
 import { CliLocator } from '../services/cli/locator';
 import { HookBridge } from '../services/hookBridge';
 import { decodeWorkspaceStatus, unwrap } from '../lib/entire';
@@ -103,6 +104,9 @@ suite('Entire hook bridge against the real CLI', function () {
 		const bridge = new HookBridge({
 			runner,
 			workspaceRoot: () => workspace,
+			// The agent list is fixed here: the hook file the CLI wrote was
+			// removed above, so the CLI no longer lists the agent as installed.
+			agents: new FixedTargets([supportedTarget('copilot-cli')]),
 			env,
 		});
 

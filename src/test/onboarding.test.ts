@@ -395,10 +395,11 @@ suite('Entire setup', () => {
 			}),
 		};
 
-		const args = await enableArguments(runner as never);
+		const args = await enableArguments(runner as never, 'some-agent');
 		assert.ok(args);
 		assert.ok(args.includes('--no-init-repo'));
 		assert.ok(!args.includes('--init-repo'));
 		assert.ok(!args.includes('--yes'));
+		assert.deepStrictEqual(args.slice(args.indexOf('--agent')), ['--agent', 'some-agent', '--no-init-repo']);
 	});
 });

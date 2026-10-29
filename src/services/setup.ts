@@ -1,15 +1,34 @@
 import * as vscode from 'vscode';
 
+import { describeSupport } from '../lib/entire';
+import { AgentIntegrationService } from './agentIntegrations';
 import type { CliRunner } from './cli';
 
 /**
- * The agents this extension sets up hooks for.
+ * Asks which of the CLI's agents to set Entire up for.
  *
- * The CLI owns the names; `copilot-cli` is the identifier it gives Copilot
- * CLI. The flag that selects the agent is read from the CLI's own help at
- * runtime, never hardcoded, because the CLI is free to change it.
+ * The choices are what `entire agent list` prints, so an agent the CLI
+ * adds later is offered without a change here. A list that cannot be read is
+ * reported, and setup stops rather than guessing an agent.
  */
-const SUPPORTED_AGENTS = ['copilot-cli'];
+async function chooseSetupAgent(runner: CliRunner, cwd: string | undefined): Promise<string | undefined> {
+	const service = new AgentIntegrationService({ runner, workspaceRoot: () => cwd, timeoutSeconds: () => 60 });
+	const listed = await service.list();
+	if (!listed.ok) {
+		await vscode.window.showErrorMessage(`Entirely could not list the agents Entire supports: ${listed.detail}.`);
+		return undefined;
+	}
+
+	const picked = await vscode.window.showQuickPick(
+		listed.agents.map(agent => ({
+			label: agent.name,
+			description: agent.installed ? 'installed' : undefined,
+			detail: agent.support ? describeSupport(agent.support) : undefined,
+		})),
+		{ title: 'Set up Entire for which agent?', placeHolder: 'You can add more agents later with Set Up Agent Integrations' },
+	);
+	return picked?.label;
+}
 
 /**
  * The arguments that set Entire up without asking anything.
@@ -23,7 +42,7 @@ const SUPPORTED_AGENTS = ['copilot-cli'];
  * The flags are still checked against the CLI's own help before they are
  * used, because the CLI is the source of truth for its own behaviour.
  */
-export async function enableArguments(runner: CliRunner): Promise<string[] | undefined> {
+export async function enableArguments(runner: CliRunner, agent: string): Promise<string[] | undefined> {
 	const usage = await runner.usage('enable');
 	if (!usage.ok) {
 		await vscode.window.showErrorMessage(
@@ -35,9 +54,15 @@ export async function enableArguments(runner: CliRunner): Promise<string[] | und
 	const flags = usage.value.flags.map(flag => flag.name);
 	const args = ['enable'];
 
-	if (flags.includes('--agent')) {
-		args.push('--agent', SUPPORTED_AGENTS[0]);
+	// Without an agent the CLI asks which one, which a button cannot answer.
+	// A CLI that no longer has the flag is not given a guess.
+	if (!flags.includes('--agent')) {
+		await vscode.window.showErrorMessage(
+			'This version of the Entire CLI cannot set up an agent without asking. Run entire enable in a terminal.',
+		);
+		return undefined;
 	}
+	args.push('--agent', agent);
 	if (flags.includes('--no-init-repo')) {
 		args.push('--no-init-repo');
 	}
@@ -55,7 +80,12 @@ export async function enableArguments(runner: CliRunner): Promise<string[] | und
  * payload into the buffer a user attaches to a bug report.
  */
 export async function enableEntire(runner: CliRunner, cwd: string | undefined): Promise<boolean> {
-	const args = await enableArguments(runner);
+	const agent = await chooseSetupAgent(runner, cwd);
+	if (!agent) {
+		return false;
+	}
+
+	const args = await enableArguments(runner, agent);
 	if (!args) {
 		return false;
 	}

@@ -13,6 +13,7 @@ import {
 } from '../lib/entire';
 import { AccountContextService, readAccountContext } from '../services/accountContext';
 import { makeTempDir } from './support/tempDir';
+import { FixedTargets, supportedTarget } from './support/hookTargets';
 import { CliLocator } from '../services/cli/locator';
 import { CliRunner } from '../services/cli/runner';
 import { readExtensionSettings } from '../services/configuration';
@@ -270,6 +271,7 @@ suite('Entire context in the hook bridge', () => {
 		const bridge = new HookBridge({
 			runner: recorder.asRunner(),
 			workspaceRoot: () => '/work/repo',
+			agents: new FixedTargets([supportedTarget('copilot-cli')]),
 			env: { COPILOT_HOME: '/home/tester/.copilot' },
 			homeDir: '/home/tester',
 			context: () => 'us.auth.entire.io',
@@ -291,6 +293,7 @@ suite('Entire context in the hook bridge', () => {
 		const bridge = new HookBridge({
 			runner: recorder.asRunner(),
 			workspaceRoot: () => '/work/repo',
+			agents: new FixedTargets([supportedTarget('copilot-cli')]),
 			env: { COPILOT_HOME: '/home/tester/.copilot' },
 			homeDir: '/home/tester',
 		});

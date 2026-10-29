@@ -177,3 +177,16 @@ export {
 	readImportPreview,
 } from './importHistory';
 export type { ImportCounts, ImportOutcome, ImportPlan, ImportPreview, ImportScope } from './importHistory';
+export { agentCarries, carriedEvents, HOOK_EVENTS, resolveHookName } from './hookEvents';
+export type { CliHookName, EditorHookEvent, HookEventRoute } from './hookEvents';
+export {
+	agentAddArguments,
+	agentRemoveArguments,
+	isAgentName,
+	parseAgentList,
+	planAgentAddFlags,
+	readWrittenFiles,
+} from './agents';
+export type { AgentAddFlags, AgentEntry } from './agents';
+export { classifyAgent, describeSupport, findHookVerbs } from './agentHooks';
+export type { HookSupport } from './agentHooks';

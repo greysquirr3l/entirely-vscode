@@ -17,6 +17,7 @@ import {
 	type LifecycleDependencies,
 } from './sessionLifecycle';
 import { importHistory, type ImportDependencies } from './historyImport';
+import { manageAgents, type AgentDependencies } from './agentIntegrations';
 import { openTranscript, selectSession, setOwnSessionFilter } from './sessionDetail';
 import type { CheckpointFileNode, CheckpointsProvider } from '../providers/checkpointsProvider';
 import type { SessionDetailProvider } from '../providers/sessionDetailProvider';
@@ -63,6 +64,8 @@ export interface CommandDependencies {
 	readonly blameDecorations: BlameDecorations;
 	/** Stops, attaches, adopts and resumes sessions. */
 	readonly lifecycle: LifecycleDependencies;
+	/** Lists, installs and removes agent integrations. */
+	readonly agentIntegrations: AgentDependencies;
 	/** Imports past agent history as read-only checkpoints. */
 	readonly historyImport: ImportDependencies;
 	/** The CLI the extension talks to. */
@@ -162,6 +165,12 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 		// session's context menu. None is ever run for them.
 		// An import writes checkpoints for the user's whole history, so it is
 		// only ever run by the user choosing it, after the preview.
+		// Installing or removing an integration writes the repository's hook
+		// configuration, so it is only ever run by the user choosing it.
+		vscode.commands.registerCommand('entirely.manageAgents', async () => {
+			await manageAgents(deps.agentIntegrations);
+		}),
+
 		vscode.commands.registerCommand('entirely.importHistory', async () => {
 			await importHistory(deps.historyImport);
 		}),

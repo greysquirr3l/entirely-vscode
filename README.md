@@ -30,7 +30,8 @@ Entirely (this extension)
 | **Why this line** | Which agent edit introduced the line under the cursor, and why |
 | **File blame** | `entire blame` for the active file: every line marked as attributed, recorded but not synced, or not attributed to any recorded change |
 | **Account view** | Who the CLI is signed in as, and which jurisdiction the account belongs to — with sign-in and sign-out |
-| **Hook bridge** | Reports the editor's own agent activity to Entire, so editor work lands in the same session history |
+| **Agent integrations** | Lists the agents the CLI supports, and installs or removes one after you confirm what it will touch; more than one can be installed |
+| **Hook bridge** | Reports the editor's own agent activity to each installed agent's `entire hooks` command, so editor work lands in the same session history |
 | **Terminal PATH repair** | Puts the Entire CLI on the integrated terminal's PATH, through the editor's own settings — no shell profile, no shell command |
 | **BYOK models** | Works with whatever model Copilot Chat is using — hosted, BYOK, or local — without the extension knowing the model exists |
 | **Doctor** | A copyable diagnostic report: CLI version, repository state, effective settings, last error |
@@ -127,6 +128,27 @@ the refresh timer. Each command's flags are read from `entire agent-help session
   branch already being watched starts nothing, and closing the window stops the watch.
 
 `entirely.lifecycleActionTimeout` sets how long stop, attach and adopt may take.
+
+## Agent integrations
+
+**Entirely: Set Up Agent Integrations** shows the agents `entire agent list` prints, with
+a tick on the ones installed in this repository. Pick one to install it (or, for an
+installed one, remove or reinstall it). The confirmation says Entire will write that
+agent's hook configuration into the repository and may update `.entire/`; declining
+changes nothing. After the CLI finishes, the extension shows the files it lists to
+commit and reads `agent list` again, so what you are told is installed is what the
+CLI reports. Reinstall is offered only if `entire agent-help agent add` describes a
+reinstall flag. The command runs only when you choose it.
+
+The agent names and each agent's hook verbs come from the CLI (the verbs from the hook
+configuration it writes, because `entire hooks <agent> --help` lists none). The editor
+reports the events whose verb the agent has; an agent whose verbs match none of them is
+marked "Not supported by Entirely" in the list and receives nothing. The activity of an
+installed agent is captured by the hooks the CLI installed for it, not by the bridge.
+The bridge sends the editor's own events with the editor's payload and Copilot transcript
+location, so for an agent other than Copilot CLI it reports that the editor event
+happened, not that agent's own transcript.
+`entirely.lifecycleActionTimeout` sets how long an install or removal may take.
 
 ## Importing past agent history
 

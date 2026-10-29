@@ -22,6 +22,8 @@ import { CheckpointSearchService } from './services/checkpointSearch';
 import { CliInvocationLogger } from './services/cliLogging';
 import { GitService } from './services/gitService';
 import { HookBridge } from './services/hookBridge';
+import { AgentIntegrationService } from './services/agentIntegrations';
+import { EditorAgentUi } from './commands/agentIntegrationsUi';
 import {
 	INSTALL_COMMAND,
 	INSTALL_DOCS,
@@ -101,8 +103,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	const status = new StatusBar();
 	context.subscriptions.push(status);
 
+	// The agents the CLI lists as installed are the ones editor events are
+	// addressed to, and the ones the setup command installs and removes.
+	const agentIntegrations = new AgentIntegrationService({
+		runner,
+		workspaceRoot,
+		timeoutSeconds: () => readExtensionSettings().lifecycleActionTimeout,
+	});
+
 	const hooks = new HookBridge({
 		runner,
+		agents: agentIntegrations,
 		workspaceRoot,
 		// The CLI's flag does not reach the processes it spawns, so the
 		// hook is told which login to act as through the environment.
@@ -285,6 +296,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	});
 
 	registerCommands(context, {
+		agentIntegrations: {
+			agents: agentIntegrations,
+			ui: new EditorAgentUi(),
+			refresh: () => statusController.refresh(),
+			running: { active: false },
+		},
 		historyImport: {
 			importer: historyImport,
 			ui: new EditorImportUi(),

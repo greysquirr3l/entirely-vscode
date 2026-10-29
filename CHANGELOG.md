@@ -8,6 +8,23 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 
+- **Every agent integration the CLI ships.** **Entirely: Set Up Agent Integrations**
+  lists the agents `entire agent list` prints, marks the installed ones, and installs
+  or removes one with `entire agent add` / `remove`. Nothing runs until you agree to a
+  message that says Entire will write the agent's hook configuration into the repository
+  (and may update `.entire/`); afterwards it shows the files the CLI lists to commit and
+  checks the new state against a fresh `agent list`, so a refusal, or an exit 0 that
+  installed nothing, is reported as a failure. More than one agent can be installed at
+  once. Reinstall appears only when `agent add --help` describes a reinstall flag. The
+  setup button on a workspace that is not set up now asks which agent, instead of always
+  choosing Copilot CLI.
+- **The hook bridge addresses each installed agent by its own name.** Editor events go to
+  `entire hooks <agent> <verb>` for every installed agent whose hook commands (read from
+  the configuration the CLI wrote, not from a table of agents) carry the event. An agent
+  whose events cannot be matched is listed as "Not supported by Entirely" and is sent
+  nothing, so it is never counted as a captured or empty session. With no agent
+  installed the bridge sends nothing.
+
 - **Import past agent history.** **Entirely: Import Past Agent History as Read-Only
   Checkpoints** lists the agents `entire import --help` offers, lets you import all
   of an agent's past month or only sessions you name, and runs the CLI's own dry run
