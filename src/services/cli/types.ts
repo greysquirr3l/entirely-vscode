@@ -42,7 +42,9 @@ export type CliFailureReason =
 	/** The output was not the JSON the caller asked for. */
 	| 'invalid-output'
 	/** The process could not be started at all. */
-	| 'spawn-failed';
+	| 'spawn-failed'
+	/** The caller aborted the command. */
+	| 'cancelled';
 
 /** The result of running a CLI command. Never throws; failures are values. */
 export type CliResult<T = unknown> =

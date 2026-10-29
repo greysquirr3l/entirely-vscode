@@ -16,6 +16,7 @@ import {
 	stopSession,
 	type LifecycleDependencies,
 } from './sessionLifecycle';
+import { importHistory, type ImportDependencies } from './historyImport';
 import { openTranscript, selectSession, setOwnSessionFilter } from './sessionDetail';
 import type { CheckpointFileNode, CheckpointsProvider } from '../providers/checkpointsProvider';
 import type { SessionDetailProvider } from '../providers/sessionDetailProvider';
@@ -62,6 +63,8 @@ export interface CommandDependencies {
 	readonly blameDecorations: BlameDecorations;
 	/** Stops, attaches, adopts and resumes sessions. */
 	readonly lifecycle: LifecycleDependencies;
+	/** Imports past agent history as read-only checkpoints. */
+	readonly historyImport: ImportDependencies;
 	/** The CLI the extension talks to. */
 	readonly runner: CliRunner;
 	/** Which login the CLI is acting as. */
@@ -157,6 +160,12 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 		// Each lifecycle command changes what the CLI is tracking, so each is
 		// reached only by the user choosing it, from the palette or a
 		// session's context menu. None is ever run for them.
+		// An import writes checkpoints for the user's whole history, so it is
+		// only ever run by the user choosing it, after the preview.
+		vscode.commands.registerCommand('entirely.importHistory', async () => {
+			await importHistory(deps.historyImport);
+		}),
+
 		vscode.commands.registerCommand('entirely.stopSession', async (target?: SessionItemNode) => {
 			await stopSession(deps.lifecycle, target?.session);
 		}),

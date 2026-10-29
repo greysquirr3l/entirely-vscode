@@ -1,6 +1,8 @@
 import {
 	decodeCheckpointDetail,
 	decodeCheckpointList,
+	decodeSessionList,
+	markImported,
 	unwrap,
 	type Checkpoint,
 	type CheckpointDetail,
@@ -43,7 +45,16 @@ export function createCheckpointSource(
 			return { checkpoints: [], emptyReason: result.detail };
 		}
 
-		return { checkpoints: result.value };
+		// The checkpoint list does not say which checkpoints were imported;
+		// the session list does. If it cannot be read the checkpoints are
+		// shown unmarked, and the detail read on expansion can still mark them.
+		const sessions = await runner.runJson(
+			['session', 'list', '--json'],
+			value => unwrap(decodeSessionList(value)),
+			{ cwd: workspaceRoot() },
+		);
+
+		return { checkpoints: sessions.ok ? markImported(result.value, sessions.value) : result.value };
 	};
 }
 

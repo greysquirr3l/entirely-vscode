@@ -186,6 +186,11 @@
         "category": "Entirely"
       },
       {
+        "command": "entirely.importHistory",
+        "title": "Import Past Agent History as Read-Only Checkpoints",
+        "category": "Entirely"
+      },
+      {
         "command": "entirely.blameFile",
         "title": "Blame This File",
         "category": "Entirely"
@@ -309,6 +314,13 @@
           "maximum": 600,
           "markdownDescription": "How long, in seconds, to wait for `entire session stop`, `attach` or `adopt` before giving up. Attaching a session to a pushed commit uploads the transcript, so raise this on a slow connection."
         },
+        "entirely.importTimeout": {
+          "type": "number",
+          "default": 300,
+          "minimum": 10,
+          "maximum": 3600,
+          "markdownDescription": "How long, in seconds, to wait for `entire import` (and its preview) before giving up. An import reads up to a month of an agent's transcripts, so raise this for a large history. A timed-out import can be run again: turns already imported are skipped."
+        },
         "entirely.resumeWatchTimeout": {
           "type": "number",
           "default": 60,
@@ -398,7 +410,7 @@
       "view/item/context": [
         {
           "command": "entirely.openTranscript",
-          "when": "view == entirely.sessions && viewItem == entirely.session",
+          "when": "view == entirely.sessions && viewItem =~ /^entirely\\.(session|importedSession)$/",
           "group": "inline"
         },
         {

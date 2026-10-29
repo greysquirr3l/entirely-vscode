@@ -108,10 +108,19 @@ export interface Session {
 	readonly agent: string;
 	/** The session's status, as the CLI words it. */
 	readonly status: string;
-	/** The worktree the session belongs to. */
-	readonly worktreePath: string;
+	/**
+	 * The worktree the session belongs to.
+	 *
+	 * Absent for an imported session: it came from an agent's transcript
+	 * store and was never tracked in a worktree.
+	 */
+	readonly worktreePath?: string;
 	/** Absent when the session is not on a branch yet. */
 	readonly branch?: string;
+	/** How the session entered Entire (for example `imported`), when the CLI says. */
+	readonly kind?: string;
+	/** Whether the CLI marks the session read-only. */
+	readonly readOnly?: boolean;
 	readonly startedAt?: Timestamp;
 	readonly lastActive?: Timestamp;
 	readonly turns?: number;
@@ -150,6 +159,13 @@ export interface Checkpoint {
 	readonly isTaskCheckpoint: boolean;
 	/** Whether the checkpoint is a resume point with only logs. */
 	readonly isLogsOnly: boolean;
+	/**
+	 * Whether the checkpoint came from an import and is read-only.
+	 *
+	 * `checkpoint list` does not say so itself. It is worked out from the
+	 * sessions the checkpoint holds, which `session list` marks.
+	 */
+	readonly imported?: boolean;
 }
 
 /** One session inside a checkpoint. */

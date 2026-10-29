@@ -57,6 +57,8 @@ export interface RunOptions {
 	 * their own history, and the output channel is not where it belongs.
 	 */
 	readonly redactOperands?: boolean;
+	/** Aborting kills the process and the result is a `cancelled` failure. */
+	readonly signal?: AbortSignal;
 }
 
 /** What is recorded in place of a redacted operand. */
@@ -282,6 +284,22 @@ export class CliRunner {
 	}
 
 	/**
+	 * Reads a command's `--help`, for the commands `agent-help` does not know.
+	 *
+	 * Experimental (labs) commands are runnable but missing from
+	 * `agent-help`, so their flags can only come from the command's own help.
+	 */
+	async help(command: string, options: RunOptions = {}): Promise<CliResult<CliCommandUsage>> {
+		const segments = command.trim().split(/\s+/).filter(part => part.length > 0);
+		const performed = await this.perform([...segments, '--help'], options);
+		this.report(performed);
+		if (!performed.result.ok) {
+			return performed.result;
+		}
+		return { ...performed.result, value: parseUsage(command, performed.result.stdout) };
+	}
+
+	/**
 	 * Runs a command and remembers what it did.
 	 *
 	 * The reporting is left to the caller, so that a command whose output
@@ -378,6 +396,7 @@ export class CliRunner {
 				: options.env,
 			onStdout: options.onStdout,
 			onStderr: options.onStderr,
+			signal: options.signal,
 		};
 
 		const outcome = await execute(discovery.path, effectiveArgs, execOptions);

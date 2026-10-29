@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import {
 	describeResume,
 	describeUnsavedRefusal,
+	isImportedSession,
 	isLive,
 	isStoppable,
 	nameSession,
@@ -84,6 +85,10 @@ export async function stopSession(deps: LifecycleDependencies, target?: Session)
 	if (!session) {
 		return 'cancelled';
 	}
+	if (isImportedSession(session)) {
+		await deps.ui.inform(`${nameSession(session)} is imported history and read-only, so it cannot be stopped.`);
+		return 'cancelled';
+	}
 	if (!isStoppable(session)) {
 		await deps.ui.inform(`${nameSession(session)} has already ended.`);
 		return 'cancelled';
@@ -122,6 +127,10 @@ export async function attachSession(deps: LifecycleDependencies, target?: Sessio
 		? { id: target.id, session: target }
 		: await deps.ui.chooseSessionOrId('Attach which session?', await listed(deps));
 	if (!chosen) {
+		return 'cancelled';
+	}
+	if (chosen.session && isImportedSession(chosen.session)) {
+		await deps.ui.inform(`${nameSession(chosen.session)} is imported history and read-only, so it cannot be attached.`);
 		return 'cancelled';
 	}
 	const name = chosen.session ? nameSession(chosen.session) : chosen.id;
@@ -183,7 +192,8 @@ function sameFolder(left: string, right: string | undefined): boolean {
  * exited cleanly.
  */
 export async function adoptSession(deps: LifecycleDependencies, target?: Session): Promise<LifecycleResult> {
-	const elsewhere = (session: Session): boolean => isLive(session) && !sameFolder(session.worktreePath, deps.workspaceRoot());
+	const elsewhere = (session: Session): boolean =>
+		isLive(session) && session.worktreePath !== undefined && !sameFolder(session.worktreePath, deps.workspaceRoot());
 	const session = target ?? (await deps.ui.chooseSession('Adopt which session?', (await listed(deps)).filter(elsewhere)));
 	if (!session) {
 		return 'cancelled';
@@ -204,6 +214,9 @@ export async function adoptSession(deps: LifecycleDependencies, target?: Session
 		return 'cancelled';
 	}
 
+	if (session.worktreePath === undefined) {
+		return 'cancelled';
+	}
 	const outcome = await deps.lifecycle.adopt(session.id, session.worktreePath);
 	await deps.refresh();
 	if (outcome.kind !== 'done') {
@@ -212,7 +225,7 @@ export async function adoptSession(deps: LifecycleDependencies, target?: Session
 	}
 
 	const now = (await listed(deps)).find(candidate => candidate.id === session.id);
-	if (now && sameFolder(now.worktreePath, deps.workspaceRoot())) {
+	if (now?.worktreePath !== undefined && sameFolder(now.worktreePath, deps.workspaceRoot())) {
 		await deps.ui.inform(`Adopted ${nameSession(now)}. It is in the Sessions view now.`);
 	} else {
 		await deps.ui.inform(
@@ -230,6 +243,10 @@ export async function adoptSession(deps: LifecycleDependencies, target?: Session
 export async function resumeStoppedSession(deps: LifecycleDependencies, target?: Session): Promise<LifecycleResult> {
 	const session = target ?? (await deps.ui.chooseSession('Resume which session?', resumable(await listed(deps))));
 	if (!session) {
+		return 'cancelled';
+	}
+	if (isImportedSession(session)) {
+		await deps.ui.inform(`${nameSession(session)} is imported history and read-only, so it cannot be resumed.`);
 		return 'cancelled';
 	}
 	if (session.branch === undefined) {

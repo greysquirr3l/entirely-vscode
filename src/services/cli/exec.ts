@@ -21,6 +21,8 @@ export interface ExecOptions {
 	readonly onStdout?: (chunk: string) => void;
 	/** Called with each piece of stderr as it arrives. */
 	readonly onStderr?: (chunk: string) => void;
+	/** Kills the process when it aborts, so a long command can be cancelled. */
+	readonly signal?: AbortSignal;
 }
 
 /** The outcome of running a process. */
@@ -34,7 +36,7 @@ export type ExecOutcome =
 	  }
 	| {
 			readonly ok: false;
-			readonly reason: 'timeout' | 'exit-code' | 'spawn-failed';
+			readonly reason: 'timeout' | 'exit-code' | 'spawn-failed' | 'cancelled';
 			readonly detail: string;
 			readonly stdout: string;
 			readonly stderr: string;
@@ -127,6 +129,7 @@ export function execute(
 			}
 			settled = true;
 			clearTimeout(timer);
+			options.signal?.removeEventListener('abort', cancel);
 			resolve(outcome);
 		};
 
@@ -149,6 +152,26 @@ export function execute(
 				durationMs: Date.now() - startedAt,
 			});
 		}, options.timeoutMs);
+
+		const cancel = (): void => {
+			child.stdout?.destroy();
+			child.stderr?.destroy();
+			child.kill('SIGTERM');
+			finish({
+				ok: false,
+				reason: 'cancelled',
+				detail: 'the command was cancelled',
+				stdout: stdout.text,
+				stderr: stderr.text,
+				exitCode: undefined,
+				durationMs: Date.now() - startedAt,
+			});
+		};
+		if (options.signal?.aborted) {
+			cancel();
+		} else {
+			options.signal?.addEventListener('abort', cancel, { once: true });
+		}
 
 		child.stdout?.setEncoding('utf8');
 		child.stdout?.on('data', (chunk: string) => {

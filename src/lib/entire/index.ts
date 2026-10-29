@@ -159,3 +159,21 @@ export type {
 } from './sessionLifecycle';
 export { describeResume, describeUnsavedRefusal } from './sessionResume';
 export type { ResumeResult } from './sessionResume';
+export {
+	IMPORTED_LABEL,
+	isImportedCheckpoint,
+	isImportedSession,
+	markImported,
+} from './importedHistory';
+export {
+	MAX_IMPORT_SESSIONS,
+	describeImportResult,
+	importArguments,
+	isImportAgent,
+	parseSessionIds,
+	planImportFlags,
+	readImportAgents,
+	readImportCounts,
+	readImportPreview,
+} from './importHistory';
+export type { ImportCounts, ImportOutcome, ImportPlan, ImportPreview, ImportScope } from './importHistory';

@@ -3,7 +3,9 @@ import * as vscode from 'vscode';
 import {
 	describeSearchOutcome,
 	describeTokenReport,
+	IMPORTED_LABEL,
 	humanizeStatus,
+	isImportedCheckpoint,
 	pluralise,
 	truncatePrompt,
 	type Checkpoint,
@@ -64,8 +66,8 @@ export function describeCheckpointUsage(state: CheckpointUsageState): {
 }
 
 /** The one-line summary of a checkpoint shown beside its label. */
-export function describeCheckpoint(checkpoint: Checkpoint): string {
-	const parts: string[] = [];
+export function describeCheckpoint(checkpoint: Checkpoint, imported = checkpoint.imported === true): string {
+	const parts: string[] = imported ? [IMPORTED_LABEL] : [];
 
 	if (checkpoint.agent) {
 		parts.push(checkpoint.agent);
@@ -81,7 +83,10 @@ export function describeCheckpoint(checkpoint: Checkpoint): string {
 }
 
 /** The full detail of a checkpoint, shown on hover. */
-export function tooltipForCheckpoint(checkpoint: Checkpoint): vscode.MarkdownString {
+export function tooltipForCheckpoint(
+	checkpoint: Checkpoint,
+	imported = checkpoint.imported === true,
+): vscode.MarkdownString {
 	const tooltip = new Tooltip();
 
 	tooltip.markdown('Checkpoint ').text(checkpoint.id);
@@ -90,6 +95,9 @@ export function tooltipForCheckpoint(checkpoint: Checkpoint): vscode.MarkdownStr
 	tooltip.item('Agent', checkpoint.agent ?? 'unknown');
 	tooltip.item('Recorded', checkpoint.date?.raw ?? 'unknown');
 	tooltip.item('Sessions', `${checkpoint.sessionCount}`);
+	if (imported) {
+		tooltip.item('Origin', 'Imported from past agent history. Read-only: it cannot be changed or resumed.');
+	}
 
 	if (checkpoint.message) {
 		// The message is on the line after the heading rather than in a
@@ -205,10 +213,16 @@ export class CheckpointsProvider implements vscode.TreeDataProvider<CheckpointTr
 				label,
 				vscode.TreeItemCollapsibleState.Collapsed,
 			);
-			item.description = describeCheckpoint(checkpoint);
-			item.tooltip = tooltipForCheckpoint(checkpoint);
-			item.contextValue = 'entirely.checkpoint';
-			item.iconPath = new vscode.ThemeIcon('git-commit');
+			// A search hit carries no marking of its own; the listed checkpoint does.
+			const listed = this.checkpoints.find(candidate => candidate.id === checkpoint.id);
+			const imported =
+				listed?.imported === true || isImportedCheckpoint(checkpoint, this.details.get(checkpoint.id));
+			item.description = describeCheckpoint(checkpoint, imported);
+			item.tooltip = tooltipForCheckpoint(checkpoint, imported);
+			// Imported checkpoints get a context of their own, so any command
+			// that changes a checkpoint can be left off them in the manifest.
+			item.contextValue = imported ? 'entirely.importedCheckpoint' : 'entirely.checkpoint';
+			item.iconPath = new vscode.ThemeIcon(imported ? 'lock' : 'git-commit');
 			return item;
 		}
 

@@ -128,6 +128,28 @@ the refresh timer. Each command's flags are read from `entire agent-help session
 
 `entirely.lifecycleActionTimeout` sets how long stop, attach and adopt may take.
 
+## Importing past agent history
+
+**Entirely: Import Past Agent History as Read-Only Checkpoints** brings an agent's
+existing local transcripts (the CLI reads the past month) into Entire. It runs only
+when you choose it. The agents come from `entire import --help`, and the flags from
+`entire import <agent> --help`, because the CLI's `agent-help` does not list
+experimental commands.
+
+1. Pick the agent, then all sessions or the session ids you type.
+2. The extension runs the CLI's dry run (`--dry-run`) and shows its report, such as
+   `Would import 3 turn(s) from 1 session(s) (2 already imported).` That text is the
+   confirmation. If the CLI offers no preview flag, the extension will not import.
+   Declining changes nothing.
+3. The import runs with a progress notification you can cancel. Cancelling stops
+   the CLI; turns already written stay, and running the import again skips them.
+   `entirely.importTimeout` sets how long it may take.
+
+Imported checkpoints and sessions are marked read-only (lock icon, "Imported ·
+read-only") and are not offered Stop, Attach, Adopt or Resume. The CLI marks imported
+sessions in `session list --json` (`kind: "imported"`, `read_only: true`); the
+checkpoint list carries no marker, so the tree joins it to the session list.
+
 ## Blaming a file
 
 **Entirely: Blame This File** runs `entire blame` on the active file when you ask,

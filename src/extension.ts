@@ -43,6 +43,8 @@ import { WhyService } from './services/whyService';
 import { EditorLifecycleUi } from './commands/lifecycleUi';
 import { SessionLifecycleService } from './services/sessionLifecycle';
 import { launchInTerminal } from './services/resumeTerminal';
+import { EditorImportUi } from './commands/importUi';
+import { HistoryImportService } from './services/historyImport';
 
 /** The workspace folder the CLI is run in. */
 function workspaceRoot(): string | undefined {
@@ -276,7 +278,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	const resumeWatches = new AbortController();
 	context.subscriptions.push({ dispose: () => resumeWatches.abort() });
 
+	const historyImport = new HistoryImportService({
+		runner,
+		workspaceRoot,
+		timeoutSeconds: () => readExtensionSettings().importTimeout,
+	});
+
 	registerCommands(context, {
+		historyImport: {
+			importer: historyImport,
+			ui: new EditorImportUi(),
+			refresh: async () => {
+				await Promise.all([sessions.refresh(), checkpoints.refresh()]);
+			},
+			running: { active: false },
+		},
 		lifecycle: {
 			watching: new Set<string>(),
 			signal: resumeWatches.signal,

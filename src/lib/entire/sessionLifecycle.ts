@@ -1,5 +1,6 @@
 import { END_OF_OPTIONS } from './operand';
 import { readFlagTable, type HelpFlag } from './search';
+import { isImportedSession } from './importedHistory';
 import type { Session } from './types';
 
 /** The four things the extension can do to a session's life. */
@@ -10,12 +11,14 @@ export type LifecyclePlan<T> =
 	| ({ readonly ok: true } & T)
 	| { readonly ok: false; readonly detail: string };
 
-function flagsOf(help: string, fallback: readonly HelpFlag[]): readonly HelpFlag[] {
+/** The help's flag table, or the parsed fallback when the help has none. */
+export function flagsOf(help: string, fallback: readonly HelpFlag[]): readonly HelpFlag[] {
 	const table = readFlagTable(help);
 	return table.length > 0 ? table : fallback;
 }
 
-function findFlag(
+/** The first flag whose help line matches. */
+export function findFlag(
 	flags: readonly HelpFlag[],
 	pattern: RegExp,
 	exclude: readonly HelpFlag[] = [],
@@ -229,8 +232,8 @@ export function isLive(session: Pick<Session, 'status'>): boolean {
  * A session whose agent has gone away is stale rather than ended, and
  * stopping it is the way out, so only an ended session is left out.
  */
-export function isStoppable(session: Pick<Session, 'status'>): boolean {
-	return session.status !== 'ended';
+export function isStoppable(session: Pick<Session, 'status' | 'kind' | 'readOnly'>): boolean {
+	return session.status !== 'ended' && !isImportedSession(session);
 }
 
 /** The sessions that are active on a branch. */
@@ -240,5 +243,5 @@ export function activeOnBranch(sessions: readonly Session[], branch: string): re
 
 /** The sessions that could be resumed: stopped, and on a branch. */
 export function resumable(sessions: readonly Session[]): readonly Session[] {
-	return sessions.filter(session => !isLive(session) && session.branch !== undefined && isBranchName(session.branch));
+	return sessions.filter(session => !isLive(session) && !isImportedSession(session) && session.branch !== undefined && isBranchName(session.branch));
 }

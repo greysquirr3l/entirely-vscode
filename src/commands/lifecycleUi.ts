@@ -16,7 +16,7 @@ function sessionPick(session: Session): SessionPick {
 	return {
 		label: nameSession(session),
 		description: humanizeStatus(session.status),
-		detail: session.worktreePath,
+		detail: session.worktreePath ?? '',
 		session,
 	};
 }

@@ -210,7 +210,7 @@ export class SessionDetailProvider implements vscode.TreeDataProvider<DetailNode
 			{ kind: 'field', label: 'Agent', value: session.agent },
 			{ kind: 'field', label: 'Status', value: humanizeStatus(session.status) },
 			{ kind: 'field', label: 'Branch', value: session.branch ?? 'Not on a branch' },
-			{ kind: 'field', label: 'Worktree', value: session.worktreePath },
+			{ kind: 'field', label: 'Worktree', value: session.worktreePath ?? 'None (imported)' },
 			{ kind: 'field', label: 'Session', value: session.id },
 			{
 				kind: 'field',

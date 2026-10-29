@@ -8,6 +8,18 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 
+- **Import past agent history.** **Entirely: Import Past Agent History as Read-Only
+  Checkpoints** lists the agents `entire import --help` offers, lets you import all
+  of an agent's past month or only sessions you name, and runs the CLI's own dry run
+  first. The dry run's report (turns, sessions, how many were already imported) is
+  what you confirm; declining runs nothing. The import itself runs with a
+  cancellable progress notification and the new `entirely.importTimeout` setting,
+  and the result shown is the CLI's own account, not an assumed success. Imported
+  checkpoints and sessions show a lock icon and "Imported · read-only" in their
+  trees; they get their own context (`entirely.importedCheckpoint`,
+  `entirely.importedSession`) so Stop, Attach, Adopt and Resume are not offered on
+  them. A session with no worktree (an imported one) no longer breaks the Sessions
+  and Checkpoints views.
 - **Session lifecycle actions.** Stop, attach, adopt and resume a session from the
   palette or a session's context menu. Stop names the session in a confirmation
   before anything runs. Attach shows what the CLI says it will change (including

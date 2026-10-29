@@ -126,6 +126,7 @@ export function decodeCheckpoint(value: unknown, path = 'checkpoint'): DecodeRes
 			sessionCount: sessionCount.value ?? sessionIds.value?.length ?? 0,
 			isTaskCheckpoint: optionalBoolean(read, 'is_task_checkpoint') ?? false,
 			isLogsOnly: optionalBoolean(read, 'is_logs_only') ?? false,
+			imported: false,
 		},
 	};
 }
