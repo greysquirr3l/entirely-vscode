@@ -19,6 +19,10 @@ export interface ExtensionSettings {
 	readonly refreshInterval: number;
 	/** How long, in seconds, the CLI may take to hand over a session transcript. */
 	readonly transcriptTimeout: number;
+	/** How long, in seconds, a session lifecycle command (stop, attach, adopt) may take. */
+	readonly lifecycleActionTimeout: number;
+	/** How long, in seconds, to watch for a resumed session to become active. */
+	readonly resumeWatchTimeout: number;
 	/** How long, in milliseconds, the checkpoint filter waits after typing before it searches. */
 	readonly searchDebounce: number;
 	/** The most lines of a file that blame is drawn on in the editor. */
@@ -72,6 +76,33 @@ export function clampTranscriptTimeout(seconds: number): number {
 		MAX_TRANSCRIPT_TIMEOUT_SECONDS,
 		Math.max(MIN_TRANSCRIPT_TIMEOUT_SECONDS, Math.floor(seconds)),
 	);
+}
+
+/** The bounds of the time a lifecycle command may take, in seconds. */
+export const MIN_LIFECYCLE_TIMEOUT_SECONDS = 5;
+export const MAX_LIFECYCLE_TIMEOUT_SECONDS = 600;
+
+/** Puts the lifecycle command timeout inside the range the extension will wait for. */
+export function clampLifecycleTimeout(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return 60;
+	}
+	return Math.min(
+		MAX_LIFECYCLE_TIMEOUT_SECONDS,
+		Math.max(MIN_LIFECYCLE_TIMEOUT_SECONDS, Math.floor(seconds)),
+	);
+}
+
+/** The bounds of the time spent watching for a resumed session, in seconds. */
+export const MIN_RESUME_WATCH_SECONDS = 5;
+export const MAX_RESUME_WATCH_SECONDS = 600;
+
+/** Puts the resume watch inside a range that is neither pointless nor endless. */
+export function clampResumeWatch(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return 60;
+	}
+	return Math.min(MAX_RESUME_WATCH_SECONDS, Math.max(MIN_RESUME_WATCH_SECONDS, Math.floor(seconds)));
 }
 
 /** The smallest and largest debounce the filter will use, in milliseconds. */
@@ -136,6 +167,8 @@ export function readExtensionSettings(): ExtensionSettings {
 		cliContext: cliContext.length > 0 ? cliContext : undefined,
 		refreshInterval: clampRefreshInterval(configuration.get<number>('refreshInterval', 30)),
 		transcriptTimeout: clampTranscriptTimeout(configuration.get<number>('transcriptTimeout', 60)),
+		lifecycleActionTimeout: clampLifecycleTimeout(configuration.get<number>('lifecycleActionTimeout', 60)),
+		resumeWatchTimeout: clampResumeWatch(configuration.get<number>('resumeWatchTimeout', 60)),
 		searchDebounce: clampSearchDebounce(configuration.get<number>('searchDebounce', 400)),
 		blameMaxDecoratedLines: clampBlameMaxLines(configuration.get<number>('blameMaxDecoratedLines', 5000)),
 		showSessionsInExplorer: configuration.get<boolean>('showSessionsInExplorer', false),

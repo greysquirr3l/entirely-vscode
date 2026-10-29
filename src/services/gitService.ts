@@ -18,6 +18,7 @@ export interface GitRepository {
 	readonly rootUri: vscode.Uri;
 	show(ref: string, path: string): Promise<string>;
 	getCommit(ref: string): Promise<GitCommit>;
+	log(options?: { readonly maxEntries?: number }): Promise<GitCommit[]>;
 }
 
 /** The part of the git extension's API the extension uses. */

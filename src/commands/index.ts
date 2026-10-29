@@ -9,6 +9,13 @@ import { readExtensionSettings } from '../services/configuration';
 import { explainCheckpoint, whyThisLine } from './whyThisLine';
 import { clearCheckpointSearch, searchCheckpoints } from './checkpointSearch';
 import { checkpointDestination } from './checkpointDestination';
+import {
+	adoptSession,
+	attachSession,
+	resumeStoppedSession,
+	stopSession,
+	type LifecycleDependencies,
+} from './sessionLifecycle';
 import { openTranscript, selectSession, setOwnSessionFilter } from './sessionDetail';
 import type { CheckpointFileNode, CheckpointsProvider } from '../providers/checkpointsProvider';
 import type { SessionDetailProvider } from '../providers/sessionDetailProvider';
@@ -53,6 +60,8 @@ export interface CommandDependencies {
 	readonly blame: BlameService;
 	/** Draws a blamed file's attribution in the editor. */
 	readonly blameDecorations: BlameDecorations;
+	/** Stops, attaches, adopts and resumes sessions. */
+	readonly lifecycle: LifecycleDependencies;
 	/** The CLI the extension talks to. */
 	readonly runner: CliRunner;
 	/** Which login the CLI is acting as. */
@@ -143,6 +152,25 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 				},
 				id,
 			);
+		}),
+
+		// Each lifecycle command changes what the CLI is tracking, so each is
+		// reached only by the user choosing it, from the palette or a
+		// session's context menu. None is ever run for them.
+		vscode.commands.registerCommand('entirely.stopSession', async (target?: SessionItemNode) => {
+			await stopSession(deps.lifecycle, target?.session);
+		}),
+
+		vscode.commands.registerCommand('entirely.attachSession', async (target?: SessionItemNode) => {
+			await attachSession(deps.lifecycle, target?.session);
+		}),
+
+		vscode.commands.registerCommand('entirely.adoptSession', async (target?: SessionItemNode) => {
+			await adoptSession(deps.lifecycle, target?.session);
+		}),
+
+		vscode.commands.registerCommand('entirely.resumeSession', async (target?: SessionItemNode) => {
+			await resumeStoppedSession(deps.lifecycle, target?.session);
 		}),
 
 		vscode.commands.registerCommand('entirely.showOwnSession', async () => {

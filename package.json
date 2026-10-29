@@ -166,6 +166,26 @@
         "category": "Entirely"
       },
       {
+        "command": "entirely.stopSession",
+        "title": "Stop Session",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.attachSession",
+        "title": "Attach Session to a Commit",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.adoptSession",
+        "title": "Adopt Session from Another Worktree",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.resumeSession",
+        "title": "Resume Session",
+        "category": "Entirely"
+      },
+      {
         "command": "entirely.blameFile",
         "title": "Blame This File",
         "category": "Entirely"
@@ -282,6 +302,20 @@
           "maximum": 600,
           "markdownDescription": "How long, in seconds, to wait for the Entire CLI to hand over a session transcript before giving up. A long session produces a large transcript, so raise this if opening one times out."
         },
+        "entirely.lifecycleActionTimeout": {
+          "type": "number",
+          "default": 60,
+          "minimum": 5,
+          "maximum": 600,
+          "markdownDescription": "How long, in seconds, to wait for `entire session stop`, `attach` or `adopt` before giving up. Attaching a session to a pushed commit uploads the transcript, so raise this on a slow connection."
+        },
+        "entirely.resumeWatchTimeout": {
+          "type": "number",
+          "default": 60,
+          "minimum": 5,
+          "maximum": 600,
+          "markdownDescription": "How long, in seconds, **Entirely: Resume Session** watches the session list for the resumed session to become active before it reports that it did not see one. The resume itself keeps running in its terminal."
+        },
         "entirely.blameMaxDecoratedLines": {
           "type": "number",
           "default": 5000,
@@ -366,6 +400,26 @@
           "command": "entirely.openTranscript",
           "when": "view == entirely.sessions && viewItem == entirely.session",
           "group": "inline"
+        },
+        {
+          "command": "entirely.resumeSession",
+          "when": "view == entirely.sessions && viewItem == entirely.session",
+          "group": "2_lifecycle@1"
+        },
+        {
+          "command": "entirely.attachSession",
+          "when": "view == entirely.sessions && viewItem == entirely.session",
+          "group": "2_lifecycle@2"
+        },
+        {
+          "command": "entirely.adoptSession",
+          "when": "view == entirely.sessions && viewItem == entirely.session",
+          "group": "2_lifecycle@3"
+        },
+        {
+          "command": "entirely.stopSession",
+          "when": "view == entirely.sessions && viewItem == entirely.session",
+          "group": "3_destructive@1"
         }
       ]
     }

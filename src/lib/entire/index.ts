@@ -127,3 +127,35 @@ export {
 	searchArguments,
 } from './search';
 export type { HelpFlag, SearchFlagPlan, SearchOutcome, SearchResults } from './search';
+export {
+	activeOnBranch,
+	adoptArguments,
+	asksForAgreement,
+	attachArguments,
+	cleanCliText,
+	failureDetail,
+	isBranchName,
+	isCommitRef,
+	isLive,
+	isStoppable,
+	isWorktreePath,
+	nameSession,
+	planAdoptFlags,
+	planAttachFlags,
+	planResumeFlags,
+	planStopFlags,
+	resumable,
+	resumeArguments,
+	stopArguments,
+} from './sessionLifecycle';
+export type {
+	AdoptFlags,
+	AttachFlags,
+	LifecycleAction,
+	LifecycleOutcome,
+	LifecyclePlan,
+	ResumeFlags,
+	StopFlags,
+} from './sessionLifecycle';
+export { describeResume } from './sessionResume';
+export type { ResumeResult } from './sessionResume';

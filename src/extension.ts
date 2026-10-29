@@ -40,6 +40,9 @@ import { onTerminalPath } from './services/terminalPath';
 import { BlameDecorations } from './providers/blameDecorations';
 import { BlameService } from './services/blameService';
 import { WhyService } from './services/whyService';
+import { EditorLifecycleUi } from './commands/lifecycleUi';
+import { SessionLifecycleService } from './services/sessionLifecycle';
+import { launchInTerminal } from './services/resumeTerminal';
 
 /** The workspace folder the CLI is run in. */
 function workspaceRoot(): string | undefined {
@@ -262,7 +265,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	const blameDecorations = new BlameDecorations();
 	context.subscriptions.push(blameDecorations);
 
+	const sessionSource = createSessionSource(runner, workspaceRoot);
+	const lifecycle = new SessionLifecycleService({
+		runner,
+		workspaceRoot,
+		timeoutSeconds: () => readExtensionSettings().lifecycleActionTimeout,
+	});
+
 	registerCommands(context, {
+		lifecycle: {
+			lifecycle,
+			sessions: sessionSource,
+			ui: new EditorLifecycleUi(git, workspaceFolder),
+			refresh: () => sessions.refresh(),
+			workspaceRoot,
+			launch: launchInTerminal,
+			resumeWatchMs: () => readExtensionSettings().resumeWatchTimeout * 1000,
+		},
 		sessions,
 		sessionDetail,
 		sessionDetailSource,

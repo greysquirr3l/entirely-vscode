@@ -139,6 +139,35 @@ export class CliRunner {
 		return this.locator.current();
 	}
 
+	/**
+	 * What a terminal needs to run a command the way the runner would.
+	 *
+	 * A command that asks the user questions cannot run through the runner,
+	 * which has no terminal. The terminal still has to run the same binary as
+	 * the same login, so the path and the pinned login come from here.
+	 */
+	async terminalCommand(
+		args: readonly string[],
+	): Promise<
+		| { readonly ok: true; readonly path: string; readonly args: readonly string[]; readonly env: Record<string, string> }
+		| { readonly ok: false; readonly detail: string }
+	> {
+		const discovery = await this.locator.current();
+		if (discovery.state === 'absent') {
+			return { ok: false, detail: 'the Entire CLI is not installed' };
+		}
+		if (discovery.state === 'broken') {
+			return { ok: false, detail: `the Entire CLI at ${discovery.path} is not usable: ${discovery.detail}` };
+		}
+		const context = this.pinnedContext;
+		return {
+			ok: true,
+			path: discovery.path,
+			args: context ? ['--context', context, ...args] : [...args],
+			env: context ? { ENTIRE_CONTEXT: context } : {},
+		};
+	}
+
 	/** Forgets the cached discovery result. */
 	invalidate(): void {
 		this.locator.invalidate();

@@ -8,6 +8,16 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 
+- **Session lifecycle actions.** Stop, attach, adopt and resume a session from the
+  palette or a session's context menu. Stop names the session in a confirmation
+  before anything runs. Attach shows what the CLI says it will change (including
+  rewriting unpushed commits), links on agreement, and reports what the CLI
+  linked. Adopt refreshes the Sessions view and says whether the session is listed
+  for the workspace. Resume runs in a terminal, because the CLI asks whether to
+  start the agent, and reports what it saw (session active again, or none seen,
+  with the exit code) rather than assuming it started. Flags are read from the
+  CLI's own help; a missing, old or refusing CLI is reported as a failure. New
+  settings `entirely.lifecycleActionTimeout` and `entirely.resumeWatchTimeout`.
 - **File blame.** **Entirely: Blame This File** (palette and editor context menu)
   runs `entire blame` once on the saved file and marks every line in the editor:
   a recorded change, a recorded change that has not synced yet, or no recorded

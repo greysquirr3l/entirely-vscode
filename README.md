@@ -25,6 +25,7 @@ Entirely (this extension)
 | **Status bar** | Whether the workspace is tracked by Entire, and whether an agent session is live right now |
 | **Entire view** | Every session Entire tracks for the repository — across all worktrees, not just the open folder |
 | **Session detail** | The selected session in full, ended ones included: agent, model, tokens, files touched and tool calls, with the transcript opening in a read-only editor |
+| **Session actions** | Stop, attach, adopt and resume a session from the palette or its context menu, each only when you ask |
 | **Checkpoint history** | Recorded checkpoints, opening straight into the native diff editor |
 | **Why this line** | Which agent edit introduced the line under the cursor, and why |
 | **File blame** | `entire blame` for the active file: every line marked as attributed, recorded but not synced, or not attributed to any recorded change |
@@ -97,6 +98,32 @@ written to the `Entire` output channel, not even at the debug level.
 The filter button in the Sessions view narrows the tree to the session that
 belongs to this workspace, using `entire session current`. A session the CLI
 reports as belonging to another worktree is not offered.
+
+## Stopping, attaching, adopting and resuming sessions
+
+Right-click a session in the Sessions view, or use the palette (**Entirely: Stop
+Session**, **Attach Session to a Commit**, **Adopt Session from Another Worktree**,
+**Resume Session**). Nothing here runs unless you choose it, and none of it runs on
+the refresh timer. Each command's flags are read from `entire agent-help session
+<command>`; if the help is unreadable or lacks a flag, the action fails and says why.
+
+- **Stop** asks first, naming the session (id, agent and branch), then runs
+  `entire session stop`. Stopping ends capture and writes no checkpoint, so commit
+  first if work is pending.
+- **Attach** lets you pick the session (or type an id the view does not list) and
+  the commit (default `HEAD`). The CLI first describes what it would do, including
+  whether it would rewrite unpushed commits. That description is the confirmation
+  you are shown, and only if you agree does the extension rerun it for real. The
+  message that follows is the CLI's own account of what it linked.
+- **Adopt** takes an active session from another worktree after you confirm it,
+  then refreshes the tree and says whether the session is listed for this workspace.
+- **Resume** runs `entire session resume <branch>` in an integrated terminal, because
+  the CLI asks whether to start the agent. The extension cannot see your answer, so
+  it does not assume the work started: it watches the session list for up to
+  `entirely.resumeWatchTimeout` seconds and reports that the session is active
+  again, or that none appeared (with the terminal's exit code if it had ended).
+
+`entirely.lifecycleActionTimeout` sets how long stop, attach and adopt may take.
 
 ## Blaming a file
 
