@@ -68,8 +68,8 @@ Every CLI invocation the extension made, in the `Entire` output channel:
 ## Session detail and transcripts
 
 Select a session and the Session view fills in from `entire session info`:
-when it ended, its last checkpoint, token count, the files it touched and how
-many times each tool was called. A session that has ended is inspected the
+when it ended, its last checkpoint, the files it touched and how many times
+each tool was called. A session that has ended is inspected the
 same way as a live one.
 
 Token usage comes from `entire session tokens` rather than from the counts in
@@ -77,6 +77,8 @@ Token usage comes from `entire session tokens` rather than from the counts in
 checkpoint tokens`. The extension shows what the CLI reports and nothing
 else: it adds nothing up and estimates nothing. When the CLI reports no usage,
 or leaves one count out, the row says **Not reported** instead of showing 0.
+Usage in a shape the extension cannot read says **Not recognised**, and a
+failed CLI call says **Not available**.
 Model names appear exactly as the CLI sends them.
 
 The transcript is not in the tree. **Transcript** in the Session view, or the

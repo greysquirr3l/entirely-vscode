@@ -10,10 +10,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - **Token usage.** The Session view and each opened checkpoint show the token
   counts `entire session tokens` and `entire checkpoint tokens` report. A count
-  the CLI leaves out reads "Not reported", never 0, and models are shown as the
+  the CLI leaves out reads "Not reported", never 0; usage it cannot read says
+  "Not recognised" and a failed call "Not available"; and models are shown as the
   CLI wrote them.
 - **Session detail.** Selecting a session reads `entire session info`, so the
-  view shows when it ended, its last checkpoint, tokens, files touched and a
+  view shows when it ended, its last checkpoint, files touched and a
   count of each tool it called. Ended sessions work the same as live ones.
 - **Transcripts.** Open a session's transcript in a read-only editor, with its
   attribution and tool calls. It never goes in the tree and never in the
