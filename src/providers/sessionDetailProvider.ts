@@ -1,10 +1,12 @@
 import * as vscode from 'vscode';
 
 import {
+	describeTokenReport,
 	humanizeStatus,
 	pluralise,
 	type Session,
 	type SessionInfo,
+	type TokenReport,
 	type ToolCallCount,
 } from '../lib/entire';
 
@@ -42,6 +44,12 @@ type ToolCallState =
 	| { readonly kind: 'ready'; readonly counts: readonly ToolCallCount[]; readonly truncated: boolean }
 	| { readonly kind: 'failed'; readonly detail: string };
 
+/** Where the token usage has got to. */
+type UsageState =
+	| { readonly kind: 'loading' }
+	| { readonly kind: 'ready'; readonly report: TokenReport }
+	| { readonly kind: 'failed'; readonly detail: string };
+
 /**
  * The details of the session the user has selected.
  *
@@ -54,6 +62,7 @@ export class SessionDetailProvider implements vscode.TreeDataProvider<DetailNode
 	private info: SessionInfo | undefined;
 	private infoFailure: string | undefined;
 	private toolCalls: ToolCallState | undefined;
+	private usage: UsageState | undefined;
 
 	readonly onDidChangeTreeData: vscode.Event<DetailNode | undefined> = this.changed.event;
 
@@ -63,6 +72,7 @@ export class SessionDetailProvider implements vscode.TreeDataProvider<DetailNode
 		this.info = undefined;
 		this.infoFailure = undefined;
 		this.toolCalls = undefined;
+		this.usage = undefined;
 		this.changed.fire(undefined);
 	}
 
@@ -83,6 +93,29 @@ export class SessionDetailProvider implements vscode.TreeDataProvider<DetailNode
 			return;
 		}
 		this.infoFailure = detail;
+		this.changed.fire(undefined);
+	}
+
+	/** Says the token usage is being read. */
+	showUsageLoading(id: string): void {
+		this.setUsage(id, { kind: 'loading' });
+	}
+
+	/** Shows the token usage the CLI reported. */
+	showUsage(id: string, report: TokenReport): void {
+		this.setUsage(id, { kind: 'ready', report });
+	}
+
+	/** Says why the token usage could not be read. */
+	showUsageFailure(id: string, detail: string): void {
+		this.setUsage(id, { kind: 'failed', detail });
+	}
+
+	private setUsage(id: string, state: UsageState): void {
+		if (this.session?.id !== id) {
+			return;
+		}
+		this.usage = state;
 		this.changed.fire(undefined);
 	}
 
@@ -211,6 +244,7 @@ export class SessionDetailProvider implements vscode.TreeDataProvider<DetailNode
 		}
 
 		this.addInfoRows(rows);
+		this.addUsageRows(rows);
 		this.addTranscriptRows(rows, session);
 
 		return rows;
@@ -237,18 +271,6 @@ export class SessionDetailProvider implements vscode.TreeDataProvider<DetailNode
 		if (info.lastCheckpointId) {
 			rows.push({ kind: 'field', label: 'Last checkpoint', value: info.lastCheckpointId });
 		}
-		if (info.tokens?.total !== undefined) {
-			const { input, output } = info.tokens;
-			rows.push({
-				kind: 'field',
-				label: 'Tokens',
-				value: String(info.tokens.total),
-				tooltip:
-					input !== undefined && output !== undefined
-						? `${input} in, ${output} out`
-						: undefined,
-			});
-		}
 		if (info.filesTouched && info.filesTouched.length > 0) {
 			rows.push({
 				kind: 'text',
@@ -257,6 +279,44 @@ export class SessionDetailProvider implements vscode.TreeDataProvider<DetailNode
 				summary: pluralise(info.filesTouched.length, 'file'),
 			});
 		}
+	}
+
+	/**
+	 * The token usage, from `session tokens`.
+	 *
+	 * The counts in `session info` are not used: they read zero when the
+	 * agent recorded nothing, and zero is a claim the CLI did not make.
+	 */
+	private addUsageRows(rows: DetailNode[]): void {
+		const usage = this.usage;
+		if (!usage) {
+			return;
+		}
+		if (usage.kind === 'loading') {
+			rows.push({ kind: 'field', label: 'Tokens', value: 'Reading…' });
+			return;
+		}
+		if (usage.kind === 'failed') {
+			rows.push({ kind: 'field', label: 'Tokens', value: 'Not available', tooltip: usage.detail });
+			return;
+		}
+
+		const view = describeTokenReport(usage.report);
+		if (!view.reported) {
+			rows.push({
+				kind: 'field',
+				label: 'Tokens',
+				value: view.summary,
+				tooltip: view.lines.map(line => line.value).join('\n') || undefined,
+			});
+			return;
+		}
+		rows.push({
+			kind: 'text',
+			label: 'Tokens',
+			lines: view.lines.map(line => `${line.label}: ${line.value}`),
+			summary: view.summary,
+		});
 	}
 
 	/** The transcript link and the tool calls. The transcript itself never goes in the tree. */

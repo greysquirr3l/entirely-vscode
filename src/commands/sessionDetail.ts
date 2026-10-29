@@ -5,12 +5,14 @@ import type { SessionDetailProvider } from '../providers/sessionDetailProvider';
 import type { SessionItemNode, SessionsProvider } from '../providers/sessionsProvider';
 import type { TranscriptContentProvider } from '../providers/transcriptDocument';
 import type { SessionDetailSource } from '../services/sessionDetail';
+import type { TokenUsageSource } from '../services/tokenUsage';
 
 /** What selecting a session needs. */
 export interface SelectSessionDependencies {
 	readonly sessions: SessionsProvider;
 	readonly sessionDetail: SessionDetailProvider;
 	readonly detail: SessionDetailSource;
+	readonly usage: TokenUsageSource;
 }
 
 /**
@@ -32,23 +34,35 @@ export async function selectSession(
 	}
 
 	const id = element.session.id;
+	deps.sessionDetail.showUsageLoading(id);
+	const usage = deps.usage.session(id);
 	const found = await deps.detail.info(id);
 	if (found.kind === 'failed') {
 		deps.sessionDetail.showInfoFailure(id, found.detail);
+	} else {
+		deps.sessionDetail.showInfo(found.info);
+	}
+
+	const read = await usage;
+	if (read.kind === 'found') {
+		deps.sessionDetail.showUsage(id, read.report);
+	} else {
+		deps.sessionDetail.showUsageFailure(id, read.detail);
+	}
+	if (found.kind === 'failed') {
 		return;
 	}
-	deps.sessionDetail.showInfo(found.info);
 
 	deps.sessionDetail.showToolCallsLoading(id);
-	const read = await deps.detail.transcript(found.info);
-	if (read.kind === 'failed') {
-		deps.sessionDetail.showToolCallsFailure(id, read.detail);
+	const transcript = await deps.detail.transcript(found.info);
+	if (transcript.kind === 'failed') {
+		deps.sessionDetail.showToolCallsFailure(id, transcript.detail);
 		return;
 	}
 	deps.sessionDetail.showToolCalls(
 		id,
-		countToolCalls(read.loaded.transcript.items),
-		read.loaded.truncated,
+		countToolCalls(transcript.loaded.transcript.items),
+		transcript.loaded.truncated,
 	);
 }
 

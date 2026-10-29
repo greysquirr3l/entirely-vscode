@@ -1,13 +1,16 @@
 import * as vscode from 'vscode';
 
 import {
+	describeTokenReport,
 	humanizeStatus,
 	pluralise,
 	truncatePrompt,
 	type Checkpoint,
 	type CheckpointDetail,
+	type TokenReport,
 } from '../lib/entire';
 import type { CheckpointSource } from '../services/checkpointSource';
+import type { TokenUsageSource } from '../services/tokenUsage';
 import { Tooltip } from './markdown';
 
 /** A checkpoint in the tree. */
@@ -23,8 +26,40 @@ export interface CheckpointFileNode {
 	readonly path: string;
 }
 
+/** Where a checkpoint's token usage has got to. */
+export type CheckpointUsageState =
+	| { readonly kind: 'loading' }
+	| { readonly kind: 'ready'; readonly report: TokenReport }
+	| { readonly kind: 'failed'; readonly detail: string };
+
+/** The token usage of a checkpoint. */
+export interface CheckpointUsageNode {
+	readonly kind: 'usage';
+	readonly checkpoint: Checkpoint;
+	readonly state: CheckpointUsageState;
+}
+
 /** A node in the checkpoints tree. */
-export type CheckpointTreeNode = CheckpointNode | CheckpointFileNode;
+export type CheckpointTreeNode = CheckpointNode | CheckpointFileNode | CheckpointUsageNode;
+
+/** The row and tooltip for a checkpoint's usage. */
+export function describeCheckpointUsage(state: CheckpointUsageState): {
+	readonly description: string;
+	readonly tooltip?: string;
+} {
+	if (state.kind === 'loading') {
+		return { description: 'Reading…' };
+	}
+	if (state.kind === 'failed') {
+		return { description: 'Not available', tooltip: state.detail };
+	}
+
+	const view = describeTokenReport(state.report);
+	return {
+		description: view.summary,
+		tooltip: view.lines.map(line => `${line.label}: ${line.value}`).join('\n') || undefined,
+	};
+}
 
 /** The one-line summary of a checkpoint shown beside its label. */
 export function describeCheckpoint(checkpoint: Checkpoint): string {
@@ -76,6 +111,7 @@ export class CheckpointsProvider implements vscode.TreeDataProvider<CheckpointTr
 	private readonly details = new Map<string, CheckpointDetail>();
 	private readonly loading = new Set<string>();
 	private readonly attempted = new Set<string>();
+	private readonly usages = new Map<string, CheckpointUsageState>();
 	private checkpoints: readonly Checkpoint[] = [];
 	private timer: NodeJS.Timeout | undefined;
 
@@ -85,6 +121,7 @@ export class CheckpointsProvider implements vscode.TreeDataProvider<CheckpointTr
 		private readonly source: CheckpointSource,
 		private readonly detailSource: (id: string) => Promise<CheckpointDetail | undefined>,
 		private readonly refreshIntervalSeconds: () => number = () => 30,
+		private readonly usageSource?: Pick<TokenUsageSource, 'checkpoint'>,
 	) {
 		this.schedulePolling();
 	}
@@ -128,6 +165,16 @@ export class CheckpointsProvider implements vscode.TreeDataProvider<CheckpointTr
 			return item;
 		}
 
+		if (element.kind === 'usage') {
+			const view = describeCheckpointUsage(element.state);
+			const item = new vscode.TreeItem('Tokens', vscode.TreeItemCollapsibleState.None);
+			item.description = view.description;
+			item.tooltip = view.tooltip;
+			item.contextValue = 'entirely.checkpointUsage';
+			item.iconPath = new vscode.ThemeIcon('pulse');
+			return item;
+		}
+
 		const item = new vscode.TreeItem(
 			element.path,
 			vscode.TreeItemCollapsibleState.None,
@@ -151,23 +198,27 @@ export class CheckpointsProvider implements vscode.TreeDataProvider<CheckpointTr
 			return [];
 		}
 
-		const detail = this.details.get(element.checkpoint.id);
-		if (!detail) {
-			if (!this.attempted.has(element.checkpoint.id)) {
-				this.loadDetail(element.checkpoint);
-			}
-			return [];
+		if (!this.attempted.has(element.checkpoint.id)) {
+			void this.loadDetail(element.checkpoint);
 		}
 
-		return detail.filesTouched.map(path => ({
-			kind: 'file',
-			checkpoint: element.checkpoint,
-			path,
-		}));
+		const rows: CheckpointTreeNode[] = [];
+		const usage = this.usages.get(element.checkpoint.id);
+		if (usage) {
+			rows.push({ kind: 'usage', checkpoint: element.checkpoint, state: usage });
+		}
+
+		const detail = this.details.get(element.checkpoint.id);
+		if (detail) {
+			for (const path of detail.filesTouched) {
+				rows.push({ kind: 'file', checkpoint: element.checkpoint, path });
+			}
+		}
+		return rows;
 	}
 
 	getParent(element: CheckpointTreeNode): CheckpointTreeNode | undefined {
-		if (element.kind !== 'file') {
+		if (element.kind === 'checkpoint') {
 			return undefined;
 		}
 		return this.checkpoints
@@ -189,7 +240,10 @@ export class CheckpointsProvider implements vscode.TreeDataProvider<CheckpointTr
 		this.attempted.add(checkpoint.id);
 
 		try {
-			const detail = await this.detailSource(checkpoint.id);
+			const [detail] = await Promise.all([
+				this.detailSource(checkpoint.id),
+				this.loadUsage(checkpoint),
+			]);
 			if (detail) {
 				this.details.set(checkpoint.id, detail);
 			}
@@ -197,6 +251,21 @@ export class CheckpointsProvider implements vscode.TreeDataProvider<CheckpointTr
 			this.loading.delete(checkpoint.id);
 			this.changed.fire(undefined);
 		}
+	}
+
+	/** Reads a checkpoint's token usage from the CLI, when a source is wired in. */
+	private async loadUsage(checkpoint: Checkpoint): Promise<void> {
+		if (!this.usageSource) {
+			return;
+		}
+		this.usages.set(checkpoint.id, { kind: 'loading' });
+		const result = await this.usageSource.checkpoint(checkpoint.id);
+		this.usages.set(
+			checkpoint.id,
+			result.kind === 'found'
+				? { kind: 'ready', report: result.report }
+				: { kind: 'failed', detail: result.detail },
+		);
 	}
 
 	/**

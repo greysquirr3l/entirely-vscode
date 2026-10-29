@@ -10,6 +10,7 @@ import { openTranscript, selectSession, setOwnSessionFilter } from './sessionDet
 import type { CheckpointFileNode, CheckpointsProvider } from '../providers/checkpointsProvider';
 import type { SessionDetailProvider } from '../providers/sessionDetailProvider';
 import type { TranscriptContentProvider } from '../providers/transcriptDocument';
+import type { TokenUsageSource } from '../services/tokenUsage';
 import type { SessionDetailSource } from '../services/sessionDetail';
 import type { SessionItemNode, SessionsProvider } from '../providers/sessionsProvider';
 import type { CheckpointDetail } from '../lib/entire';
@@ -29,6 +30,7 @@ export interface CommandDependencies {
 	readonly checkpoints: CheckpointsProvider;
 	/** Reads one session in full. */
 	readonly sessionDetailSource: SessionDetailSource;
+	readonly tokenUsage: TokenUsageSource;
 	/** Serves transcripts as read-only documents. */
 	readonly transcripts: TranscriptContentProvider;
 	readonly statusController: StatusController;
@@ -95,6 +97,7 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 					sessions: deps.sessions,
 					sessionDetail: deps.sessionDetail,
 					detail: deps.sessionDetailSource,
+					usage: deps.tokenUsage,
 				},
 				element,
 			);

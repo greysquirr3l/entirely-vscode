@@ -28,6 +28,7 @@ import { clampTranscriptTimeout } from '../services/configuration';
 import { createLogger } from '../services/logger';
 import { SessionDetailService } from '../services/sessionDetail';
 import { createSessionSource } from '../services/sessionSource';
+import { TokenUsageService } from '../services/tokenUsage';
 
 /** A marker that appears only inside transcripts and prompts, to catch leaks. */
 const SECRET = 'xyzzy-transcript-secret-7731';
@@ -158,6 +159,10 @@ function serviceFor(cli: FakeCli): SessionDetailService {
 		workspaceRoot: () => cli.dir,
 		transcriptTimeoutSeconds: () => 30,
 	});
+}
+
+function usageFor(cli: FakeCli): TokenUsageService {
+	return new TokenUsageService({ runner: cli.runner, workspaceRoot: () => cli.dir });
 }
 
 function infoOf(overrides: Record<string, unknown> = {}): SessionInfo {
@@ -331,7 +336,7 @@ suite('Entire session detail', () => {
 		const sessions = new SessionsProvider(async () => ({ sessions: [] }), () => 0);
 		const detail = new SessionDetailProvider();
 		return {
-			deps: { sessions, sessionDetail: detail, detail: serviceFor(cli) },
+			deps: { sessions, sessionDetail: detail, detail: serviceFor(cli), usage: usageFor(cli) },
 			detail,
 			sessions,
 			dispose: () => {
@@ -374,7 +379,8 @@ suite('Entire session detail', () => {
 			const rows = rowsOf(view.detail);
 			assert.strictEqual(rows['Ended'], ENDED_INFO.ended_at);
 			assert.strictEqual(rows['Last checkpoint'], ENDED_INFO.last_checkpoint_id);
-			assert.strictEqual(rows['Tokens'], '1200');
+			// Usage comes from `session tokens`, which this fake CLI does not answer.
+			assert.strictEqual(rows['Tokens'], 'Not available');
 			assert.strictEqual(rows['Files touched'], '2 files');
 		} finally {
 			view.dispose();
@@ -443,6 +449,7 @@ suite('Entire session detail', () => {
 						workspaceRoot: () => empty,
 						transcriptTimeoutSeconds: () => 5,
 					}),
+					usage: new TokenUsageService({ runner, workspaceRoot: () => empty }),
 				},
 				{ kind: 'session', session: { id: 'abc', agent: 'A', status: 'ended', worktreePath: '/w' } },
 			);
@@ -476,7 +483,7 @@ suite('Entire long transcripts', () => {
 
 		try {
 			await selectSession(
-				{ sessions, sessionDetail: detail, detail: source },
+				{ sessions, sessionDetail: detail, detail: source, usage: usageFor(cli) },
 				{ kind: 'session', session: { id: 'sess-ended', agent: 'A', status: 'ended', worktreePath: '/w' } },
 			);
 
@@ -566,7 +573,7 @@ suite('Entire transcript privacy', () => {
 		const source = serviceFor(cli);
 		try {
 			await selectSession(
-				{ sessions, sessionDetail: detail, detail: source },
+				{ sessions, sessionDetail: detail, detail: source, usage: usageFor(cli) },
 				{ kind: 'session', session: { id: 'sess-ended', agent: 'A', status: 'ended', worktreePath: '/w' } },
 			);
 			await openTranscript(

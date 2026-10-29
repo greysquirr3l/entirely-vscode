@@ -8,6 +8,7 @@ import { SessionDetailProvider } from './providers/sessionDetailProvider';
 import { SessionsProvider } from './providers/sessionsProvider';
 import { TRANSCRIPT_SCHEME, TranscriptContentProvider } from './providers/transcriptDocument';
 import { SessionDetailService } from './services/sessionDetail';
+import { TokenUsageService } from './services/tokenUsage';
 import { CliInvocationRecorder, CliRunner } from './services/cli';
 import { AccountContextService } from './services/accountContext';
 import { AuthenticationService } from './services/authentication';
@@ -129,10 +130,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		transcriptTimeoutSeconds: () => readExtensionSettings().transcriptTimeout,
 	});
 
+	const tokenUsage = new TokenUsageService({ runner, workspaceRoot });
+
 	const checkpoints = new CheckpointsProvider(
 		createCheckpointSource(runner, workspaceRoot),
 		createCheckpointDetailSource(runner, workspaceRoot),
 		() => readExtensionSettings().refreshInterval,
+		tokenUsage,
 	);
 	context.subscriptions.push(checkpoints);
 
@@ -236,6 +240,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		sessions,
 		sessionDetail,
 		sessionDetailSource,
+		tokenUsage,
 		transcripts,
 		checkpoints,
 		authentication,

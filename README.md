@@ -72,6 +72,13 @@ when it ended, its last checkpoint, token count, the files it touched and how
 many times each tool was called. A session that has ended is inspected the
 same way as a live one.
 
+Token usage comes from `entire session tokens` rather than from the counts in
+`session info`, and an opened checkpoint shows a **Tokens** row from `entire
+checkpoint tokens`. The extension shows what the CLI reports and nothing
+else: it adds nothing up and estimates nothing. When the CLI reports no usage,
+or leaves one count out, the row says **Not reported** instead of showing 0.
+Model names appear exactly as the CLI sends them.
+
 The transcript is not in the tree. **Transcript** in the Session view, or the
 button on a session, opens it in a read-only editor beside its attribution
 and a tool call summary. It is read from `entire session info --transcript`,
