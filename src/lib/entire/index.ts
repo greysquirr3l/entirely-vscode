@@ -374,3 +374,76 @@ export {
 	targetFor,
 } from './mcpProjectConfig';
 export type { MergeResult, ParsedConfig } from './mcpProjectConfig';
+export {
+	decodeTrail,
+	decodeTrailApproval,
+	decodeTrailApprovals,
+	decodeTrailChange,
+	decodeTrailComment,
+	decodeTrailComments,
+	decodeTrailDetail,
+	decodeTrailFinding,
+	decodeTrailFindings,
+	decodeTrailList,
+	decodeTrailMergePlan,
+	decodeTrailProject,
+	formatTrailSelector,
+} from './trail';
+export type {
+	Trail,
+	TrailApproval,
+	TrailChange,
+	TrailComment,
+	TrailFinding,
+	TrailGate,
+	TrailList,
+	TrailMergePlan,
+	TrailProject,
+	TrailSelector,
+	TrailStatus,
+} from './trail';
+export {
+	cliReason,
+	describeTrailFailure,
+	isProjectInvisible,
+} from './cliFailure';
+export {
+	describeGrantCommand,
+	describeInvisibleProject,
+	describeUnseenProject,
+	describeVisibilityChoices,
+	parseProjectReference,
+} from './projectVisibility';
+export type {
+	ProjectKind,
+	ProjectReference,
+	ProjectVisibility,
+	VisibilityChoice,
+} from './projectVisibility';
+export {
+	attributeApproval,
+	attributeComment,
+	describeChange,
+	describeCheckoutRefusal,
+	describeMergeBlockers,
+	describeMergePlan,
+	describeSelector,
+	isAttributedTo,
+	refuseCheckoutForUnsavedWork,
+	refusesCommentFromAgentSession,
+} from './trailReview';
+export type {
+	ApprovalAttribution,
+	CheckoutRefusal,
+	UnsavedFile,
+} from './trailReview';
+export {
+	changePicks,
+	describePick,
+	describePickDetail,
+	picksForTrail,
+	trailPicks,
+} from './trailPick';
+export type { TrailPick } from './trailPick';
+export { describeGate, pendingApprovals, readTrailGate, scopeToProject } from './trailGate';
+export type { GatedChange, GatedTrail, TrailListing } from './trailGate';

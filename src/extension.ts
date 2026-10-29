@@ -9,6 +9,8 @@ import { SessionsProvider } from './providers/sessionsProvider';
 import { TRANSCRIPT_SCHEME, TranscriptContentProvider } from './providers/transcriptDocument';
 import { SessionDetailService } from './services/sessionDetail';
 import { TokenUsageService } from './services/tokenUsage';
+import { TrailsProvider } from './providers/trailsProvider';
+import { createTrailListingSource } from './services/trailListing';
 import { CliInvocationRecorder, CliRunner } from './services/cli';
 import { AccountContextService } from './services/accountContext';
 import { AuthenticationService } from './services/authentication';
@@ -43,6 +45,7 @@ import { StatusController } from './services/statusController';
 import { onTerminalPath } from './services/terminalPath';
 import { BlameDecorations } from './providers/blameDecorations';
 import { BlameService } from './services/blameService';
+import { TrailService } from './services/trailService';
 import { WhyService } from './services/whyService';
 import { EditorLifecycleUi } from './commands/lifecycleUi';
 import { CliDoctorService } from './services/cliDoctor';
@@ -451,6 +454,34 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		log: { warn: line => log.warn(line) },
 	});
 
+	const trails = new TrailService({
+		runner,
+		workspaceRoot,
+		actingHandle: () => accounts.current.acting?.handle,
+	});
+
+	const trailsProvider = new TrailsProvider(createTrailListingSource(trails), () =>
+		readExtensionSettings().refreshInterval,
+	);
+	context.subscriptions.push(trailsProvider);
+
+	// A change waiting on an approval is the most actionable thing in the
+	// view, so the count sits on the view's badge and in its message.
+	const trailsView = vscode.window.createTreeView('entirely.trails', {
+		treeDataProvider: trailsProvider,
+	});
+	context.subscriptions.push(trailsView);
+	context.subscriptions.push(
+		trailsProvider.onDidChangeTreeData(() => {
+			trailsView.message = trailsProvider.emptyReason;
+			const waiting = trailsProvider.pendingCount;
+			trailsView.badge =
+				waiting > 0
+					? { value: waiting, tooltip: `${waiting} not yet approved` }
+					: undefined;
+		}),
+	);
+
 	registerCommands(context, {
 		search,
 		cliDoctor,
@@ -494,6 +525,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		why,
 		blame,
 		blameDecorations,
+		trails,
+		trailsProvider,
 		runner,
 		accounts,
 		checkpointDetail: createCheckpointDetailSource(runner, workspaceRoot),
@@ -507,6 +540,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			if (event.affectsConfiguration('entirely.refreshInterval')) {
 				sessions.reschedule();
 				checkpoints.reschedule();
+				trailsProvider.reschedule();
 				authenticationProvider.reschedule();
 			}
 
@@ -523,6 +557,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 				void statusController.refresh();
 				void sessions.refresh();
 				void checkpoints.refresh();
+				void trailsProvider.refresh();
 			}
 
 			if (event.affectsConfiguration('entirely.cliContext')) {
@@ -534,6 +569,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 					void activity.reloadIfRead();
 					void sessions.refresh();
 					void checkpoints.refresh();
+					void trailsProvider.refresh();
 				});
 			}
 		}),
@@ -544,6 +580,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	await statusController.refresh();
 	void sessions.refresh();
 	void checkpoints.refresh();
+	void trailsProvider.refresh();
 	void authenticationProvider.refresh();
 	void integrations.refresh();
 }

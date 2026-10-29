@@ -39,6 +39,10 @@ export interface RunOptions {
 	 * The CLI marks the login it is acting as, so the command that lists
 	 * the saved logins has to ask without the override in order to learn
 	 * which login the CLI would use on its own.
+	 *
+	 * This leaves the *pin* off. A login named in `context` still applies,
+	 * because naming one is a deliberate request rather than a leftover
+	 * from the pin.
 	 */
 	readonly ignoreContext?: boolean;
 	/**
@@ -149,6 +153,23 @@ export class CliRunner {
 	/** The saved login every command acts as, when one is pinned. */
 	get context(): string | undefined {
 		return this.pinnedContext;
+	}
+
+	/**
+	 * The saved login one command acts as.
+	 *
+	 * A login named for the command wins over the pin, because naming
+	 * one is a deliberate request for that command alone. The pin is
+	 * left off entirely when the command asks for the CLI's own login.
+	 */
+	private resolveContext(options: RunOptions): string | undefined {
+		const named = options.context?.trim();
+
+		if (named && named.length > 0) {
+			return named;
+		}
+
+		return options.ignoreContext ? undefined : this.pinnedContext;
 	}
 
 	/** The discovery result for the CLI, running a lookup if it is stale. */
@@ -346,9 +367,9 @@ export class CliRunner {
 	): Promise<PerformedInvocation> {
 		const discovery = await this.locator.current();
 
-		// The pinned login is worked out once, here, so that the command
-		// line that is recorded is the command line that was run.
-		const context = options.ignoreContext ? undefined : (options.context ?? this.pinnedContext);
+		// The login is worked out once, here, so that the command line
+		// that is recorded is the command line that was run.
+		const context = this.resolveContext(options);
 		const effectiveArgs = context ? ['--context', context, ...args] : [...args];
 
 		if (discovery.state === 'absent') {

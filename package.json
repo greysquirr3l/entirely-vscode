@@ -74,6 +74,11 @@
           "visibility": "visible"
         },
         {
+          "id": "entirely.trails",
+          "name": "Trails",
+          "visibility": "visible"
+        },
+        {
           "id": "entirely.activity",
           "name": "Activity",
           "visibility": "collapsed"
@@ -139,6 +144,10 @@
         "view": "entirely.checkpoints",
         "contents": "No checkpoints yet.\nA checkpoint is recorded when agent work is committed, and appears here once it is.\n[Refresh](command:entirely.refresh)",
         "when": "!entirely.checkpointFilterActive"
+      },
+      {
+        "view": "entirely.trails",
+        "contents": "No trails to show.\nTrails are listed for the project this repository belongs to, once you are signed in to Entire.\n[Refresh](command:entirely.refresh)"
       },
       {
         "view": "entirely.explorerSessions",
@@ -251,6 +260,36 @@
       {
         "command": "entirely.explainCheckpoint",
         "title": "Explain Checkpoint",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.trailApprove",
+        "title": "Approve a Change on a Trail",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.trailComment",
+        "title": "Comment on a Change on a Trail",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.trailMerge",
+        "title": "Merge a Change on a Trail",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.trailCheckout",
+        "title": "Check Out a Change on a Trail",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.trailLink",
+        "title": "Link a Branch to a Trail",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.trailUnlink",
+        "title": "Unlink a Branch from a Trail",
         "category": "Entirely"
       },
       {
@@ -904,6 +943,7 @@
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "package": "npm run check-types && npm run lint && node esbuild.js --production",
     "package:check": "node scripts/check-package.js",
+    "check:cli": "node scripts/check-cli-contract.js",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",

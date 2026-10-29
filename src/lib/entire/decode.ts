@@ -116,6 +116,41 @@ export function optionalString(fields: Fields, key: string): DecodeResult<string
 	return { ok: true, value };
 }
 
+/**
+ * Reads a field that must be present and a number.
+ *
+ * A number the CLI sends as a string is still a number, because the CLI
+ * has written both: a trail's number arrives as a number, while a
+ * change's number has arrived as a string in some versions. Reading the
+ * string form too means a change in the CLI's payload does not make the
+ * extension lose the trail.
+ */
+export function requireNumber(fields: Fields, key: string): DecodeResult<number> {
+	const value = fields.record[key];
+	const path = join(fields.path, key);
+
+	if (value === undefined || value === null) {
+		return missing(path, 'the field is missing');
+	}
+
+	if (typeof value === 'number') {
+		if (!Number.isFinite(value)) {
+			return wrongType(path, `expected a number, got ${value}`);
+		}
+		return { ok: true, value };
+	}
+
+	if (typeof value === 'string' && value.trim().length > 0) {
+		const parsed = Number(value);
+		if (Number.isInteger(parsed)) {
+			return { ok: true, value: parsed };
+		}
+		return wrongType(path, `expected a number, got "${value}"`);
+	}
+
+	return wrongType(path, `expected a number, got ${describe(value)}`);
+}
+
 /** Reads a field that may be absent or null and must be a number. */
 export function optionalNumber(fields: Fields, key: string): DecodeResult<number | undefined> {
 	const value = fields.record[key];

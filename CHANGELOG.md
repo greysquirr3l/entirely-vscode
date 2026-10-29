@@ -93,6 +93,41 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - **Workspace-only sessions.** A filter on the Sessions view that shows just
   the session `entire session current` reports for this workspace.
 
+- **Trails view.** Trails lists the trails of the project this repository belongs to,
+  right after Checkpoints. Its badge counts the changes awaiting an approval.
+
+- **Trail review.** Six commands that act on the work on an Entire trail:
+  approve a change, comment on one, merge one, check one out, and link or unlink a
+  branch to a trail. Each one asks the reviewer to choose what they are
+  acting on, and each mutating action is confirmed first — a merge names
+  the branch, the base and the commit it would move, and a checkout is
+  refused outright while the editor holds unsaved changes.
+- **An approval that says whose it is.** The CLI records the forge handle of
+  whoever approved a change. The extension compares that handle with the
+  login it is acting as, so an approval is attributed rather than merely
+  counted.
+- **A note that reaches the trail either way.** The CLI refuses a comment
+  from an agent session and points at its finding command. The extension
+  inherits that refusal when it runs inside an agent session, so it posts
+  the finding instead and says which form the note took.
+
+### Fixed
+
+- A CLI failure now reports what the CLI said rather than only its exit
+  code. A project that the acting login cannot see is named as such and
+  names the setting to change, instead of showing an empty trail list.
+- A finding posted from an agent session no longer asks for a title the CLI
+  does not accept. The title is folded into the finding's body, so the
+  finding is posted rather than refused for an unknown flag.
+
+### Internal
+
+- A CI check installs the Entire CLI at a pinned version and checks that it
+  still answers the way the extension expects — the commands it calls and
+  the flags it passes them. The extension reads the CLI rather than
+  re-implementing it, so a change in the CLI is a change in the extension's
+  contract, and it is better found by a build than by a user.
+
 ## [0.1.0] - 2026-10-27
 
 The first release with a working editor surface. The extension talks to the
