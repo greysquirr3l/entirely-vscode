@@ -138,8 +138,11 @@ suite('Entire account contexts', () => {
 		const message = describeUnknownContext('nobody', decodeAccountContexts(CONTEXTS_TABLE));
 
 		assert.match(message, /"nobody"/);
-		assert.match(message, /us\.auth\.entire\.io/);
-		assert.match(message, /sosh-ncampbell@us\.auth\.entire\.io/);
+		assert.ok(message.includes('us.auth.entire.io'), 'the host is not named');
+		assert.ok(
+			message.includes('sosh-ncampbell@us.auth.entire.io'),
+			'the other login is not named',
+		);
 	});
 
 	test('tells the CLI refusing a login apart from any other failure', () => {
@@ -328,7 +331,10 @@ suite('Entire account context service', () => {
 		assert.strictEqual(reading.acting, undefined);
 		assert.strictEqual(reading.pinned, true);
 		assert.match(reading.problem ?? '', /no saved login called "nobody"/);
-		assert.match(reading.problem ?? '', /us\.auth\.entire\.io/);
+		assert.ok(
+			(reading.problem ?? '').includes('us.auth.entire.io'),
+			'the host is not named',
+		);
 	});
 
 });
