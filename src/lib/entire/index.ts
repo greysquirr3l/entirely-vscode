@@ -86,3 +86,14 @@ export type {
 	AccountContext,
 	AccountContextSelection,
 } from './accountContext';
+export {
+	decodeAuthStatus,
+	describeIdentity,
+	describeJurisdiction,
+	isSignedIn,
+} from './authentication';
+export type { AuthStatus } from './authentication';
+export {
+	describeHeadlessEnvironment,
+	isHeadlessEnvironment,
+} from './environment';

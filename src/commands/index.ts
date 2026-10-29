@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { signIn, signOut } from './authentication';
 import { doctor } from './doctor';
 import { dumpCliOutput } from './dumpCliOutput';
 import { openCheckpointFile } from './openCheckpoint';
@@ -12,6 +13,8 @@ import type { CheckpointDetail } from '../lib/entire';
 import type { GitService } from '../services/gitService';
 import type { StatusController } from '../services/statusController';
 import type { AccountContextService } from '../services/accountContext';
+import type { AuthenticationService } from '../services/authentication';
+import type { AuthenticationProvider } from '../providers/authenticationProvider';
 import type { CliRunner } from '../services/cli';
 import type { CliInvocationRecorder } from '../services/cli/recorder';
 import type { WhyService } from '../services/whyService';
@@ -22,6 +25,10 @@ export interface CommandDependencies {
 	readonly sessionDetail: SessionDetailProvider;
 	readonly checkpoints: CheckpointsProvider;
 	readonly statusController: StatusController;
+	/** Who the CLI is signed in as. */
+	readonly authentication: AuthenticationService;
+	/** The view that says who the CLI is signed in as. */
+	readonly authenticationProvider: AuthenticationProvider;
 	readonly git: GitService | undefined;
 	readonly workspaceFolder: () => vscode.Uri | undefined;
 	readonly why: WhyService;
@@ -52,6 +59,7 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 			await deps.statusController.refresh();
 			await deps.sessions.refresh();
 			await deps.checkpoints.refresh();
+			await deps.authenticationProvider.refresh();
 		}),
 
 		// The view container is registered by VS Code under
@@ -115,6 +123,29 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 				},
 				id,
 			);
+		}),
+
+		// Signing in and signing out are offered from the command palette
+		// and from the Account view, and both are about the whole
+		// extension rather than about the workspace.
+		vscode.commands.registerCommand('entirely.signIn', async () => {
+			await signIn({
+				authentication: deps.authentication,
+				accounts: deps.accounts,
+				workspaceRoot: () => deps.workspaceFolder()?.fsPath,
+				output: deps.output,
+			});
+			await deps.authenticationProvider.refresh();
+		}),
+
+		vscode.commands.registerCommand('entirely.signOut', async () => {
+			await signOut({
+				authentication: deps.authentication,
+				accounts: deps.accounts,
+				workspaceRoot: () => deps.workspaceFolder()?.fsPath,
+				output: deps.output,
+			});
+			await deps.authenticationProvider.refresh();
 		}),
 
 		vscode.commands.registerCommand('entirely.openSettings', async () => {

@@ -24,6 +24,16 @@ export interface RunOptions {
 	/** The environment for the command. */
 	readonly env?: NodeJS.ProcessEnv;
 	/**
+	 * Called with each piece of stdout as it arrives.
+	 *
+	 * A command that waits for a person produces what the person needs
+	 * before it finishes, so a caller that wants to show it cannot wait
+	 * for the command to end.
+	 */
+	readonly onStdout?: (chunk: string) => void;
+	/** Called with each piece of stderr as it arrives. */
+	readonly onStderr?: (chunk: string) => void;
+	/**
 	 * Whether the pinned login is left off this command.
 	 *
 	 * The CLI marks the login it is acting as, so the command that lists
@@ -296,6 +306,8 @@ export class CliRunner {
 			env: context
 				? { ...(options.env ?? process.env), ENTIRE_CONTEXT: context }
 				: options.env,
+			onStdout: options.onStdout,
+			onStderr: options.onStderr,
 		};
 
 		const outcome = await execute(discovery.path, effectiveArgs, execOptions);

@@ -1,11 +1,14 @@
 import * as vscode from 'vscode';
 import { registerCommands } from './commands';
 import { decodeWorkspaceStatus, unwrap, type WorkspaceStatus } from './lib/entire';
+import { AuthenticationProvider } from './providers/authenticationProvider';
+import { AuthenticationPanel } from './providers/authenticationPanel';
 import { CheckpointsProvider } from './providers/checkpointsProvider';
 import { SessionDetailProvider } from './providers/sessionDetailProvider';
 import { SessionsProvider } from './providers/sessionsProvider';
 import { CliInvocationRecorder, CliRunner } from './services/cli';
 import { AccountContextService } from './services/accountContext';
+import { AuthenticationService } from './services/authentication';
 import { readExtensionSettings, effectiveLogLevel } from './services/configuration';
 import {
 	createCheckpointDetailSource,
@@ -141,6 +144,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	});
 	context.subscriptions.push(explorerSessionsView);
 
+	// Who the CLI is signed in as. The view says the identity and the
+	// jurisdiction, and offers the sign-in and the sign-out.
+	const authentication = new AuthenticationService(runner);
+	const authenticationProvider = new AuthenticationProvider(
+		() => authentication.refresh(workspaceRoot()),
+		() => readExtensionSettings().refreshInterval,
+	);
+	context.subscriptions.push(authenticationProvider);
+
+	const authenticationView = vscode.window.createTreeView('entirely.authentication', {
+		treeDataProvider: authenticationProvider,
+	});
+	context.subscriptions.push(authenticationView);
+	context.subscriptions.push(AuthenticationPanel);
+
 	// The tree view shows a message in place of the sessions when there is
 	// a reason the tree is empty.
 	context.subscriptions.push(
@@ -204,6 +222,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		sessions,
 		sessionDetail,
 		checkpoints,
+		authentication,
+		authenticationProvider,
 		statusController,
 		git,
 		workspaceFolder,
@@ -221,6 +241,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			if (event.affectsConfiguration('entirely.refreshInterval')) {
 				sessions.reschedule();
 				checkpoints.reschedule();
+				authenticationProvider.reschedule();
 			}
 
 			if (event.affectsConfiguration('entirely.cliPath')) {
@@ -247,6 +268,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	await statusController.refresh();
 	void sessions.refresh();
 	void checkpoints.refresh();
+	void authenticationProvider.refresh();
 }
 
 export function deactivate(): void {}
