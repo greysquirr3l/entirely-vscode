@@ -137,11 +137,9 @@ suite('Entire account contexts', () => {
 	test('says which logins there are when the named one is not there', () => {
 		const message = describeUnknownContext('nobody', decodeAccountContexts(CONTEXTS_TABLE));
 
-		assert.match(message, /"nobody"/);
-		assert.ok(message.includes('us.auth.entire.io'), 'the host is not named');
-		assert.ok(
-			message.includes('sosh-ncampbell@us.auth.entire.io'),
-			'the other login is not named',
+		assert.strictEqual(
+			message,
+			'The Entire CLI has no saved login called "nobody". Saved logins: us.auth.entire.io, sosh-ncampbell@us.auth.entire.io.',
 		);
 	});
 
@@ -330,10 +328,9 @@ suite('Entire account context service', () => {
 
 		assert.strictEqual(reading.acting, undefined);
 		assert.strictEqual(reading.pinned, true);
-		assert.match(reading.problem ?? '', /no saved login called "nobody"/);
-		assert.ok(
-			(reading.problem ?? '').includes('us.auth.entire.io'),
-			'the host is not named',
+		assert.strictEqual(
+			reading.problem,
+			'The Entire CLI has no saved login called "nobody". Saved logins: us.auth.entire.io, sosh-ncampbell@us.auth.entire.io.',
 		);
 	});
 
