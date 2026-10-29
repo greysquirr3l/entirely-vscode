@@ -177,6 +177,13 @@ export interface HookBridgeOptions {
 	readonly workspaceRoot: () => string | undefined;
 	/** The environment the agent's home is read from. */
 	readonly env?: NodeJS.ProcessEnv;
+	/**
+	 * The saved login the CLI is acting as.
+	 *
+	 * The CLI's flag does not reach the processes it spawns, so the hook
+	 * is told which login to act as through the environment instead.
+	 */
+	readonly context?: () => string | undefined;
 	/** The user's home directory. */
 	readonly homeDir?: string;
 	/** Records a delivery, for the output channel. */
@@ -265,7 +272,13 @@ export class HookBridge {
 			return false;
 		}
 
-		const payload = this.payloadFor(event, details, sessionId, cwd);
+		// The environment carries the login as well as the agent's home.
+		// The CLI's flag does not reach the processes it spawns, so the
+		// hook is told which login to act as through the environment
+		// instead.
+		const env = this.environment();
+
+		const payload = this.payloadFor(event, details, sessionId, cwd, env);
 		const body = JSON.stringify(payload);
 
 		const result = await this.options.runner.run(['hooks', 'copilot-cli', verb], {
@@ -274,7 +287,7 @@ export class HookBridge {
 			// The CLI is given the same environment the transcript path was
 			// worked out from, so the two can never disagree about where the
 			// agent keeps its transcripts.
-			env: this.options.env,
+			env,
 		});
 
 		if (!result.ok) {
@@ -285,14 +298,31 @@ export class HookBridge {
 		return true;
 	}
 
+	/**
+	 * The environment the CLI is given.
+	 *
+	 * The login is named in it, because the CLI's own flag does not
+	 * reach the processes it spawns. Without a pinned login the
+	 * environment is left exactly as it was.
+	 */
+	private environment(): NodeJS.ProcessEnv | undefined {
+		const context = this.options.context?.();
+		if (!context) {
+			return this.options.env;
+		}
+
+		return { ...(this.options.env ?? process.env), ENTIRE_CONTEXT: context };
+	}
+
 	/** Builds the payload for an event. */
 	private payloadFor(
 		event: EditorHookEvent,
 		details: HookEventDetails,
 		sessionId: string,
 		cwd: string,
+		env: NodeJS.ProcessEnv | undefined,
 	): HookPayload {
-		const home = copilotHome(this.options.env, this.options.homeDir);
+		const home = copilotHome(env, this.options.homeDir);
 
 		const payload: {
 			sessionId: string;

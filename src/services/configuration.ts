@@ -7,6 +7,14 @@ import { readLogLevel, shouldLog, type LogLevel } from './logger';
 export interface ExtensionSettings {
 	/** The path the user gave for the CLI, when they gave one. */
 	readonly cliPath?: string;
+	/**
+	 * The saved login the extension acts as, when the user chose one.
+	 *
+	 * The name is the one the CLI saved the login under, not the handle:
+	 * a context is named after its login server's host, and a second
+	 * identity on a host that already has one is saved as `HANDLE@HOST`.
+	 */
+	readonly cliContext?: string;
 	/** How often, in seconds, the extension re-reads the CLI. */
 	readonly refreshInterval: number;
 	/** Whether the sessions tree is also shown in the Explorer. */
@@ -73,12 +81,15 @@ export function readExtensionSettings(): ExtensionSettings {
 
 	const cliPath = configuration.get<string>('cliPath', '').trim();
 
+	const cliContext = configuration.get<string>('cliContext', '').trim();
+
 	const minimumCliVersion = configuration
 		.get<string>('minimumCliVersion', DEFAULT_MINIMUM_CLI_VERSION)
 		.trim();
 
 	return {
 		cliPath: cliPath.length > 0 ? cliPath : undefined,
+		cliContext: cliContext.length > 0 ? cliContext : undefined,
 		refreshInterval: clampRefreshInterval(configuration.get<number>('refreshInterval', 30)),
 		showSessionsInExplorer: configuration.get<boolean>('showSessionsInExplorer', false),
 		logLevel: readLogLevel(configuration.get<string>('logLevel', 'info')),

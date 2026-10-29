@@ -23,6 +23,14 @@ export interface RunOptions {
 	readonly input?: string;
 	/** The environment for the command. */
 	readonly env?: NodeJS.ProcessEnv;
+	/**
+	 * Whether the pinned login is left off this command.
+	 *
+	 * The CLI marks the login it is acting as, so the command that lists
+	 * the saved logins has to ask without the override in order to learn
+	 * which login the CLI would use on its own.
+	 */
+	readonly ignoreContext?: boolean;
 }
 
 /** One invocation, and the bodies it produced. */
@@ -49,6 +57,8 @@ interface PerformedInvocation {
  */
 export class CliRunner {
 	private sink: CliInvocationSink | undefined;
+	/** The saved login every command acts as, when one is pinned. */
+	private pinnedContext: string | undefined;
 
 	constructor(private readonly locator: CliLocator = new CliLocator()) {}
 
@@ -61,6 +71,30 @@ export class CliRunner {
 	setSink(sink: CliInvocationSink | undefined): void {
 		this.sink = sink;
 		this.locator.setSink(sink);
+	}
+
+	/**
+	 * Pins the saved login that every command acts as.
+	 *
+	 * The name is the one the CLI saved the login under. The CLI's own
+	 * active login is left alone: the pin applies to the commands the
+	 * extension runs and to nothing else, so the user keeps the login the
+	 * CLI would have used in their terminal.
+	 *
+	 * The login reaches the CLI two ways, because the CLI's own commands
+	 * and the processes it spawns do not agree on how. The `--context`
+	 * flag is inherited by the CLI's subcommands, and the `ENTIRE_CONTEXT`
+	 * environment variable is what reaches the plugin commands and the
+	 * agents the CLI starts, so both are set.
+	 */
+	setContext(name: string | undefined): void {
+		const trimmed = name?.trim() ?? '';
+		this.pinnedContext = trimmed.length > 0 ? trimmed : undefined;
+	}
+
+	/** The saved login every command acts as, when one is pinned. */
+	get context(): string | undefined {
+		return this.pinnedContext;
 	}
 
 	/** The discovery result for the CLI, running a lookup if it is stale. */
@@ -194,6 +228,11 @@ export class CliRunner {
 	): Promise<PerformedInvocation> {
 		const discovery = await this.locator.current();
 
+		// The pinned login is worked out once, here, so that the command
+		// line that is recorded is the command line that was run.
+		const context = options.ignoreContext ? undefined : this.pinnedContext;
+		const effectiveArgs = context ? ['--context', context, ...args] : [...args];
+
 		if (discovery.state === 'absent') {
 			const detail = 'the Entire CLI is not installed';
 
@@ -208,7 +247,7 @@ export class CliRunner {
 				},
 				invocation: {
 					binary: 'entire',
-					args: [...args],
+					args: effectiveArgs,
 					cwd: options.cwd,
 					outcome: 'absent',
 					exitCode: undefined,
@@ -236,7 +275,7 @@ export class CliRunner {
 				},
 				invocation: {
 					binary: discovery.path,
-					args: [...args],
+					args: effectiveArgs,
 					cwd: options.cwd,
 					outcome: 'broken',
 					exitCode: undefined,
@@ -254,10 +293,12 @@ export class CliRunner {
 			cwd: options.cwd,
 			timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
 			input: options.input,
-			env: options.env,
+			env: context
+				? { ...(options.env ?? process.env), ENTIRE_CONTEXT: context }
+				: options.env,
 		};
 
-		const outcome = await execute(discovery.path, args, execOptions);
+		const outcome = await execute(discovery.path, effectiveArgs, execOptions);
 		const inputBytes = byteLength(options.input);
 		const stdoutBytes = byteLength(outcome.stdout);
 		const stderrBytes = byteLength(outcome.stderr);
@@ -279,7 +320,7 @@ export class CliRunner {
 				},
 				invocation: {
 					binary: discovery.path,
-					args: [...args],
+					args: effectiveArgs,
 					cwd: options.cwd,
 					outcome: outcome.reason,
 					exitCode: outcome.exitCode,
@@ -303,7 +344,7 @@ export class CliRunner {
 			},
 			invocation: {
 				binary: discovery.path,
-				args: [...args],
+				args: effectiveArgs,
 				cwd: options.cwd,
 				outcome: 'ok',
 				exitCode: outcome.exitCode,

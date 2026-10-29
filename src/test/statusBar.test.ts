@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
+import { AccountContextService } from '../services/accountContext';
 import { CliLocator } from '../services/cli/locator';
 import { CliRunner } from '../services/cli/runner';
 import { StatusBar } from '../services/statusBar';
@@ -61,6 +62,12 @@ suite('Entire status bar', () => {
 
 			bar.show({ kind: 'not-a-repository' });
 			renderings.set('not-a-repository', bar.text);
+
+			bar.show({ kind: 'invisible-to-context', context: 'greysquirr3l' });
+			renderings.set('invisible-to-context', bar.text);
+
+			bar.show({ kind: 'context-error', detail: 'no saved login' });
+			renderings.set('context-error', bar.text);
 
 			bar.show({ kind: 'error', detail: 'the CLI crashed' });
 			renderings.set('error', bar.text);
@@ -175,6 +182,48 @@ suite('Entire status bar', () => {
 			bar.dispose();
 		}
 	});
+
+	test('names the login it is acting as', () => {
+		const bar = new StatusBar();
+		try {
+			bar.show({ kind: 'tracked', context: 'greysquirr3l' });
+
+			assert.match(bar.tooltip, /Acting as greysquirr3l/);
+		} finally {
+			bar.dispose();
+		}
+	});
+
+	test('tells a workspace the login cannot see apart from one that is not tracked', () => {
+		const bar = new StatusBar();
+		try {
+			bar.show({ kind: 'not-set-up' });
+			const untracked = bar.text;
+
+			bar.show({ kind: 'invisible-to-context', context: 'greysquirr3l' });
+
+			assert.notStrictEqual(bar.text, untracked, 'the two states look the same');
+			assert.match(bar.text, /eye-closed/);
+			assert.match(bar.tooltip, /cannot see/);
+			assert.match(bar.tooltip, /greysquirr3l/, 'the login is not named');
+			assert.doesNotMatch(bar.tooltip, /not set up/, 'it reads as a workspace that is not tracked');
+		} finally {
+			bar.dispose();
+		}
+	});
+
+	test('shows a login the CLI does not have as a mistake in the settings', () => {
+		const bar = new StatusBar();
+		try {
+			bar.show({ kind: 'context-error', detail: 'no saved login called "nobody"' });
+
+			assert.match(bar.text, /error/);
+			assert.match(bar.tooltip, /does not have/);
+			assert.match(bar.tooltip, /nobody/);
+		} finally {
+			bar.dispose();
+		}
+	});
 });
 
 suite('Entire status bar click routing', () => {
@@ -195,8 +244,121 @@ suite('Entire status bar click routing', () => {
 		assert.strictEqual(clickAction({ kind: 'error', detail: 'boom' }), 'show-error');
 	});
 
+	test('routes to an explanation when the login cannot see the workspace', () => {
+		assert.strictEqual(
+			clickAction({ kind: 'invisible-to-context', context: 'greysquirr3l' }),
+			'explain-invisible-to-context',
+		);
+	});
+
+	test('routes to an explanation when the login in the settings is not one the CLI has', () => {
+		assert.strictEqual(
+			clickAction({ kind: 'context-error', detail: 'no saved login' }),
+			'explain-context-error',
+		);
+	});
+
 	test('never offers to set up a workspace that is not a repository', () => {
 		assert.notStrictEqual(clickAction({ kind: 'not-a-repository' }), 'set-up');
+	});
+});
+
+suite('Entire status controller and the acting login', () => {
+	suiteTeardown(() => {
+		for (const directory of temporaryDirectories) {
+			fs.rmSync(directory, { recursive: true, force: true });
+		}
+	});
+
+	/** The table the CLI prints for its saved logins. */
+	const CONTEXTS_TABLE = [
+		'CONTEXT                           HANDLE          LOGIN SERVER',
+		'us.auth.entire.io                 greysquirr3l    https://us.auth.entire.io  (active)',
+	].join('\n');
+
+	/** A tracked workspace whose checkpoints go to its own repository. */
+	const SAME_REPO_STATUS =
+		'{"enabled":true,"agents":["Copilot CLI"],"active_sessions":[],"agent_help":"entire agent-help","checkpoint_sync_remote":"origin","checkpoint_sync_remote_source":"default"}';
+
+	/** A fake CLI that answers the commands the controller makes. */
+	function cliBody(repoLine: string): string {
+		const rows = CONTEXTS_TABLE.split('\n').map(line => `'${line}'`).join(' ');
+
+		return [
+			'case "$1" in',
+			'\tversion) echo "entire 0.12.2" ;;',
+			`\tauth) printf '%s\\n' ${rows} ;;`,
+			`\tstatus) echo '${SAME_REPO_STATUS}' ;;`,
+			`\trepo) ${repoLine} ;;`,
+			'esac',
+		].join('\n');
+	}
+
+	/** Builds a controller over a fake CLI. */
+	function controllerFor(body: string): {
+		controller: StatusController;
+		bar: StatusBar;
+	} {
+		const home = makeDirectory('entire-status-login-home-');
+		writeFakeCli(path.join(home, '.local', 'bin'), body);
+
+		const bar = new StatusBar();
+		const runner = new CliRunner(new CliLocator({ homeDir: home, env: { PATH: '' } }));
+		const controller = new StatusController({
+			statusBar: bar,
+			runner,
+			output: { show: () => undefined },
+			accounts: new AccountContextService(runner),
+		});
+
+		return { controller, bar };
+	}
+
+	/** Waits for a condition to come true. */
+	async function waitFor(condition: () => boolean): Promise<void> {
+		const deadline = Date.now() + 5_000;
+		while (!condition()) {
+			if (Date.now() > deadline) {
+				throw new Error('the condition did not come true in time');
+			}
+			await new Promise(resolve => setTimeout(resolve, 20));
+		}
+	}
+
+	test('says the workspace is invisible when the login cannot see it', async () => {
+		const { controller, bar } = controllerFor(
+			cliBody('echo \'no repo matching "owner/repo" visible from your login\' >&2; exit 1'),
+		);
+		try {
+			await controller.refresh();
+			await waitFor(() => bar.current?.kind === 'invisible-to-context');
+
+			assert.strictEqual(bar.current?.kind, 'invisible-to-context');
+			const display = bar.current;
+			assert.strictEqual(
+				display?.kind === 'invisible-to-context' && display.context,
+				'greysquirr3l',
+				'the login is not named',
+			);
+			assert.match(bar.tooltip, /cannot see/);
+			assert.match(bar.tooltip, /greysquirr3l/);
+		} finally {
+			controller.dispose();
+			bar.dispose();
+		}
+	});
+
+	test('says the workspace is tracked when the login can see it', async () => {
+		const { controller, bar } = controllerFor(cliBody('echo \'{"repo":"/gh/owner/repo"}\''));
+		try {
+			await controller.refresh();
+			await waitFor(() => bar.current?.kind === 'tracked');
+
+			assert.strictEqual(bar.current?.kind, 'tracked');
+		} finally {
+			controller.dispose();
+			bar.dispose();
+		}
 	});
 });
 
@@ -221,7 +383,12 @@ suite('Entire status controller', () => {
 		const bar = new StatusBar();
 		const output = { show: () => undefined };
 		const runner = new CliRunner(new CliLocator({ homeDir: home, env: { PATH: '' } }));
-		const controller = new StatusController({ statusBar: bar, runner, output });
+		const controller = new StatusController({
+			statusBar: bar,
+			runner,
+			output,
+			accounts: new AccountContextService(runner),
+		});
 
 		return { controller, bar, output };
 	}
@@ -312,7 +479,12 @@ suite('Entire status bar against the real CLI', () => {
 		const bar = new StatusBar();
 		const output = { show: () => undefined };
 		const runner = new CliRunner();
-		const controller = new StatusController({ statusBar: bar, runner, output });
+		const controller = new StatusController({
+			statusBar: bar,
+			runner,
+			output,
+			accounts: new AccountContextService(runner),
+		});
 
 		try {
 			const discovery = await runner.discover();

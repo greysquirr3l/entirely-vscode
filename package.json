@@ -173,6 +173,12 @@
           "scope": "machine",
           "markdownDescription": "Absolute path to the `entire` binary. Leave empty to use the built-in discovery order: `entire` on `PATH`, then the documented install locations. This can only be set in your user settings, never by a workspace."
         },
+        "entirely.cliContext": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "markdownDescription": "The saved `entire` login to act as. Leave empty to follow the login the CLI is using on its own. The name is the one `entire auth contexts` prints, such as `us.auth.entire.io` or `handle@us.auth.entire.io`. This only changes what Entirely does — the CLI keeps the login it would have used in your terminal. This can only be set in your user settings, never by a workspace."
+        },
         "entirely.refreshInterval": {
           "type": "number",
           "default": 30,
@@ -241,9 +247,10 @@
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": "limited",
-      "description": "Entirely reads the Entire CLI, which reports on the repository. In an untrusted workspace the CLI path and the refresh interval are ignored, so the workspace cannot choose which binary runs or how often the extension polls.",
+      "description": "Entirely reads the Entire CLI, which reports on the repository. In an untrusted workspace the CLI path, the saved login and the refresh interval are ignored, so the workspace cannot choose which binary runs, which account it acts as, or how often the extension polls.",
       "restrictedConfigurations": [
         "entirely.cliPath",
+        "entirely.cliContext",
         "entirely.refreshInterval"
       ]
     }

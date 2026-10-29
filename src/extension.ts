@@ -5,6 +5,7 @@ import { CheckpointsProvider } from './providers/checkpointsProvider';
 import { SessionDetailProvider } from './providers/sessionDetailProvider';
 import { SessionsProvider } from './providers/sessionsProvider';
 import { CliInvocationRecorder, CliRunner } from './services/cli';
+import { AccountContextService } from './services/accountContext';
 import { readExtensionSettings, effectiveLogLevel } from './services/configuration';
 import {
 	createCheckpointDetailSource,
@@ -70,6 +71,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	// read, so the very first look uses the binary they chose.
 	runner.setConfiguredPath(readExtensionSettings().cliPath);
 
+	// The login the extension acts as is worked out before anything is
+	// read, so that every command after it is asked as the right account.
+	const accounts = new AccountContextService(runner);
+
 	const log = createLogger(output, () => effectiveLogLevel(readExtensionSettings()));
 
 	// Every CLI invocation is reported to the channel, and remembered, so
@@ -84,10 +89,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	const hooks = new HookBridge({
 		runner,
 		workspaceRoot,
+		// The CLI's flag does not reach the processes it spawns, so the
+		// hook is told which login to act as through the environment.
+		context: () => accounts.context,
 		log: line => log.debug(`hook ${line}`),
 	});
 
-	const statusController = new StatusController({ statusBar: status, runner, output, hooks });
+	const statusController = new StatusController({
+		statusBar: status,
+		runner,
+		output,
+		hooks,
+		accounts,
+	});
 	context.subscriptions.push(statusController);
 
 	const sessions = new SessionsProvider(createSessionSource(runner, workspaceRoot), () =>
@@ -195,6 +209,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		workspaceFolder,
 		why,
 		runner,
+		accounts,
 		checkpointDetail: createCheckpointDetailSource(runner, workspaceRoot),
 		recorder,
 		output,
@@ -214,10 +229,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 				void sessions.refresh();
 				void checkpoints.refresh();
 			}
+
+			if (event.affectsConfiguration('entirely.cliContext')) {
+				// The login changes what every command is asked, so the
+				// trees are read again as the new login rather than left
+				// showing the previous account's work.
+				void statusController.refresh().then(() => {
+					void sessions.refresh();
+					void checkpoints.refresh();
+				});
+			}
 		}),
 	);
 
-	void statusController.refresh();
+	// The status is read first, because it is what works out which login
+	// the CLI is acting as, and the trees are read as that login.
+	await statusController.refresh();
 	void sessions.refresh();
 	void checkpoints.refresh();
 }

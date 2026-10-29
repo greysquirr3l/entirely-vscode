@@ -15,6 +15,7 @@ import {
 	type WorkspaceStatus,
 } from '../lib/entire';
 import { CliRunner } from './cli';
+import type { AccountContextService } from './accountContext';
 import {
 	inspectCheckpointDestination,
 	type CheckpointDestinationReport,
@@ -30,12 +31,37 @@ export interface StatusControllerOptions {
 	readonly runner: CliRunner;
 	readonly output: Pick<vscode.OutputChannel, 'show'>;
 	/**
+	 * Which login the CLI is acting as.
+	 *
+	 * The controller reads the saved logins before anything else, because
+	 * every command after that has to act as the right one.
+	 */
+	readonly accounts: AccountContextService;
+	/**
 	 * Where the workspace's agent activity is reported.
 	 *
 	 * The controller is the one thing that knows whether the workspace is
 	 * tracked, and a session only begins in a tracked workspace.
 	 */
 	readonly hooks?: HookBridge;
+}
+
+/**
+ * The login the extension is acting as, as the status bar needs it.
+ *
+ * A workspace that the acting login cannot see is a different thing from
+ * a workspace that is not tracked, and the difference has to survive the
+ * trip to the status bar.
+ */
+export interface ActingContext {
+	/** The handle of the login, which is how a person knows it. */
+	readonly handle: string;
+	/** The name the login is saved under. */
+	readonly name?: string;
+	/** Whether the login cannot see this workspace. */
+	readonly invisible?: boolean;
+	/** What the CLI said about the workspace. */
+	readonly detail?: string;
 }
 
 /** What clicking the status bar item does. */
@@ -46,6 +72,10 @@ export type ClickAction =
 	| 'set-up'
 	/** Explain that the workspace cannot be tracked. */
 	| 'explain-not-a-repository'
+	/** Explain that the login cannot see the workspace. */
+	| 'explain-invisible-to-context'
+	/** Explain that the login in the settings is not one the CLI has. */
+	| 'explain-context-error'
 	/** Report the error and offer the logs. */
 	| 'show-error';
 
@@ -62,6 +92,10 @@ export function clickAction(display: StatusDisplay | undefined): ClickAction {
 			return 'set-up';
 		case 'not-a-repository':
 			return 'explain-not-a-repository';
+		case 'invisible-to-context':
+			return 'explain-invisible-to-context';
+		case 'context-error':
+			return 'explain-context-error';
 		case 'error':
 			return 'show-error';
 		default:
@@ -75,9 +109,22 @@ function toDisplay(
 	settings: readonly string[],
 	destination: string | undefined,
 problem: string | undefined,
+	context: ActingContext | undefined,
 ): StatusDisplay {
 	switch (status.kind) {
 		case 'tracked': {
+			// A login that cannot see the workspace is not the same as a
+			// workspace that is not tracked, so it is said in as many
+			// words rather than left to be read as "not set up".
+			if (context?.invisible) {
+				return {
+					kind: 'invisible-to-context',
+					context: context.handle,
+					contextName: context.name,
+					detail: context.detail,
+				};
+			}
+
 			const session = status.activeSessions[0];
 			return session
 				? {
@@ -86,12 +133,14 @@ problem: string | undefined,
 						settings,
 						checkpointDestination: destination,
 						checkpointProblem: problem,
+						context: context?.handle,
 					}
 				: {
 						kind: 'tracked',
 						settings,
 						checkpointDestination: destination,
 						checkpointProblem: problem,
+						context: context?.handle,
 					};
 		}
 		case 'not-set-up':
@@ -173,6 +222,19 @@ export class StatusController {
 			return;
 		}
 
+		// The login is read first, because every command after this has
+		// to act as the right one.
+		const accounts = await this.options.accounts.refresh(this.workspaceRoot());
+
+		if (accounts.problem && accounts.pinned) {
+			// The login in the settings is not one the CLI has. That is a
+			// mistake in the settings, and it is shown as one rather than
+			// as a command that failed.
+			this.display = { kind: 'context-error', detail: accounts.problem };
+			this.options.statusBar.show(this.display);
+			return;
+		}
+
 		const result = await runner.runJson(
 			['status', '--json'],
 			value => unwrap(decodeWorkspaceStatus(value)),
@@ -217,8 +279,35 @@ export class StatusController {
 				? describeDestination(destination)
 				: undefined,
 			this.checkpointProblem(destination),
+			this.actingContext(),
 		);
 		this.options.statusBar.show(this.display);
+	}
+
+	/**
+	 * The login the extension is acting as, as the status bar needs it.
+	 *
+	 * A workspace the login cannot see is only said so once the CLI has
+	 * been asked, so the answer is whatever the last check found.
+	 */
+	private actingContext(): ActingContext | undefined {
+		const acting = this.options.accounts.current.acting;
+		if (!acting) {
+			return undefined;
+		}
+
+		const destination = this.destination();
+		const invisible = this.checkpointReport?.visible === false;
+
+		return {
+			handle: acting.handle,
+			name: acting.name,
+			invisible,
+			detail:
+				invisible && destination && destination.kind !== 'unknown'
+					? describeDestination(destination)
+					: undefined,
+		};
 	}
 
 	/**
@@ -277,22 +366,28 @@ export class StatusController {
 	}
 
 	/**
-	 * Asks whether Entire can reach the checkpoint repository.
+	 * Asks where the checkpoints are going and whether the acting login
+	 * can see them.
 	 *
-	 * Only a dedicated checkpoint repository can be unreachable in a way
-	 * worth reporting, and the answer costs a command that reaches the
-	 * network, so it is asked once for each destination rather than on
-	 * every refresh. The status bar is updated when the answer arrives.
+	 * Only a destination that puts the checkpoints on a server can be
+	 * unreachable in a way worth reporting, and the answer costs a command
+	 * that reaches the network, so it is asked once for each destination
+	 * rather than on every refresh. The status bar is updated when the
+	 * answer arrives.
 	 */
 	private async refreshReachability(): Promise<void> {
 		const status = this.lastStatus;
 		const destination = this.destination();
 
-		if (!status || !destination || destination.kind !== 'dedicated') {
+		if (
+			!status ||
+			!destination ||
+			(destination.kind !== 'dedicated' && destination.kind !== 'same-repo')
+		) {
 			return;
 		}
 
-		const key = describeDestination(destination);
+		const key = `${this.options.accounts.current.acting?.name ?? ''}|${describeDestination(destination)}`;
 		if (this.checkpointReportKey === key) {
 			return;
 		}
@@ -327,7 +422,12 @@ export class StatusController {
 			return;
 		}
 
-		if (this.display?.kind !== 'tracked') {
+		// A session is reported for a workspace Entire is tracking and one
+		// that is not already running. The state on show is not asked
+		// about, because a workspace the acting login cannot see is still
+		// tracked.
+		const status = this.lastStatus;
+		if (!status || status.kind !== 'tracked' || status.activeSessions.length > 0) {
 			return;
 		}
 
@@ -360,6 +460,22 @@ export class StatusController {
 					'This workspace is not a git repository, so Entire cannot track it.',
 				);
 				return;
+
+			case 'explain-invisible-to-context': {
+				const context = display?.kind === 'invisible-to-context' ? display.context : 'unknown';
+				await vscode.window.showInformationMessage(
+					`Entire is tracking this workspace, but the login it is acting as ("${context}") cannot see it. Set \`entirely.cliContext\` to the login that tracks it.`,
+				);
+				return;
+			}
+
+			case 'explain-context-error': {
+				const detail = display?.kind === 'context-error' ? display.detail : 'unknown error';
+				await vscode.window.showErrorMessage(
+					`Entirely is set to use a login the Entire CLI does not have. ${detail}`,
+				);
+				return;
+			}
 
 			case 'show-error': {
 				const detail = display?.kind === 'error' ? display.detail : 'unknown error';
