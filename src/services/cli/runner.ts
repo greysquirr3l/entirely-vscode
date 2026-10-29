@@ -76,6 +76,14 @@ export interface RunOptions {
 	 * that cannot follow a `--`, such as the words handed to a plugin.
 	 */
 	readonly redactFrom?: number;
+	/**
+	 * Flags whose values are left out of the reported command line.
+	 *
+	 * A comment body or an approval message is review text, not something
+	 * the output channel shows by default. The command still runs with the
+	 * real value; only the invocation record is redacted.
+	 */
+	readonly redactFlags?: readonly string[];
 	/** Aborting kills the process and the result is a `cancelled` failure. */
 	readonly signal?: AbortSignal;
 }
@@ -89,6 +97,23 @@ function redactOperands(args: readonly string[]): readonly string[] {
 	return separator === -1
 		? args
 		: [...args.slice(0, separator + 1), ...args.slice(separator + 1).map(() => REDACTED_OPERAND)];
+}
+
+/** What stands in for a redacted value in a reported command line. */
+export const REDACTED_ARGUMENT = '<redacted>';
+
+/** The arguments with the value after each named flag replaced. */
+export function redactArguments(
+	args: readonly string[],
+	flags: readonly string[] | undefined,
+): string[] {
+	if (!flags || flags.length === 0) {
+		return [...args];
+	}
+
+	return args.map((argument, index) =>
+		index > 0 && flags.includes(args[index - 1]) ? REDACTED_ARGUMENT : argument,
+	);
 }
 
 /** One invocation, and the bodies it produced. */
@@ -371,6 +396,7 @@ export class CliRunner {
 		// that is recorded is the command line that was run.
 		const context = this.resolveContext(options);
 		const effectiveArgs = context ? ['--context', context, ...args] : [...args];
+		const reportedArgs = redactArguments(effectiveArgs, options.redactFlags);
 
 		if (discovery.state === 'absent') {
 			const detail = 'the Entire CLI is not installed';
@@ -386,7 +412,7 @@ export class CliRunner {
 				},
 				invocation: {
 					binary: 'entire',
-					args: effectiveArgs,
+					args: reportedArgs,
 					cwd: options.cwd,
 					outcome: 'absent',
 					exitCode: undefined,
@@ -414,7 +440,7 @@ export class CliRunner {
 				},
 				invocation: {
 					binary: discovery.path,
-					args: effectiveArgs,
+					args: reportedArgs,
 					cwd: options.cwd,
 					outcome: 'broken',
 					exitCode: undefined,
@@ -464,7 +490,7 @@ export class CliRunner {
 				},
 				invocation: {
 					binary: discovery.path,
-					args: effectiveArgs,
+					args: reportedArgs,
 					cwd: options.cwd,
 					outcome: outcome.reason,
 					exitCode: outcome.exitCode,
@@ -488,7 +514,7 @@ export class CliRunner {
 			},
 			invocation: {
 				binary: discovery.path,
-				args: effectiveArgs,
+				args: reportedArgs,
 				cwd: options.cwd,
 				outcome: 'ok',
 				exitCode: outcome.exitCode,

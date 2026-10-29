@@ -178,6 +178,8 @@ export interface TrailMergePlan {
 	readonly reasons: readonly string[];
 	/** Whether a gate would be bypassed by merging anyway. */
 	readonly wouldBypass: boolean;
+	/** Whether the CLI says the merge happened. A dry run reports false. */
+	readonly merged: boolean;
 }
 
 /** The list of trails the CLI returned. */
@@ -823,6 +825,7 @@ export function decodeTrailMergePlan(value: unknown): DecodeResult<TrailMergePla
 
 	const mergeable = optionalBoolean(read, 'mergeable');
 	const wouldBypass = optionalBoolean(read, 'wouldBypass');
+	const merged = optionalBoolean(read, 'merged');
 
 	return {
 		ok: true,
@@ -838,6 +841,7 @@ export function decodeTrailMergePlan(value: unknown): DecodeResult<TrailMergePla
 			blockers: decodeStringArray(read.record.blockers, 'merge.blockers'),
 			reasons: decodeStringArray(read.record.reasons, 'merge.reasons'),
 			wouldBypass: wouldBypass ?? false,
+			merged: merged ?? false,
 		},
 	};
 }

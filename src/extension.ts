@@ -458,6 +458,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		runner,
 		workspaceRoot,
 		actingHandle: () => accounts.current.acting?.handle,
+		actionTimeoutMs: () => readExtensionSettings().trailActionTimeout * 1000,
 	});
 
 	const trailsProvider = new TrailsProvider(createTrailListingSource(trails), () =>

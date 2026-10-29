@@ -25,7 +25,8 @@ import {
 	type TrailComment,
 	type TrailMergePlan,
 } from '../lib/entire';
-import { TrailService, hasTrailFlag, readTrailWorkspace } from '../services/trailService';
+import type { CliRunner } from '../services/cli/runner';
+import { TrailService, TrailUsage, hasTrailFlag, readTrailWorkspace } from '../services/trailService';
 import { fakeTrailCli, invocations } from './support/trailCli';
 
 /** The trail the tests act on. */
@@ -76,6 +77,7 @@ function mergePlan(overrides: Partial<TrailMergePlan> = {}): TrailMergePlan {
 		blockers: [],
 		reasons: [],
 		wouldBypass: false,
+		merged: false,
 		...overrides,
 	};
 }
@@ -492,5 +494,96 @@ suite('Entire trail service', () => {
 
 		assert.strictEqual(result.kind, 'ok');
 		assert.strictEqual(result.kind === 'ok' ? result.value.mergeable : undefined, false);
+	});
+});
+
+
+suite('Entire trail command plumbing', () => {
+	test('a failed usage lookup is not kept', async () => {
+		let calls = 0;
+		const runner = {
+			usage: async () => {
+				calls++;
+
+				return calls === 1
+					? { ok: false, reason: 'timeout', detail: 'slow', stdout: '', stderr: '', durationMs: 1 }
+					: {
+							ok: true,
+							value: { command: 'trail approve', flags: [], raw: 'entire trail approve\n' },
+							stdout: '',
+							stderr: '',
+							durationMs: 1,
+						};
+			},
+		} as unknown as CliRunner;
+
+		const usage = new TrailUsage(runner);
+
+		assert.strictEqual(await usage.form('trail approve'), 'flag', 'the guess is the flag form');
+		assert.strictEqual(
+			await usage.form('trail approve'),
+			'positional',
+			'the failed lookup was kept instead of asked again',
+		);
+		assert.strictEqual(await usage.form('trail approve'), 'positional');
+		assert.strictEqual(calls, 2, 'a successful lookup was not kept');
+	});
+
+	test('a comment body and an approval message are not in the reported command line', async () => {
+		const { runner, log } = fakeTrailCli();
+		const reported: string[] = [];
+		runner.setSink({
+			report: invocation => {
+				reported.push(invocation.args.join(' '));
+			},
+		});
+
+		const service = new TrailService({
+			runner,
+			workspaceRoot: () => undefined,
+			actingHandle: () => 'greysquirr3l',
+		});
+		const selector = { kind: 'change' as const, repository: 'entirely-vscode', number: 17 };
+
+		await service.comment(selector, 'secret review text', 'private title');
+		await service.approve(selector, 'secret approval note');
+
+		const asked = invocations(log).join('\n');
+		assert.match(asked, /secret review text/, 'the CLI did not receive the body');
+		assert.match(asked, /secret approval note/, 'the CLI did not receive the message');
+
+		const everything = reported.join('\n');
+		assert.doesNotMatch(everything, /secret review text/);
+		assert.doesNotMatch(everything, /private title/);
+		assert.doesNotMatch(everything, /secret approval note/);
+		assert.match(everything, /--body <redacted>/);
+	});
+
+	test('a trail action runs with the configured timeout', async () => {
+		const seen: (number | undefined)[] = [];
+		const runner = {
+			usage: async () => ({
+				ok: true,
+				value: { command: 'x', flags: [], raw: '' },
+				stdout: '',
+				stderr: '',
+				durationMs: 1,
+			}),
+			run: async (_args: readonly string[], options: { timeoutMs?: number }) => {
+				seen.push(options.timeoutMs);
+				return { ok: false, reason: 'exit-code', detail: 'no', stdout: '', stderr: '', durationMs: 1 };
+			},
+		} as unknown as CliRunner;
+
+		const service = new TrailService({
+			runner,
+			workspaceRoot: () => undefined,
+			actingHandle: () => undefined,
+			actionTimeoutMs: () => 123_000,
+		});
+
+		await service.checkout({ kind: 'change', repository: 'r', number: 1 }, undefined);
+
+		assert.deepStrictEqual(seen, [123_000]);
 	});
 });

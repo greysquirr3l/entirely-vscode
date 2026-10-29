@@ -519,6 +519,13 @@
           "maximum": 3600,
           "markdownDescription": "How often, in seconds, the extension re-reads the Entire CLI for workspace and session state. Set to `0` to poll only when a command is run."
         },
+        "entirely.trailActionTimeout": {
+          "type": "number",
+          "default": 60,
+          "minimum": 5,
+          "maximum": 600,
+          "markdownDescription": "How long, in seconds, a trail review action (approve, comment, merge, check out, link, unlink) may run before Entirely stops waiting for the Entire CLI. A check out that has to fetch can take longer than a read."
+        },
         "entirely.showSessionsInExplorer": {
           "type": "boolean",
           "default": false,

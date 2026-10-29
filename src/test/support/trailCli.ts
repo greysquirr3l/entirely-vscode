@@ -29,6 +29,10 @@ export interface TrailCliAnswers {
 	readonly findings?: string;
 	/** What `trail merge --dry-run --json` prints. */
 	readonly merge?: string;
+	/** What a real (not dry-run) `trail merge --json` prints. */
+	readonly mergeRun?: string;
+	/** Makes a real `trail merge` exit non-zero after printing its payload. */
+	readonly mergeRunFails?: boolean;
 	/** What `trail comment add` writes to stderr, refusing the comment. */
 	readonly commentFails?: string;
 }
@@ -166,6 +170,14 @@ export function fakeTrailCli(answers: TrailCliAnswers = {}): FakeTrailCli {
 	write('comments', answers.comments ?? '{"items":[]}');
 	write('findings', answers.findings ?? '{"findings":[]}');
 	write('merge', answers.merge ?? JSON.stringify(MERGE_PLAN));
+	write(
+		'merge-run',
+		answers.mergeRun ?? JSON.stringify({ ...MERGE_PLAN, merged: true, dryRun: false }),
+	);
+
+	if (answers.mergeRunFails) {
+		write('merge-run-fails', '');
+	}
 
 	if (answers.commentFails !== undefined) {
 		write('comment-fails', answers.commentFails);
@@ -207,7 +219,14 @@ export function fakeTrailCli(answers: TrailCliAnswers = {}): FakeTrailCli {
 		'\t\t\t\t\tlist) cat "$PAYLOADS/findings" ;;',
 		'\t\t\t\tesac',
 		'\t\t\t\t;;',
-		'\t\t\tmerge) cat "$PAYLOADS/merge" ;;',
+		'\t\t\tmerge)',
+		'\t\t\t\tcase " $* " in',
+		'\t\t\t\t\t*" --dry-run "*) cat "$PAYLOADS/merge" ;;',
+		'\t\t\t\t\t*)',
+		'\t\t\t\t\t\tcat "$PAYLOADS/merge-run"',
+		'\t\t\t\t\t\tif [ -f "$PAYLOADS/merge-run-fails" ]; then echo "merge refused" >&2; exit 1; fi ;;',
+		'\t\t\t\tesac',
+		'\t\t\t\t;;',
 		'\t\t\tcheckout) echo "checked out" ;;',
 		'\t\t\tlink) echo "linked" ;;',
 		'\t\t\tunlink) echo "unlinked" ;;',

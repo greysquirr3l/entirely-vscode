@@ -21,7 +21,7 @@ import {
 	type TrailMergePlan,
 	type TrailSelector,
 } from '../lib/entire';
-import type { CliRunner } from './cli';
+import type { CliRunner, RunOptions } from './cli';
 
 /**
  * The outcome of a trail command.
@@ -80,7 +80,17 @@ export interface TrailServiceOptions {
 	 * Used to attribute an approval or a comment to the acting login.
 	 */
 	readonly actingHandle: () => string | undefined;
+	/**
+	 * How long, in milliseconds, a command that changes something may run.
+	 *
+	 * A check out may fetch and a merge talks to the forge, so they get
+	 * longer than a read. Defaults to a minute.
+	 */
+	readonly actionTimeoutMs?: () => number;
 }
+
+/** How long a command that changes something may run unless told otherwise. */
+export const DEFAULT_ACTION_TIMEOUT_MS = 60_000;
 
 /**
  * Whether a command's usage text mentions the `--trail` flag.
@@ -125,9 +135,13 @@ export class TrailUsage {
 
 		// A CLI that could not be asked is a CLI that could not run the
 		// command either, so the form does not matter yet. The flag is
-		// the safer guess: the CLI accepts it wherever it is listed, and
-		// a command that does not take it will say so.
-		const form: SelectorForm = result.ok && hasTrailFlag(result.value.raw) ? 'flag' : 'positional';
+		// the guess, and it is not kept: a lookup that failed once says
+		// nothing about the CLI that answers the next one.
+		if (!result.ok) {
+			return 'flag';
+		}
+
+		const form: SelectorForm = hasTrailFlag(result.value.raw) ? 'flag' : 'positional';
 
 		this.cache.set(command, form);
 
@@ -322,9 +336,7 @@ export class TrailService {
 			args.push('--message', message);
 		}
 
-		const result = await this.options.runner.run(args, {
-			cwd: this.options.workspaceRoot(),
-		});
+		const result = await this.options.runner.run(args, this.actionOptions(['--message']));
 
 		if (!result.ok) {
 			return { kind: 'failed', detail: describeTrailFailure(result.detail, result.stderr) };
@@ -359,9 +371,7 @@ export class TrailService {
 			args.push('--title', title);
 		}
 
-		const result = await this.options.runner.run(args, {
-			cwd: this.options.workspaceRoot(),
-		});
+		const result = await this.options.runner.run(args, this.actionOptions(['--body', '--title']));
 
 		if (!result.ok) {
 			if (!refusesCommentFromAgentSession(result.stderr)) {
@@ -401,9 +411,7 @@ export class TrailService {
 
 		args.push('--body', title && title.length > 0 ? `${title}\n\n${body}` : body);
 
-		const result = await this.options.runner.run(args, {
-			cwd: this.options.workspaceRoot(),
-		});
+		const result = await this.options.runner.run(args, this.actionOptions(['--body']));
 
 		if (!result.ok) {
 			return { kind: 'failed', detail: describeTrailFailure(result.detail, result.stderr) };
@@ -451,18 +459,39 @@ export class TrailService {
 	async merge(selector: TrailSelector): Promise<TrailResult<TrailMergePlan>> {
 		const args = await this.selectorArgs('trail merge', selector, ['--json']);
 
-		const result = await this.options.runner.run(args, {
-			cwd: this.options.workspaceRoot(),
-		});
+		const result = await this.options.runner.run(args, this.actionOptions());
+
+		// The CLI exits non-zero for a refused merge, and its payload
+		// says whether the merge happened. Both have to agree before the
+		// extension reports a merge.
+		if (!result.ok) {
+			const payload = this.readJson(result.stdout);
+			const refused = payload ? decodeTrailMergePlan(payload) : undefined;
+			const why = refused?.ok ? [...refused.value.blockers, ...refused.value.reasons].join('; ') : '';
+
+			return {
+				kind: 'failed',
+				detail: why.length > 0 ? why : describeTrailFailure(result.detail, result.stderr),
+			};
+		}
 
 		const payload = this.readJson(result.stdout);
 		if (!payload) {
-			return { kind: 'failed', detail: result.ok ? result.stdout : result.detail };
+			return { kind: 'failed', detail: 'the CLI did not report whether the merge happened' };
 		}
 
 		const decoded = decodeTrailMergePlan(payload);
 		if (!decoded.ok) {
 			return { kind: 'failed', detail: decoded.issue.detail };
+		}
+
+		if (!decoded.value.merged) {
+			const why = [...decoded.value.blockers, ...decoded.value.reasons].join('; ');
+
+			return {
+				kind: 'failed',
+				detail: why.length > 0 ? why : 'the CLI did not merge the change',
+			};
 		}
 
 		return { kind: 'ok', value: decoded.value };
@@ -481,9 +510,7 @@ export class TrailService {
 			args.push('--branch', branch);
 		}
 
-		const result = await this.options.runner.run(args, {
-			cwd: this.options.workspaceRoot(),
-		});
+		const result = await this.options.runner.run(args, this.actionOptions());
 
 		return result.ok
 			? { kind: 'ok', value: result.stdout.trim() }
@@ -501,9 +528,7 @@ export class TrailService {
 
 		args.push('--branch', branch);
 
-		const result = await this.options.runner.run(args, {
-			cwd: this.options.workspaceRoot(),
-		});
+		const result = await this.options.runner.run(args, this.actionOptions());
 
 		return result.ok
 			? { kind: 'ok', value: result.stdout.trim() }
@@ -521,9 +546,7 @@ export class TrailService {
 
 		args.push('--branch', branch);
 
-		const result = await this.options.runner.run(args, {
-			cwd: this.options.workspaceRoot(),
-		});
+		const result = await this.options.runner.run(args, this.actionOptions());
 
 		return result.ok
 			? { kind: 'ok', value: result.stdout.trim() }
@@ -551,6 +574,20 @@ export class TrailService {
 		const args = form === 'flag' ? [...words, '--trail', name] : [...words, name];
 
 		return [...args, ...trailing];
+	}
+
+	/**
+	 * The options for a command that changes something.
+	 *
+	 * The flags named here have their values left out of the reported
+	 * command line, because review text does not go to the output channel.
+	 */
+	private actionOptions(redactFlags: readonly string[] = []): RunOptions {
+		return {
+			cwd: this.options.workspaceRoot(),
+			timeoutMs: this.options.actionTimeoutMs?.() ?? DEFAULT_ACTION_TIMEOUT_MS,
+			redactFlags,
+		};
 	}
 
 	/** Reads the JSON out of a command's output, when it is JSON. */

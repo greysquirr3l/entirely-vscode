@@ -30,6 +30,7 @@ function plan(overrides: Partial<TrailMergePlan> = {}): TrailMergePlan {
 		blockers: [],
 		reasons: [],
 		wouldBypass: false,
+		merged: false,
 		...overrides,
 	};
 }

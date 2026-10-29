@@ -94,7 +94,14 @@ function unsavedFiles(): { readonly path: string; readonly name?: string }[] {
 	const files: { path: string; name?: string }[] = [];
 
 	for (const document of vscode.workspace.textDocuments) {
-		if (!document.isDirty) {
+		// An untitled buffer or a virtual document is not a file in the
+		// working tree, so a checkout cannot lose it. A file outside the
+		// workspace is not in the repository the checkout moves.
+		if (!document.isDirty || document.isUntitled || document.uri.scheme !== 'file') {
+			continue;
+		}
+
+		if (!vscode.workspace.getWorkspaceFolder(document.uri)) {
 			continue;
 		}
 
