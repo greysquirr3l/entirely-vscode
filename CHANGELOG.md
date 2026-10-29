@@ -8,6 +8,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 
+- **Checkpoint search.** Search the Checkpoints view as you type. It runs
+  `entire checkpoint search`, with the flags read from the CLI's own help, and
+  lists the matches. "No checkpoint matched" and "The search failed" are
+  different messages, and a missing or too-old CLI is a failure, not an empty
+  result. The query is kept out of the output channel. New setting
+  `entirely.searchDebounce`.
 - **Token usage.** The Session view and each opened checkpoint show the token
   counts `entire session tokens` and `entire checkpoint tokens` report. A count
   the CLI leaves out reads "Not reported", never 0; usage it cannot read says

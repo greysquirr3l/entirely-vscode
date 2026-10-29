@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import {
+	describeSearchOutcome,
 	describeTokenReport,
 	humanizeStatus,
 	pluralise,
@@ -9,6 +10,7 @@ import {
 	type CheckpointDetail,
 	type TokenReport,
 } from '../lib/entire';
+import type { FilterState } from '../services/checkpointFilter';
 import type { CheckpointSource } from '../services/checkpointSource';
 import type { TokenUsageSource } from '../services/tokenUsage';
 import { Tooltip } from './markdown';
@@ -113,6 +115,8 @@ export class CheckpointsProvider implements vscode.TreeDataProvider<CheckpointTr
 	private readonly attempted = new Set<string>();
 	private readonly usages = new Map<string, CheckpointUsageState>();
 	private checkpoints: readonly Checkpoint[] = [];
+	private filter: FilterState = { kind: 'idle' };
+	private matches: readonly Checkpoint[] = [];
 	private timer: NodeJS.Timeout | undefined;
 
 	readonly onDidChangeTreeData: vscode.Event<CheckpointTreeNode | undefined> = this.changed.event;
@@ -132,6 +136,49 @@ export class CheckpointsProvider implements vscode.TreeDataProvider<CheckpointTr
 	}
 
 	private emptyReasonText: string | undefined;
+
+	/**
+	 * What the view says above its rows.
+	 *
+	 * With a filter applied it says what the search found: that it is
+	 * running, that nothing matched, or that it failed. Those are three
+	 * different messages, because a failed search says nothing about
+	 * whether anything matches.
+	 */
+	get viewMessage(): string | undefined {
+		if (this.filter.kind === 'searching') {
+			return 'Searching checkpoints…';
+		}
+		if (this.filter.kind === 'done') {
+			const outcome = this.filter.outcome;
+			if (outcome.kind === 'matches') {
+				return `${pluralise(outcome.checkpoints.length, 'checkpoint')} matched.`;
+			}
+			return describeSearchOutcome(outcome);
+		}
+		return this.emptyReasonText;
+	}
+
+	/** Whether the list is narrowed by a search. */
+	get filtered(): boolean {
+		return this.filter.kind !== 'idle';
+	}
+
+	/** Narrows the list to a search's matches, or restores it. */
+	applyFilter(state: FilterState): void {
+		this.filter = state;
+		if (state.kind === 'done') {
+			this.matches = state.outcome.kind === 'matches' ? state.outcome.checkpoints : [];
+		} else if (state.kind === 'idle') {
+			this.matches = [];
+		}
+		this.changed.fire(undefined);
+	}
+
+	/** The checkpoints the tree lists now. */
+	private get visible(): readonly Checkpoint[] {
+		return this.filter.kind === 'idle' ? this.checkpoints : this.matches;
+	}
 
 	/** Re-reads the checkpoints and re-renders the tree. */
 	async refresh(): Promise<void> {
@@ -191,7 +238,7 @@ export class CheckpointsProvider implements vscode.TreeDataProvider<CheckpointTr
 
 	getChildren(element?: CheckpointTreeNode): CheckpointTreeNode[] {
 		if (!element) {
-			return this.checkpoints.map(checkpoint => ({ kind: 'checkpoint', checkpoint }));
+			return this.visible.map(checkpoint => ({ kind: 'checkpoint', checkpoint }));
 		}
 
 		if (element.kind !== 'checkpoint') {
@@ -221,7 +268,7 @@ export class CheckpointsProvider implements vscode.TreeDataProvider<CheckpointTr
 		if (element.kind === 'checkpoint') {
 			return undefined;
 		}
-		return this.checkpoints
+		return this.visible
 			.map((checkpoint): CheckpointNode => ({ kind: 'checkpoint', checkpoint }))
 			.find(node => node.checkpoint.id === element.checkpoint.id);
 	}

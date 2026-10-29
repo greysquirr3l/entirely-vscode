@@ -5,6 +5,7 @@ import { dumpCliOutput } from './dumpCliOutput';
 import { openCheckpointFile } from './openCheckpoint';
 import { repairTerminalPath } from './terminalPath';
 import { explainCheckpoint, whyThisLine } from './whyThisLine';
+import { clearCheckpointSearch, searchCheckpoints } from './checkpointSearch';
 import { checkpointDestination } from './checkpointDestination';
 import { openTranscript, selectSession, setOwnSessionFilter } from './sessionDetail';
 import type { CheckpointFileNode, CheckpointsProvider } from '../providers/checkpointsProvider';
@@ -13,6 +14,7 @@ import type { TranscriptContentProvider } from '../providers/transcriptDocument'
 import type { TokenUsageSource } from '../services/tokenUsage';
 import type { SessionDetailSource } from '../services/sessionDetail';
 import type { SessionItemNode, SessionsProvider } from '../providers/sessionsProvider';
+import type { CheckpointFilter } from '../services/checkpointFilter';
 import type { CheckpointDetail } from '../lib/entire';
 import type { GitService } from '../services/gitService';
 import type { StatusController } from '../services/statusController';
@@ -28,6 +30,8 @@ export interface CommandDependencies {
 	readonly sessions: SessionsProvider;
 	readonly sessionDetail: SessionDetailProvider;
 	readonly checkpoints: CheckpointsProvider;
+	/** The text the checkpoint tree is filtered by, and what the search found. */
+	readonly checkpointFilter: CheckpointFilter;
 	/** Reads one session in full. */
 	readonly sessionDetailSource: SessionDetailSource;
 	readonly tokenUsage: TokenUsageSource;
@@ -63,6 +67,22 @@ const EXTENSION_ID = 'greysquirr3l.entirely';
  * without a handler here fails the suite.
  */
 export function registerCommands(context: vscode.ExtensionContext, deps: CommandDependencies): void {
+	// The filter box is created on demand and disposed when it is hidden;
+	// this makes sure one that is still open goes with the extension.
+	let filterBox: vscode.InputBox | undefined;
+	context.subscriptions.push({ dispose: () => filterBox?.dispose() });
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('entirely.searchCheckpoints', () => {
+			filterBox?.dispose();
+			filterBox = searchCheckpoints(deps.checkpointFilter);
+		}),
+
+		vscode.commands.registerCommand('entirely.clearCheckpointSearch', () => {
+			clearCheckpointSearch(deps.checkpointFilter);
+		}),
+	);
+
 	context.subscriptions.push(
 		vscode.commands.registerCommand('entirely.refresh', async () => {
 			await deps.statusController.refresh();

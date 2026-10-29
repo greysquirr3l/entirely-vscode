@@ -94,7 +94,8 @@
       },
       {
         "view": "entirely.checkpoints",
-        "contents": "No checkpoints yet.\nA checkpoint is recorded when agent work is committed, and appears here once it is.\n[Refresh](command:entirely.refresh)"
+        "contents": "No checkpoints yet.\nA checkpoint is recorded when agent work is committed, and appears here once it is.\n[Refresh](command:entirely.refresh)",
+        "when": "!entirely.checkpointFilterActive"
       },
       {
         "view": "entirely.explorerSessions",
@@ -200,6 +201,18 @@
         "command": "entirely.dumpCliOutput",
         "title": "Doctor: Show the Last Entire CLI Output",
         "category": "Entirely"
+      },
+      {
+        "command": "entirely.searchCheckpoints",
+        "title": "Search Checkpoints",
+        "category": "Entirely",
+        "icon": "$(search)"
+      },
+      {
+        "command": "entirely.clearCheckpointSearch",
+        "title": "Clear Checkpoint Search",
+        "category": "Entirely",
+        "icon": "$(clear-all)"
       }
     ],
     "configuration": {
@@ -258,6 +271,13 @@
           "minimum": 5,
           "maximum": 600,
           "markdownDescription": "How long, in seconds, to wait for the Entire CLI to hand over a session transcript before giving up. A long session produces a large transcript, so raise this if opening one times out."
+        },
+        "entirely.searchDebounce": {
+          "type": "number",
+          "default": 400,
+          "minimum": 100,
+          "maximum": 3000,
+          "markdownDescription": "How long, in milliseconds, to wait after you stop typing in the checkpoint search box before asking the Entire CLI to search. Raise this to send fewer searches while you type."
         }
       }
     },
@@ -282,6 +302,16 @@
           "command": "entirely.showAllSessions",
           "when": "view == entirely.sessions && entirely.ownSessionOnly",
           "group": "navigation@1"
+        },
+        {
+          "command": "entirely.searchCheckpoints",
+          "when": "view == entirely.checkpoints",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.clearCheckpointSearch",
+          "when": "view == entirely.checkpoints && entirely.checkpointFilterActive",
+          "group": "navigation@2"
         }
       ],
       "commandPalette": [

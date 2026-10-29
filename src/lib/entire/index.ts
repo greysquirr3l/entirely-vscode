@@ -107,3 +107,15 @@ export {
 	describeHeadlessEnvironment,
 	isHeadlessEnvironment,
 } from './environment';
+export {
+	MAX_QUERY_CHARACTERS,
+	SEARCH_RESULT_LIMIT,
+	decodeSearchResults,
+	describeSearchOutcome,
+	normaliseQuery,
+	outcomeOf,
+	planSearchFlags,
+	readFlagTable,
+	searchArguments,
+} from './search';
+export type { HelpFlag, SearchFlagPlan, SearchOutcome, SearchResults } from './search';

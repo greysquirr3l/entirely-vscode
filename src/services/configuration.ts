@@ -19,6 +19,8 @@ export interface ExtensionSettings {
 	readonly refreshInterval: number;
 	/** How long, in seconds, the CLI may take to hand over a session transcript. */
 	readonly transcriptTimeout: number;
+	/** How long, in milliseconds, the checkpoint filter waits after typing before it searches. */
+	readonly searchDebounce: number;
 	/** Whether the sessions tree is also shown in the Explorer. */
 	readonly showSessionsInExplorer: boolean;
 	/** How much the extension says. */
@@ -70,6 +72,18 @@ export function clampTranscriptTimeout(seconds: number): number {
 	);
 }
 
+/** The smallest and largest debounce the filter will use, in milliseconds. */
+export const MIN_SEARCH_DEBOUNCE_MS = 100;
+export const MAX_SEARCH_DEBOUNCE_MS = 3000;
+
+/** Puts the debounce inside the range that still feels like typing. */
+export function clampSearchDebounce(milliseconds: number): number {
+	if (!Number.isFinite(milliseconds)) {
+		return 400;
+	}
+	return Math.min(MAX_SEARCH_DEBOUNCE_MS, Math.max(MIN_SEARCH_DEBOUNCE_MS, Math.floor(milliseconds)));
+}
+
 export function clampRefreshInterval(seconds: number): number {
 	if (!Number.isFinite(seconds)) {
 		return 30;
@@ -108,6 +122,7 @@ export function readExtensionSettings(): ExtensionSettings {
 		cliContext: cliContext.length > 0 ? cliContext : undefined,
 		refreshInterval: clampRefreshInterval(configuration.get<number>('refreshInterval', 30)),
 		transcriptTimeout: clampTranscriptTimeout(configuration.get<number>('transcriptTimeout', 60)),
+		searchDebounce: clampSearchDebounce(configuration.get<number>('searchDebounce', 400)),
 		showSessionsInExplorer: configuration.get<boolean>('showSessionsInExplorer', false),
 		logLevel: readLogLevel(configuration.get<string>('logLevel', 'info')),
 		debug: configuration.get<boolean>('debug', false),

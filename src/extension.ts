@@ -17,6 +17,8 @@ import {
 	createCheckpointDetailSource,
 	createCheckpointSource,
 } from './services/checkpointSource';
+import { CheckpointFilter } from './services/checkpointFilter';
+import { CheckpointSearchService } from './services/checkpointSearch';
 import { CliInvocationLogger } from './services/cliLogging';
 import { GitService } from './services/gitService';
 import { HookBridge } from './services/hookBridge';
@@ -140,6 +142,25 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	);
 	context.subscriptions.push(checkpoints);
 
+	// The filter's text lives in the filter and nowhere else. Each answer
+	// narrows the checkpoint tree.
+	const checkpointSearch = new CheckpointSearchService({ runner, workspaceRoot });
+	const checkpointFilter = new CheckpointFilter(
+		checkpointSearch,
+		() => readExtensionSettings().searchDebounce,
+	);
+	context.subscriptions.push(
+		checkpointFilter,
+		checkpointFilter.onDidChange(state => {
+			checkpoints.applyFilter(state);
+			void vscode.commands.executeCommand(
+				'setContext',
+				'entirely.checkpointFilterActive',
+				state.kind !== 'idle',
+			);
+		}),
+	);
+
 	const checkpointsView = vscode.window.createTreeView('entirely.checkpoints', {
 		treeDataProvider: checkpoints,
 	});
@@ -188,7 +209,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 	context.subscriptions.push(
 		checkpoints.onDidChangeTreeData(() => {
-			checkpointsView.message = checkpoints.emptyReason;
+			checkpointsView.message = checkpoints.viewMessage;
 		}),
 	);
 
@@ -243,6 +264,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		tokenUsage,
 		transcripts,
 		checkpoints,
+		checkpointFilter,
 		authentication,
 		authenticationProvider,
 		statusController,
@@ -267,6 +289,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 			if (event.affectsConfiguration('entirely.cliPath')) {
 				runner.setConfiguredPath(readExtensionSettings().cliPath);
+				checkpointSearch.reset();
 				void statusController.refresh();
 				void sessions.refresh();
 				void checkpoints.refresh();

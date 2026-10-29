@@ -97,6 +97,25 @@ The filter button in the Sessions view narrows the tree to the session that
 belongs to this workspace, using `entire session current`. A session the CLI
 reports as belonging to another worktree is not offered.
 
+## Searching checkpoints
+
+The search button in the Checkpoints view opens a box. As you type, the extension
+runs `entire checkpoint search` and the tree narrows to the checkpoints it found.
+The matching is the CLI's, never a local filter over the list, and the CLI needs
+a login and a published repository. The extension reads the command's flags from
+`entire agent-help checkpoint search` instead of keeping its own list.
+
+The view says one of three things. It lists the matches. It says **No checkpoint
+matched**, which means the search ran and found none. Or it says **The search
+failed** and gives the reason, such as the CLI missing, too old to have the
+command, or not signed in; a failed search never claims there were no matches.
+The search returns commits and sessions too, and only checkpoints are listed; the
+message counts the others. The clear button restores the full list.
+
+`entirely.searchDebounce` sets how long to wait after you stop typing. Your query
+stays in the editor: it is not written to the `Entire` output channel, and the
+results are kept out of it too.
+
 ## The terminal PATH
 
 The Entire CLI installs to `~/.local/bin`, which the integrated terminal

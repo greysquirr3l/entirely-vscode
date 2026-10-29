@@ -49,6 +49,25 @@ export interface RunOptions {
 	 * the output channel nor the dump command can reach the text.
 	 */
 	readonly withholdBodies?: boolean;
+	/**
+	 * Keeps the operands out of the invocation record.
+	 *
+	 * Everything after the first `--` is replaced with a marker in the
+	 * recorded command line. A search query is the user's own words about
+	 * their own history, and the output channel is not where it belongs.
+	 */
+	readonly redactOperands?: boolean;
+}
+
+/** What is recorded in place of a redacted operand. */
+export const REDACTED_OPERAND = '<redacted>';
+
+/** The arguments with everything after the first `--` replaced. */
+function redactOperands(args: readonly string[]): readonly string[] {
+	const separator = args.indexOf('--');
+	return separator === -1
+		? args
+		: [...args.slice(0, separator + 1), ...args.slice(separator + 1).map(() => REDACTED_OPERAND)];
 }
 
 /** One invocation, and the bodies it produced. */
@@ -241,6 +260,20 @@ export class CliRunner {
 	 * than as the success the process was.
 	 */
 	private async perform(
+		args: readonly string[],
+		options: RunOptions,
+	): Promise<PerformedInvocation> {
+		const performed = await this.performUnredacted(args, options);
+		if (!options.redactOperands) {
+			return performed;
+		}
+		return {
+			...performed,
+			invocation: { ...performed.invocation, args: redactOperands(performed.invocation.args) },
+		};
+	}
+
+	private async performUnredacted(
 		args: readonly string[],
 		options: RunOptions,
 	): Promise<PerformedInvocation> {
