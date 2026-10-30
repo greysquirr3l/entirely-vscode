@@ -278,6 +278,9 @@ suite('Control plane service', () => {
 		assert.ok(orgs.ok && projects.ok && repos.ok && clusters.ok);
 		assert.deepStrictEqual(repos.value.map(repository => repository.name), ['web', 'api']);
 		assert.ok(cli.callsTo('repo list').every(line => line.includes('--project=widgets')));
+		for (const words of ['org list', 'project list', 'cluster list']) {
+			assert.strictEqual(cli.callsTo(words).length, 1, `${words} runs once through the CLI`);
+		}
 	});
 
 	test('every read passes the help-derived flags and the acting login', async () => {
@@ -652,6 +655,14 @@ suite('Other control plane changes', () => {
 		const ui = fakeUi({ asks: ['github:bob'], picks: ['member'] });
 		assert.strictEqual(await grantAccess(depsFor(cli, ui), ORG_NODE), 'failed');
 		assert.match(ui.warned[0], /does not list github:bob on Acme/);
+		assert.strictEqual(cli.callsTo('org grant add').length, 1, 'the grant itself ran');
+	});
+
+	test('granting on a project runs project grant add', async () => {
+		const cli = fakeControlCli({ out: { ...READS, project_grant_list_widgets: '[]' } });
+		const ui = fakeUi({ asks: ['github:bob'], picks: ['reader'] });
+		await grantAccess(depsFor(cli, ui), PROJECT_NODE);
+		assert.deepStrictEqual(cli.callsTo('project grant add'), ['alice@us.auth.entire.io|project grant add --role=reader -- widgets github:bob']);
 	});
 
 	test('a bad grantee never reaches the prompt answer', async () => {

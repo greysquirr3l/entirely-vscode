@@ -44,7 +44,7 @@ function cliBody(status: string, visible: string): string {
 		'\trepo)',
 		'\t\tcase "$2" in',
 		`\t\t\tview) echo '${JSON.stringify(MIRROR_REPO)}' ;;`,
-		`\t\t\tmirror) echo '${visible}' ;;`,
+		`\t\t\tmirror) case "$3" in list) echo '${visible}' ;; *) echo "unknown subcommand" >&2; exit 2 ;; esac ;;`,
 		'\t\t\t*) echo "unknown subcommand" >&2; exit 2 ;;',
 		'\t\tesac',
 		'\t\t;;',

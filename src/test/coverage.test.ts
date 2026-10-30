@@ -107,6 +107,24 @@ suite('Coverage matrix (docs/coverage.md)', () => {
 		}
 	});
 
+	test('a supported row cites a test file that mentions the command', () => {
+		const escape = (word: string): string => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		for (const row of commandRows.filter(entry => entry.status === 'Supported')) {
+			// An alias row (`auth login`) is tested through the form the extension runs (`login`).
+			const alias = /an alias of the `entire ([a-z ]+)` row/.exec(row.notes);
+			const words = (alias ? alias[1] : row.command.replace(/^entire /, '')).split(' ');
+			const quoted = new RegExp(words.map(word => `'${escape(word)}'`).join('\\s*,\\s*'));
+			const phrase = new RegExp(`(^|[^A-Za-z-])${words.map(escape).join('\\s+')}([^A-Za-z-]|$)`);
+			const labels = words.map(word => new RegExp(`(^|[^A-Za-z-]|\\\\t)${escape(word)}\\)`));
+			const tests = [...row.evidence.matchAll(/`(src\/test\/[^`]+)`/g)].map(match => match[1]);
+			const mentions = tests.some(file => {
+				const code = read(path.join(ROOT, file));
+				return quoted.test(code) || phrase.test(code) || labels.every(label => label.test(code));
+			});
+			assert.ok(mentions, `${row.command}: none of ${tests.join(', ')} mentions the command; cite the test that runs it`);
+		}
+	});
+
 	test('a trail-branch row names the branch, and the files it cites exist there', function (this: Mocha.Context) {
 		const rows = coverage.matrix.filter(row => row.status === 'Supported (trail branch)');
 		assert.ok(rows.length > 0);

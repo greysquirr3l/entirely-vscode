@@ -121,12 +121,12 @@ The three rows below are the plugins the documentation names.
 
 | Command | Status | Evidence | Notes |
 | --- | --- | --- | --- |
-| `entire enable` | Supported | `entirely.setUp`, `src/services/setup.ts`, `src/test/onboarding.test.ts` | Non-interactive only: the agent is picked from `entire agent list`, passed with `--no-init-repo`. The CLI's interactive flow needs a terminal. |
+| `entire enable` | Supported | `entirely.setUp`, `src/services/setup.ts`, `src/test/onboarding.test.ts`, `src/test/hookBridgeE2e.test.ts` | Non-interactive only: the agent is picked from `entire agent list`, passed with `--no-init-repo`. The CLI's interactive flow needs a terminal. Tested in part: `onboarding.test.ts` covers argument building (`enableArguments`) against a stub runner, and `hookBridgeE2e.test.ts` runs `entire enable --agent copilot-cli --no-init-repo` through the runner against the installed CLI (it skips when the CLI is absent). No test runs `enableEntire` itself. |
 | `entire disable` | Gap | | Stopping capture in a repository. |
 | `entire configure` | Gap | | Settings are read through `entire status`, never written. |
 | `entire clean` | Gap | | Cleaning up session data. |
-| `entire status` | Supported | `src/services/statusController.ts`, `src/test/statusBar.test.ts` | The status bar and the doctor report. |
-| `entire version` | Supported | `src/services/cli/locator.ts`, `src/test/cliVersion.test.ts` | |
+| `entire status` | Supported | `src/services/statusController.ts`, `src/test/statusBar.test.ts`, `src/test/cli.test.ts` | The status bar and the doctor report. `statusBar.test.ts` (suite "Entire status controller and the acting login") runs `StatusController` against a fake CLI that answers `status`; `cli.test.ts` runs the runner against a fake CLI for the same call. |
+| `entire version` | Supported | `src/services/cli/locator.ts`, `src/test/cli.test.ts`, `src/test/cliVersion.test.ts` | `cli.test.ts` runs the locator against fake CLIs that answer `version`; `cliVersion.test.ts` covers parsing and comparison only. |
 | `entire doctor` | Supported | `entirely.showCliDoctorOutput`, `src/services/cliDoctor.ts`, `src/test/cliDoctor.test.ts` | The bare report, read-only. The fix prompts need a terminal. |
 | `entire doctor bundle` | Gap | | A diagnostic bundle for support. |
 | `entire doctor logs` | Gap | | |
@@ -134,8 +134,8 @@ The three rows below are the plugins the documentation names.
 | `entire doctor trace` | Gap | | Hook traces. |
 | `entire import` | Supported | `entirely.importHistory`, `src/services/historyImport.ts`, `src/test/historyImport.test.ts` | A preview first, then the import. The CLI marks it experimental. One agent at a time, with the agent read from the CLI's help. |
 | `entire runner setup` | Gap | | Trail runner setup for a repository. |
-| `entire agent-help` | Supported | `src/services/cli/runner.ts`, `src/test/cli.test.ts` | How the extension reads every command's flags at runtime. |
-| `entire hooks` | Supported | `src/services/hookBridge.ts`, `src/test/hookBridge.test.ts` | `entire hooks <agent> <verb>`; the CLI marks it internal. The bridge reports editor events for one configured agent. |
+| `entire agent-help` | Supported | `src/services/cli/runner.ts`, `src/test/cli.test.ts` | How the extension reads every command's flags at runtime. The test runs `runner.usage` against a fake CLI that answers `agent-help`. |
+| `entire hooks` | Supported | `src/services/hookBridge.ts`, `src/test/hookBridge.test.ts` | `entire hooks <agent> <verb>`; the CLI marks it internal. The bridge reports editor events for one configured agent. Tested with a stub runner that records the arguments; the CLI is not run. |
 | `entire labs` | Excluded | | Prints the list of experimental commands. Each of those commands has its own row, so the index adds nothing to the editor. |
 
 ### Agent integrations
@@ -150,27 +150,27 @@ The three rows below are the plugins the documentation names.
 
 | Command | Status | Evidence | Notes |
 | --- | --- | --- | --- |
-| `entire session list` | Supported | `entirely.showSessions`, `src/services/sessionSource.ts`, `src/test/sessions.test.ts` | |
-| `entire session current` | Supported | `entirely.showOwnSession`, `src/services/sessionSource.ts`, `src/test/sessionDetail.test.ts` | |
+| `entire session list` | Supported | `entirely.showSessions`, `src/services/sessionSource.ts`, `src/test/sessionDetail.test.ts`, `src/test/historyImport.test.ts` | `sessionDetail.test.ts` runs `createSessionSource` against a fake CLI; `historyImport.test.ts` runs the `session list` read in `checkpointSource.ts`. `sessions.test.ts` covers grouping and rendering only, so it is not cited. |
+| `entire session current` | Supported | `entirely.showOwnSession`, `src/services/sessionSource.ts`, `src/test/sessionDetail.test.ts` | Run through `createSessionSource` against a fake CLI (suite "Entire current-session filter"). |
 | `entire session info` | Supported | `entirely.selectSession`, `entirely.openTranscript`, `src/services/sessionDetail.ts`, `src/test/sessionDetail.test.ts` | Detail and transcript. |
 | `entire session tokens` | Supported | `entirely.selectSession`, `src/services/tokenUsage.ts`, `src/test/tokenUsage.test.ts` | |
 | `entire session stop` | Supported | `entirely.stopSession`, `src/services/sessionLifecycle.ts`, `src/test/sessionLifecycle.test.ts` | |
 | `entire session attach` | Supported | `entirely.attachSession`, `src/services/sessionLifecycle.ts`, `src/test/sessionLifecycle.test.ts` | |
 | `entire session adopt` | Supported | `entirely.adoptSession`, `src/services/sessionLifecycle.ts`, `src/test/sessionLifecycle.test.ts` | |
-| `entire session resume` | Supported | `entirely.resumeSession`, `src/services/sessionResume.ts`, `src/test/sessionLifecycle.test.ts` | Runs in an editor terminal; the CLI needs one. |
+| `entire session resume` | Supported | `entirely.resumeSession`, `src/services/sessionResume.ts`, `src/test/sessionLifecycle.test.ts` | Runs in an editor terminal; the CLI needs one. The test asserts the arguments and the terminal launch with a stub launcher; the CLI is not run. |
 
 ### Checkpoints and provenance
 
 | Command | Status | Evidence | Notes |
 | --- | --- | --- | --- |
-| `entire checkpoint list` | Supported | `src/services/checkpointSource.ts`, `src/test/checkpoints.test.ts` | |
-| `entire checkpoint explain` | Supported | `entirely.explainCheckpoint`, `src/services/checkpointSource.ts`, `src/test/checkpoints.test.ts` | |
+| `entire checkpoint list` | Supported | `src/services/checkpointSource.ts`, `src/test/historyImport.test.ts` | Run through `createCheckpointSource` against a fake CLI. `checkpoints.test.ts` does not run the call, so it is not cited. |
+| `entire checkpoint explain` | Supported | `entirely.explainCheckpoint`, `src/services/checkpointSource.ts`, `src/test/security.test.ts` | Argument building only: `security.test.ts` calls `createCheckpointDetailSource` with a recording runner and asserts `checkpoint explain --json -- <id>`. No test runs it against a fake CLI. `checkpoints.test.ts` does not run it, so it is not cited. |
 | `entire checkpoint tokens` | Supported | `src/services/tokenUsage.ts`, `src/test/tokenUsage.test.ts` | |
 | `entire checkpoint search` | Supported | `entirely.searchCheckpoints`, `src/services/checkpointSearch.ts`, `src/test/checkpointSearch.test.ts` | |
 | `entire checkpoint delete` | Gap | | Destructive, and would need the same confirmation care as the control-plane deletes. |
 | `entire search` | Supported | `entirely.searchWork`, `src/services/workSearch.ts`, `src/test/workSearch.test.ts` | Work search and `--code` search. |
-| `entire why` | Supported | `entirely.whyThisLine`, `src/services/whyService.ts`, `src/test/why.test.ts` | |
-| `entire blame` | Supported | `entirely.blameFile`, `src/services/blameService.ts`, `src/test/blame.test.ts` | |
+| `entire why` | Supported | `entirely.whyThisLine`, `src/services/whyService.ts`, `src/test/why.test.ts` | Tested with a stub runner that records the arguments; the CLI is not run. |
+| `entire blame` | Supported | `entirely.blameFile`, `src/services/blameService.ts`, `src/test/blame.test.ts` | Tested with a stub runner that records the arguments; the CLI is not run. |
 | `entire review` | Gap | | Multi-agent review of a branch. |
 | `entire experts` | Gap | | Ranking agents and tools by contribution to a file or topic. |
 | `entire tokens` | Gap | | The labs token diagnostics. Session and checkpoint usage have their own rows. |
@@ -182,8 +182,8 @@ The three rows below are the plugins the documentation names.
 | --- | --- | --- | --- |
 | `entire login` | Supported | `entirely.signIn`, `src/services/authentication.ts`, `src/test/authentication.test.ts` | Including `--device` and `--server`. |
 | `entire logout` | Supported | `entirely.signOut`, `src/services/authentication.ts`, `src/test/authentication.test.ts` | Warns that every saved login is signed out. |
-| `entire auth login` | Supported | `entirely.signIn`, `src/services/authentication.ts`, `src/test/authentication.test.ts` | The documentation calls it equivalent to `entire login`; the extension runs the top-level form. |
-| `entire auth logout` | Supported | `entirely.signOut`, `src/services/authentication.ts`, `src/test/authentication.test.ts` | Same: runs `entire logout`. |
+| `entire auth login` | Supported | `entirely.signIn`, `src/services/authentication.ts`, `src/test/authentication.test.ts` | The documentation calls it equivalent to `entire login`; the extension runs the top-level form, so this row is an alias of the `entire login` row (the check reads that phrase and looks for `login`) and the test asserts the `login` invocation. |
+| `entire auth logout` | Supported | `entirely.signOut`, `src/services/authentication.ts`, `src/test/authentication.test.ts` | Same: an alias of the `entire logout` row; the extension runs `entire logout`, and the test asserts that invocation. |
 | `entire auth status` | Supported | `src/services/authentication.ts`, `src/test/authentication.test.ts` | |
 | `entire auth contexts` | Supported | `src/services/accountContext.ts`, `src/test/accountContext.test.ts` | Read on refresh to name the acting login. |
 | `entire auth switch` | Excluded | | It changes the CLI's active login for every tool on the machine. The extension pins a login for itself with `entirely.cliContext` instead and never changes the global one. |
@@ -212,7 +212,7 @@ The three rows below are the plugins the documentation names.
 | `entire project grant add` | Supported | `entirely.grantAccess`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
 | `entire project grant remove` | Supported | `entirely.revokeAccess`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
 | `entire repo list` | Supported | `entirely.openControlPlane`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
-| `entire repo view` | Supported | `entirely.checkpointDestination`, `src/services/checkpointDestination.ts`, `src/test/checkpointDestination.test.ts` | Called to answer where checkpoints go. |
+| `entire repo view` | Supported | `entirely.checkpointDestination`, `src/services/checkpointDestination.ts`, `src/test/checkpointDestination.test.ts` | Called to answer where checkpoints go. Run through the destination service against a fake CLI whose `repo` case answers `view`. |
 | `entire repo create` | Supported | `entirely.createRepository`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
 | `entire repo edit` | Supported | `entirely.setRepositoryVisibility`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | Visibility only. |
 | `entire repo delete` | Supported | `entirely.deleteRepository`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
@@ -220,7 +220,7 @@ The three rows below are the plugins the documentation names.
 | `entire repo grant list` | Supported | `entirely.openControlPlane`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
 | `entire repo grant add` | Supported | `entirely.grantAccess`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
 | `entire repo grant remove` | Supported | `entirely.revokeAccess`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
-| `entire repo mirror list` | Supported | `entirely.checkpointDestination`, `src/services/checkpointDestination.ts`, `src/test/checkpointDestination.test.ts` | Called only to ask whether the CLI can reach the checkpoint repository. |
+| `entire repo mirror list` | Supported | `entirely.checkpointDestination`, `src/services/checkpointDestination.ts`, `src/test/checkpointDestination.test.ts` | Called only to ask whether the CLI can reach the checkpoint repository. Run through the destination service against a fake CLI whose `repo` case answers `mirror list`. |
 | `entire repo mirror add` | Gap | | |
 | `entire repo mirror detach` | Gap | | |
 | `entire repo mirror remove` | Gap | | |
@@ -230,7 +230,7 @@ The three rows below are the plugins the documentation names.
 | `entire repo protection remove` | Gap | | |
 | `entire repo remote add` | Gap | | |
 | `entire repo visibility get` | Gap | | `repo view` already carries the visibility the tree shows. |
-| `entire cluster list` | Supported | `entirely.openControlPlane`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
+| `entire cluster list` | Supported | `entirely.openControlPlane`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | Run through `ControlPlaneService.clusters()` against the fake CLI in `src/test/support/controlPlaneCli.ts`; the test asserts the call happened once. The decoder and help tests in the same file do not run it. |
 | `entire api` | Supported | `entirely.runApiCall`, `src/services/controlApi.ts`, `src/test/controlPlane.test.ts` | One call at a time, behind a confirmation for anything but GET, no retry, path confined to `/api`. Nothing else uses `api`. |
 
 ### Trails, review and investigation
@@ -252,7 +252,7 @@ The three rows below are the plugins the documentation names.
 | `entire trail create` | Gap | | Not on either branch. |
 | `entire trail update` | Gap | | |
 | `entire trail watch` | Gap | | A streaming view. |
-| `entire trail resume` | Excluded | | It is interactive by default and starts an agent in a terminal. `entire session resume` covers resuming a branch's work from the editor. |
+| `entire trail resume` | Excluded | | Entire's documentation says a non-interactive run shows the same context and prints the resume commands, so interactivity is only the default, not the reason. The reason is that `entire session resume` already covers the editor use case: `entirely.resumeSession` (`src/services/sessionResume.ts`) resumes a branch's session in an editor terminal. |
 | `entire trail comment delete` | Gap | | |
 | `entire trail comment edit` | Gap | | |
 | `entire trail comment reply` | Gap | | |
@@ -285,7 +285,7 @@ The three rows below are the plugins the documentation names.
 | `entire graph` | Supported | `entirely.runPluginCommand`, `src/lib/entire/plugins.ts`, `src/test/plugins.test.ts` | A plugin, run by name with its own arguments. The extension does not model the plugin's subcommands. |
 | `entire investigate` | Supported | `entirely.runPluginCommand`, `src/lib/entire/plugins.ts`, `src/test/plugins.test.ts` | Same: run by name as a plugin. |
 | `entire brain` | Supported | `entirely.runPluginCommand`, `src/lib/entire/plugins.ts`, `src/test/plugins.test.ts` | Same: run by name as a plugin. |
-| `entire mcp` | Supported | `entirely.startMcpServer`, `src/services/mcpServer.ts`, `src/test/plugins.test.ts` | Offered to the editor as an MCP server. |
+| `entire mcp` | Supported | `entirely.startMcpServer`, `src/services/mcpServer.ts`, `src/test/plugins.test.ts` | Offered to the editor as an MCP server. The test probes a fake CLI and starts the launch line it returns, then speaks JSON-RPC to it; the real `entire mcp` is not run. |
 
 ### Not editor concerns
 
@@ -315,14 +315,29 @@ Nothing below is excluded. Each is a capability the CLI has and the editor does 
 
 ## 4. Keeping this document honest
 
-This is a snapshot, and two checks keep it from drifting.
+This is a snapshot, and the checks below keep it from drifting.
 
 - `src/test/coverage.test.ts` fails when a CLI call in `src/` names a command
   the matrix knows and section 1 has no row for it, when a section 1 row names
   a command that its callers never build, when the totals line disagrees with
   the table, when a supported row cites a file or command id that does not
-  exist, and when an excluded row has no reason. When the installed CLI is
-  present, it also fails if `entire help -t` lists a command the matrix lacks.
+  exist, and when an excluded row has no reason.
+- It also fails when a supported row's cited test file does not mention the
+  row's command words. A file mentions them if it has them in order as quoted
+  strings (`'session', 'list'`) or as a phrase (`session list`), or, for a
+  fake CLI written as nested shell cases, each word as a case label
+  (`session)` ... `list)`). This catches a citation of a file that never
+  names the command. It does not prove the test runs the call: a stub runner
+  or an argument builder also passes. The Notes column says which, for every
+  row where the test covers only part.
+- When the installed CLI is present, it fails if `entire help -t` lists a
+  command the matrix lacks. That check runs only where `entire` is installed
+  and skips on a machine or CI runner without it.
+- The scan of `src/` for CLI calls reads literal arrays such as
+  `['session', 'list']`. It does not see calls built from variables or
+  template strings (the control plane builds `[group, 'list']` and
+  `${scope} grant add`); the reverse check, that each section 1 row's words
+  appear quoted in its cited callers, is what covers those.
 - After an Entire release, pull `llms.txt` and `llms-full.txt` again, diff
   the `cli-reference` pages against the matrix, and update the version and
   date at the top.
