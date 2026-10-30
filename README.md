@@ -214,6 +214,34 @@ message counts the others. The clear button restores the full list.
 stays in the editor: it is not written to the `Entire` output channel, and the
 results are kept out of it too.
 
+## The control plane
+
+The **Control Plane** view lists the projects, repositories, organisations and
+clusters the acting login can see, and who has access to each. Open it with
+**Entirely: Open Control Plane**. The first line says which login the view is
+shown as. Nothing polls: a level is read when you open it and again on refresh.
+
+From the view you can create a repository, change its visibility, give someone a
+role, take their access away, and delete a repository, a project or an
+organisation. Every one of these changes Entire for everyone, so each asks first
+in a dialog that names what it affects and the login it acts as. Nothing runs
+until you agree, the change runs as exactly that login, and afterwards the
+extension reads the listing again: a change is reported as done only when the
+CLI now lists it that way. A repository that has mirrors on other clusters is
+refused first, and you are asked again before the mirrors are deleted too.
+
+**Entirely: Call the Entire API** runs one `entire api` call: a path, a method
+and, if the CLI offers one, a backend. A read runs as typed; any other method is
+confirmed first. The response opens in a document and is not written to the
+`Entire` output channel. The call runs once and is never retried, and no view or
+background task can reach it.
+
+Flags and the values they take (roles, visibility, backends) are read from
+`entire agent-help` for each command, never from a list in the extension. A CLI
+that lacks a command, or does not describe a flag the extension needs, is
+reported and nothing is run. `entirely.controlPlaneTimeout` (default 60 seconds)
+bounds each call.
+
 ## The terminal PATH
 
 The Entire CLI installs to `~/.local/bin`, which the integrated terminal

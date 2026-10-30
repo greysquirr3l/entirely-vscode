@@ -33,10 +33,14 @@ suite('Entirely extension', () => {
 			assert.ok(registered.includes(command), `command '${command}' is not registered`);
 		}
 
-		const commandSource = fs.readFileSync(
-			path.join(extension.extensionPath, 'src', 'commands', 'index.ts'),
-			'utf8',
-		);
+		// Commands are registered from `index.ts` and from the focused modules
+		// that register a family of their own, such as the control plane's.
+		const commandDirectory = path.join(extension.extensionPath, 'src', 'commands');
+		const commandSource = fs
+			.readdirSync(commandDirectory)
+			.filter(name => name.endsWith('.ts'))
+			.map(name => fs.readFileSync(path.join(commandDirectory, name), 'utf8'))
+			.join('\n');
 		const handlers = [...commandSource.matchAll(/registerCommand\('([^']+)'/g)]
 			.map(([, command]) => command)
 			.sort();

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { registerCommands } from './commands';
-import { decodeWorkspaceStatus, unwrap, type WorkspaceStatus } from './lib/entire';
+import { decodeWorkspaceStatus, describeActingLogin, unwrap, type WorkspaceStatus } from './lib/entire';
 import { AuthenticationProvider } from './providers/authenticationProvider';
 import { AuthenticationPanel } from './providers/authenticationPanel';
 import { CheckpointsProvider } from './providers/checkpointsProvider';
@@ -50,6 +50,11 @@ import { SessionLifecycleService } from './services/sessionLifecycle';
 import { launchInTerminal } from './services/resumeTerminal';
 import { EditorImportUi } from './commands/importUi';
 import { HistoryImportService } from './services/historyImport';
+import { ControlPlaneProvider } from './providers/controlPlaneProvider';
+import { ControlApiService } from './services/controlApi';
+import { ControlPlaneService } from './services/controlPlane';
+import { registerControlPlaneCommands } from './commands/controlPlaneCommands';
+import { EditorControlPlaneUi } from './commands/controlPlaneUi';
 
 /** The workspace folder the CLI is run in. */
 function workspaceRoot(): string | undefined {
@@ -327,6 +332,39 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		timeoutSeconds: () => readExtensionSettings().cliDoctorTimeout,
 	});
 
+	// Projects, repositories, organisations and grants. Nothing here polls:
+	// each level is read when it is opened, as the login the extension acts as.
+	const controlPlane = new ControlPlaneService({
+		runner,
+		workspaceRoot,
+		timeoutSeconds: () => readExtensionSettings().controlPlaneTimeout,
+		context: () => accounts.context,
+	});
+	const controlPlaneProvider = new ControlPlaneProvider(controlPlane, () => {
+		const acting = accounts.current.acting;
+		return acting ? describeActingLogin(acting) : undefined;
+	});
+	context.subscriptions.push(
+		controlPlaneProvider,
+		vscode.window.createTreeView('entirely.controlPlane', { treeDataProvider: controlPlaneProvider }),
+	);
+	registerControlPlaneCommands(context, {
+		source: controlPlane,
+		api: new ControlApiService({
+			runner,
+			workspaceRoot,
+			timeoutSeconds: () => readExtensionSettings().controlPlaneTimeout,
+		}),
+		// The login is read again just before a change is confirmed, so the
+		// question names the login the command will run as.
+		acting: async () => (await accounts.refresh(workspaceRoot())).acting,
+		ui: new EditorControlPlaneUi(),
+		refresh: () => {
+			void accounts.refresh(workspaceRoot()).then(() => controlPlaneProvider.refresh());
+		},
+		running: { active: false },
+	});
+
 	registerCommands(context, {
 		search,
 		cliDoctor,
@@ -389,6 +427,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			if (event.affectsConfiguration('entirely.cliPath')) {
 				runner.setConfiguredPath(readExtensionSettings().cliPath);
 				checkpointSearch.reset();
+				controlPlaneProvider.refresh();
 				void statusController.refresh();
 				void sessions.refresh();
 				void checkpoints.refresh();
@@ -399,6 +438,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 				// trees are read again as the new login rather than left
 				// showing the previous account's work.
 				void statusController.refresh().then(() => {
+					controlPlaneProvider.refresh();
 					void sessions.refresh();
 					void checkpoints.refresh();
 				});

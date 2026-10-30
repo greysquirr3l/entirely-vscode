@@ -77,6 +77,10 @@
         {
           "id": "entirely.authentication",
           "name": "Account"
+        },
+        {
+          "id": "entirely.controlPlane",
+          "name": "Control Plane"
         }
       ],
       "explorer": [
@@ -284,6 +288,60 @@
         "title": "Clear Checkpoint Search",
         "category": "Entirely",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "entirely.openControlPlane",
+        "title": "Open Control Plane",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.refreshControlPlane",
+        "title": "Refresh Control Plane",
+        "category": "Entirely",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "entirely.createRepository",
+        "title": "Create Repository",
+        "category": "Entirely",
+        "icon": "$(add)"
+      },
+      {
+        "command": "entirely.deleteRepository",
+        "title": "Delete Repository",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.setRepositoryVisibility",
+        "title": "Change Repository Visibility",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.deleteProject",
+        "title": "Delete Project",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.deleteOrganisation",
+        "title": "Delete Organisation",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.grantAccess",
+        "title": "Give Access",
+        "category": "Entirely",
+        "icon": "$(person-add)"
+      },
+      {
+        "command": "entirely.revokeAccess",
+        "title": "Remove Access",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.runApiCall",
+        "title": "Call the Entire API",
+        "category": "Entirely",
+        "icon": "$(terminal)"
       }
     ],
     "configuration": {
@@ -370,6 +428,13 @@
           "maximum": 300,
           "markdownDescription": "How long, in seconds, the doctor report waits for `entire doctor` before it records that the CLI's own checks did not finish. The command only reports; it is never run with a flag that changes anything."
         },
+        "entirely.controlPlaneTimeout": {
+          "type": "number",
+          "default": 60,
+          "minimum": 5,
+          "maximum": 900,
+          "markdownDescription": "How long, in seconds, to wait for each call the Control Plane view and its commands make to the Entire CLI: a listing, a change, or an API call. Deleting a repository together with its mirrors waits for the mirrors to go, so raise this for a large one. A change that times out is read back, and reported as done only if the CLI now lists it that way."
+        },
         "entirely.importTimeout": {
           "type": "number",
           "default": 300,
@@ -454,6 +519,21 @@
           "command": "entirely.clearCheckpointSearch",
           "when": "view == entirely.checkpoints && entirely.checkpointFilterActive",
           "group": "navigation@2"
+        },
+        {
+          "command": "entirely.createRepository",
+          "when": "view == entirely.controlPlane",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.runApiCall",
+          "when": "view == entirely.controlPlane",
+          "group": "navigation@2"
+        },
+        {
+          "command": "entirely.refreshControlPlane",
+          "when": "view == entirely.controlPlane",
+          "group": "navigation@3"
         }
       ],
       "commandPalette": [
@@ -475,6 +555,30 @@
         },
         {
           "command": "entirely.explainCheckpoint",
+          "when": "false"
+        },
+        {
+          "command": "entirely.deleteRepository",
+          "when": "false"
+        },
+        {
+          "command": "entirely.setRepositoryVisibility",
+          "when": "false"
+        },
+        {
+          "command": "entirely.deleteProject",
+          "when": "false"
+        },
+        {
+          "command": "entirely.deleteOrganisation",
+          "when": "false"
+        },
+        {
+          "command": "entirely.grantAccess",
+          "when": "false"
+        },
+        {
+          "command": "entirely.revokeAccess",
           "when": "false"
         }
       ],
@@ -514,6 +618,56 @@
         {
           "command": "entirely.stopSession",
           "when": "view == entirely.sessions && viewItem == entirely.session",
+          "group": "3_destructive@1"
+        },
+        {
+          "command": "entirely.createRepository",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpProject",
+          "group": "1_manage@1"
+        },
+        {
+          "command": "entirely.grantAccess",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpProject",
+          "group": "1_manage@2"
+        },
+        {
+          "command": "entirely.deleteProject",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpProject",
+          "group": "3_destructive@1"
+        },
+        {
+          "command": "entirely.setRepositoryVisibility",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpRepository",
+          "group": "1_manage@1"
+        },
+        {
+          "command": "entirely.grantAccess",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpRepository",
+          "group": "1_manage@2"
+        },
+        {
+          "command": "entirely.deleteRepository",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpRepository",
+          "group": "3_destructive@1"
+        },
+        {
+          "command": "entirely.grantAccess",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpOrganisation",
+          "group": "1_manage@1"
+        },
+        {
+          "command": "entirely.deleteOrganisation",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpOrganisation",
+          "group": "3_destructive@1"
+        },
+        {
+          "command": "entirely.grantAccess",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpAccess",
+          "group": "1_manage@1"
+        },
+        {
+          "command": "entirely.revokeAccess",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpGrant",
           "group": "3_destructive@1"
         }
       ]

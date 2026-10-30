@@ -42,6 +42,13 @@ export interface RunOptions {
 	 */
 	readonly ignoreContext?: boolean;
 	/**
+	 * The saved login this one command acts as, in place of the pinned one.
+	 *
+	 * A change that was confirmed as a named login is run as exactly that
+	 * login, even when the CLI's own active login has moved since.
+	 */
+	readonly context?: string;
+	/**
 	 * Keeps the output out of the invocation record.
 	 *
 	 * A transcript is the user's own conversation with an agent. The record
@@ -328,7 +335,7 @@ export class CliRunner {
 
 		// The pinned login is worked out once, here, so that the command
 		// line that is recorded is the command line that was run.
-		const context = options.ignoreContext ? undefined : this.pinnedContext;
+		const context = options.ignoreContext ? undefined : (options.context ?? this.pinnedContext);
 		const effectiveArgs = context ? ['--context', context, ...args] : [...args];
 
 		if (discovery.state === 'absent') {

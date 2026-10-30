@@ -32,6 +32,8 @@ export interface ExtensionSettings {
 	readonly lifecycleActionTimeout: number;
 	/** How long, in seconds, `entire doctor` may take when the doctor report asks it. */
 	readonly cliDoctorTimeout: number;
+	/** How long, in seconds, a control plane call (a listing, a change, an API call) may take. */
+	readonly controlPlaneTimeout: number;
 	/** How long, in seconds, a history import (and its preview) may take. */
 	readonly importTimeout: number;
 	/** How long, in seconds, to watch for a resumed session to become active. */
@@ -132,6 +134,18 @@ export function clampCliDoctorTimeout(seconds: number): number {
 		MAX_CLI_DOCTOR_TIMEOUT_SECONDS,
 		Math.max(MIN_CLI_DOCTOR_TIMEOUT_SECONDS, Math.floor(seconds)),
 	);
+}
+
+/** The bounds of the time a control plane call may take, in seconds. A cascade delete waits for the mirrors to go. */
+export const MIN_CONTROL_PLANE_TIMEOUT_SECONDS = 5;
+export const MAX_CONTROL_PLANE_TIMEOUT_SECONDS = 900;
+
+/** Puts the control plane timeout inside the range the extension will wait for. */
+export function clampControlPlaneTimeout(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return 60;
+	}
+	return Math.min(MAX_CONTROL_PLANE_TIMEOUT_SECONDS, Math.max(MIN_CONTROL_PLANE_TIMEOUT_SECONDS, Math.floor(seconds)));
 }
 
 /** The bounds of the time an import may take, in seconds. Imports read a month of transcripts. */
@@ -236,6 +250,7 @@ export function readExtensionSettings(): ExtensionSettings {
 		transcriptTimeout: clampTranscriptTimeout(configuration.get<number>('transcriptTimeout', 60)),
 		lifecycleActionTimeout: clampLifecycleTimeout(configuration.get<number>('lifecycleActionTimeout', 60)),
 		cliDoctorTimeout: clampCliDoctorTimeout(configuration.get<number>('cliDoctorTimeout', 30)),
+		controlPlaneTimeout: clampControlPlaneTimeout(configuration.get<number>('controlPlaneTimeout', 60)),
 		importTimeout: clampImportTimeout(configuration.get<number>('importTimeout', 300)),
 		resumeWatchTimeout: clampResumeWatch(configuration.get<number>('resumeWatchTimeout', 60)),
 		searchDebounce: clampSearchDebounce(configuration.get<number>('searchDebounce', 400)),

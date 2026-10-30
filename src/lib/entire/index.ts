@@ -224,3 +224,58 @@ export type {
 	WorkSearchReport,
 } from './workSearchResults';
 export { isSameRepository, resolveInRoot } from './searchTargets';
+export {
+	decodeAccessGrants,
+	decodeControlClusters,
+	decodeControlRepositories,
+	decodeOrganisations,
+	decodeProjects,
+	grantHandle,
+	grantIsFor,
+	isApiPath,
+	isControlOperand,
+	isGrantee,
+	isRepositoryName,
+	nameGrant,
+	repositoryPath,
+} from './controlPlane';
+export type {
+	AccessGrant,
+	ControlCluster,
+	ControlRepository,
+	Organisation,
+	Project,
+} from './controlPlane';
+export {
+	API_METHODS,
+	API_WANTS,
+	DELETE_WANTS,
+	GRANT_WANTS,
+	LIST_WANTS,
+	REPO_CREATE_WANTS,
+	REPO_EDIT_WANTS,
+	REPO_LIST_WANTS,
+	apiArguments,
+	createRepositoryArguments,
+	deleteArguments,
+	describeFlag,
+	editVisibilityArguments,
+	grantAddArguments,
+	grantListArguments,
+	grantRemoveArguments,
+	isReadMethod,
+	listArguments,
+	pickFlags,
+	readChoices,
+	repoListArguments,
+} from './controlPlaneFlags';
+export type { FlagPick, FlagWant, GrantScope } from './controlPlaneFlags';
+export {
+	apiConfirmation,
+	confirmationFor,
+	describeActingLogin,
+	describeControlAction,
+	describeControlOutcome,
+	scopeWord,
+} from './controlPlaneActions';
+export type { ControlAction, ControlConfirmation, ControlOutcome } from './controlPlaneActions';
