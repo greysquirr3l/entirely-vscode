@@ -38,6 +38,8 @@ import {
 	type GrantScope,
 	type Organisation,
 	type Project,
+	type ProjectRef,
+	shownTarget,
 } from '../lib/entire';
 import type { CliCommandUsage, CliResult, CliRunner } from './cli';
 
@@ -53,8 +55,10 @@ export type ChoiceRequest =
 export interface ControlPlaneSource {
 	organisations(): Promise<Read<readonly Organisation[]>>;
 	projects(): Promise<Read<readonly Project[]>>;
-	repositories(project: string): Promise<Read<readonly ControlRepository[]>>;
-	grants(scope: GrantScope, target: string): Promise<Read<readonly AccessGrant[]>>;
+	/** The project is found by its id; its name is only what the rows are labelled with. */
+	repositories(project: ProjectRef): Promise<Read<readonly ControlRepository[]>>;
+	/** `target` is what the CLI is handed; `label` is what the object is called, for a failure message. */
+	grants(scope: GrantScope, target: string, label?: string): Promise<Read<readonly AccessGrant[]>>;
 	clusters(): Promise<Read<readonly ControlCluster[]>>;
 	/** The values the CLI's help says a flag takes, read now. */
 	choices(request: ChoiceRequest): Promise<Read<readonly string[]>>;
@@ -99,23 +103,28 @@ export class ControlPlaneService implements ControlPlaneSource {
 		return this.list('project list', LIST_WANTS, flags => listArguments('project', flags.json), decodeProjects);
 	}
 
-	repositories(project: string): Promise<Read<readonly ControlRepository[]>> {
-		if (!isControlOperand(project)) {
-			return Promise.resolve({ ok: false, detail: 'that project name cannot be passed to the Entire CLI' });
+	async repositories(project: ProjectRef): Promise<Read<readonly ControlRepository[]>> {
+		if (!isControlOperand(project.id)) {
+			return { ok: false, detail: 'that project cannot be passed to the Entire CLI' };
 		}
-		return this.list(
+		const read = await this.list(
 			'repo list',
 			REPO_LIST_WANTS,
-			flags => repoListArguments({ json: flags.json, project: flags.project, all: flags.all }, project),
+			flags => repoListArguments({ json: flags.json, project: flags.project, all: flags.all }, project.id),
 			value => decodeControlRepositories(value, project),
 		);
+		return read.ok ? read : { ok: false, detail: explainRejectedProject(read.detail, project.name, project.id === project.name) };
 	}
 
-	grants(scope: GrantScope, target: string): Promise<Read<readonly AccessGrant[]>> {
+	async grants(scope: GrantScope, target: string, label?: string): Promise<Read<readonly AccessGrant[]>> {
 		if (!isControlOperand(target)) {
-			return Promise.resolve({ ok: false, detail: 'that name cannot be passed to the Entire CLI' });
+			return { ok: false, detail: 'that name cannot be passed to the Entire CLI' };
 		}
-		return this.list(`${scope} grant list`, LIST_WANTS, flags => grantListArguments(scope, flags.json, target), decodeAccessGrants);
+		const read = await this.list(`${scope} grant list`, LIST_WANTS, flags => grantListArguments(scope, flags.json, target), decodeAccessGrants);
+		if (read.ok || scope !== 'project') {
+			return read;
+		}
+		return { ok: false, detail: explainRejectedProject(read.detail, label ?? target, label === undefined || label === target) };
 	}
 
 	clusters(): Promise<Read<readonly ControlCluster[]>> {
@@ -192,7 +201,7 @@ export class ControlPlaneService implements ControlPlaneSource {
 			case 'delete-repository':
 				return this.prepareDelete('repo', action.path, action.cascade);
 			case 'delete-project':
-				return this.prepareDelete('project', action.name, false);
+				return this.prepareDelete('project', action.id, false);
 			case 'delete-organisation':
 				return this.prepareDelete('org', action.name, false);
 
@@ -217,6 +226,7 @@ export class ControlPlaneService implements ControlPlaneSource {
 				return {
 					ok: true,
 					cascadeAvailable: false,
+					// `repo create --project` is described as taking a name, so the name is what it is given.
 					args: createRepositoryArguments({ project: picked.flags.project, visibility: picked.flags.visibility }, action.project, action.name, action.visibility),
 				};
 			}
@@ -319,7 +329,7 @@ export class ControlPlaneService implements ControlPlaneSource {
 	private async verify(action: ControlAction, heldBefore: boolean | undefined): Promise<Verdict> {
 		switch (action.kind) {
 			case 'delete-repository': {
-				const read = await this.repositories(action.project);
+				const read = await this.repositories({ id: action.projectId, name: action.project });
 				if (!read.ok) {
 					return { kind: 'unreadable', detail: read.detail };
 				}
@@ -328,7 +338,7 @@ export class ControlPlaneService implements ControlPlaneSource {
 					: { kind: 'confirmed' };
 			}
 			case 'create-repository': {
-				const read = await this.repositories(action.project);
+				const read = await this.repositories({ id: action.projectId, name: action.project });
 				if (!read.ok) {
 					return { kind: 'unreadable', detail: read.detail };
 				}
@@ -337,7 +347,7 @@ export class ControlPlaneService implements ControlPlaneSource {
 					: { kind: 'contradicted', detail: `does not list ${action.name} in ${action.project}` };
 			}
 			case 'set-visibility': {
-				const read = await this.repositories(action.project);
+				const read = await this.repositories({ id: action.projectId, name: action.project });
 				if (!read.ok) {
 					return { kind: 'unreadable', detail: read.detail };
 				}
@@ -371,13 +381,13 @@ export class ControlPlaneService implements ControlPlaneSource {
 					: { kind: 'confirmed' };
 			}
 			case 'grant': {
-				const read = await this.grants(action.scope, action.target);
+				const read = await this.grants(action.scope, action.target, action.label);
 				if (!read.ok) {
 					return { kind: 'unreadable', detail: read.detail };
 				}
 				const held = read.value.filter(grant => grantIsFor(grant, action.grantee));
 				if (held.length === 0) {
-					return { kind: 'contradicted', detail: `does not list ${action.grantee} on ${action.target}` };
+					return { kind: 'contradicted', detail: `does not list ${action.grantee} on ${shownTarget(action)}` };
 				}
 				return held.some(grant => grant.role === action.role)
 					? { kind: 'confirmed' }
@@ -387,17 +397,17 @@ export class ControlPlaneService implements ControlPlaneSource {
 				if (heldBefore !== true) {
 					return {
 						kind: 'unreadable',
-						detail: `the extension could not confirm the access was removed, because ${action.grantee} was not matched to a direct grant on ${action.target} before the request`,
+						detail: `the extension could not confirm the access was removed, because ${action.grantee} was not matched to a direct grant on ${shownTarget(action)} before the request`,
 					};
 				}
-				const read = await this.grants(action.scope, action.target);
+				const read = await this.grants(action.scope, action.target, action.label);
 				if (!read.ok) {
 					return { kind: 'unreadable', detail: read.detail };
 				}
 				// An inherited grant stays after a direct one is removed.
 				const direct = read.value.filter(grant => grantIsFor(grant, action.grantee) && !/inherit/i.test(grant.source ?? ''));
 				return direct.length > 0
-					? { kind: 'contradicted', detail: `still lists ${action.grantee} on ${action.target}` }
+					? { kind: 'contradicted', detail: `still lists ${action.grantee} on ${shownTarget(action)}` }
 					: { kind: 'confirmed' };
 			}
 		}
@@ -405,7 +415,7 @@ export class ControlPlaneService implements ControlPlaneSource {
 
 	/** Whether a listing read now holds a direct grant for the person a revoke names. */
 	private async directGrantSeen(action: Extract<ControlAction, { kind: 'revoke' }>): Promise<boolean> {
-		const read = await this.grants(action.scope, action.target);
+		const read = await this.grants(action.scope, action.target, action.label);
 		return read.ok && read.value.some(grant => grantIsFor(grant, action.grantee) && !/inherit/i.test(grant.source ?? ''));
 	}
 
@@ -450,6 +460,24 @@ export class ControlPlaneService implements ControlPlaneSource {
 		});
 		return result.ok ? { ok: true, value: result.value } : { ok: false, detail: explain(result) };
 	}
+}
+
+/**
+ * What a read of a project says when the CLI could not find it.
+ *
+ * "invalid project name" alone does not say which project or what to do,
+ * so it is named, the CLI's own words are kept, and when the listing gave
+ * no id (so the name had to be used instead) that is said too.
+ */
+export function explainRejectedProject(detail: string, project: string, usedName: boolean): string {
+	if (!/invalid project name/i.test(detail)) {
+		return detail;
+	}
+	return (
+		`the Entire CLI did not accept the project ${project}` +
+		(usedName ? ' (its listing gave no id, so the name was sent instead)' : '') +
+		`; refresh the Control Plane view to read it again (the CLI said: ${detail})`
+	);
 }
 
 /** The words a failed call is reported in. */

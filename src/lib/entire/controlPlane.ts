@@ -33,12 +33,17 @@ export interface Project {
 	readonly canCreateRepository?: boolean;
 }
 
+/** What names a project: the id the CLI is given, and the name people read. */
+export type ProjectRef = Pick<Project, 'id' | 'name'>;
+
 /** A repository inside a project. */
 export interface ControlRepository {
 	readonly id: string;
 	readonly name: string;
-	/** The project that owns it, by name. */
+	/** The project that owns it, by name: the readable form, and the one a repository path is built from. */
 	readonly project: string;
+	/** The project's id, which is what the CLI is handed to find the project. */
+	readonly projectId: string;
 	readonly provider?: string;
 	readonly visibility?: string;
 	readonly state?: string;
@@ -175,7 +180,7 @@ export function decodeProjects(value: unknown): DecodeResult<readonly Project[]>
  * A row does not say which project it is in, so the caller supplies the
  * project it asked about.
  */
-export function decodeControlRepositories(value: unknown, project: string): DecodeResult<readonly ControlRepository[]> {
+export function decodeControlRepositories(value: unknown, project: ProjectRef): DecodeResult<readonly ControlRepository[]> {
 	const records = recordsOf(value, 'repositories');
 	if (!records.ok) {
 		return records;
@@ -189,7 +194,8 @@ export function decodeControlRepositories(value: unknown, project: string): Deco
 		repositories.push({
 			id: text(record, 'id') ?? name,
 			name,
-			project,
+			project: project.name,
+			projectId: project.id,
 			provider: text(record, 'provider'),
 			visibility: text(record, 'visibility'),
 			state: text(record, 'state'),

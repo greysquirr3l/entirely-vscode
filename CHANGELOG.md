@@ -6,6 +6,15 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Control Plane view works for GitHub mirror projects.** A project whose name looks
+  like `gh:mirrors:<id>` showed "Could not read the repositories: invalid project name",
+  because the Entire CLI cannot read a project by a name containing colons. The view now
+  hands the CLI the project's id for listing repositories, reading and changing access, and
+  deleting the project; the name is still what the tree and every confirmation show. When
+  the CLI still rejects a project, the row names it and suggests refreshing.
+
 ## [0.2.0] - 2026-10-30
 
 ### Changed

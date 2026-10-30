@@ -162,7 +162,7 @@ export async function createRepository(deps: ControlPlaneDependencies, node?: Co
 				return 'cancelled';
 			}
 		}
-		return change(deps, { kind: 'create-repository', name: name.trim(), project: project.name, visibility });
+		return change(deps, { kind: 'create-repository', name: name.trim(), project: project.name, projectId: project.id, visibility });
 	});
 }
 
@@ -178,7 +178,7 @@ export async function deleteRepository(deps: ControlPlaneDependencies, node?: Co
 			await deps.ui.inform(`${node.repository.name} is a mirror of a repository elsewhere, so Entire cannot delete it from here.`);
 			return 'cancelled';
 		}
-		return change(deps, { kind: 'delete-repository', name: node.repository.name, project: node.repository.project, path, cascade: false });
+		return change(deps, { kind: 'delete-repository', name: node.repository.name, project: node.repository.project, projectId: node.repository.projectId, path, cascade: false });
 	});
 }
 
@@ -208,6 +208,7 @@ export async function setRepositoryVisibility(deps: ControlPlaneDependencies, no
 			kind: 'set-visibility',
 			name: node.repository.name,
 			project: node.repository.project,
+			projectId: node.repository.projectId,
 			path,
 			visibility,
 			current: node.repository.visibility,
@@ -239,19 +240,19 @@ export async function deleteOrganisation(deps: ControlPlaneDependencies, node?: 
 }
 
 /** What a grant or an access node is about, as the CLI addresses it. */
-function accessTarget(node: ControlNode | undefined): { readonly scope: GrantScope; readonly target: string } | undefined {
+function accessTarget(node: ControlNode | undefined): { readonly scope: GrantScope; readonly target: string; readonly label: string } | undefined {
 	switch (node?.kind) {
 		case 'project':
-			return { scope: 'project', target: node.project.name };
+			return { scope: 'project', target: node.project.id, label: node.project.name };
 		case 'organisation':
-			return { scope: 'org', target: node.organisation.name };
+			return { scope: 'org', target: node.organisation.name, label: node.organisation.name };
 		case 'repository': {
 			const path = repositoryPath(node.repository);
-			return path === undefined ? undefined : { scope: 'repo', target: path };
+			return path === undefined ? undefined : { scope: 'repo', target: path, label: path };
 		}
 		case 'access':
 		case 'grant':
-			return { scope: node.scope, target: node.target };
+			return { scope: node.scope, target: node.target, label: node.label };
 		default:
 			return undefined;
 	}
@@ -266,7 +267,7 @@ export async function grantAccess(deps: ControlPlaneDependencies, node?: Control
 			return 'cancelled';
 		}
 		const grantee = await deps.ui.ask({
-			title: `Give access to ${where.target}`,
+			title: `Give access to ${where.label}`,
 			prompt: 'Who gets access, as provider:handle, for example github:alice.',
 			validate: value => (isGrantee(value.trim()) ? undefined : 'Write the provider, a colon and the handle, for example github:alice.'),
 		});
@@ -282,7 +283,7 @@ export async function grantAccess(deps: ControlPlaneDependencies, node?: Control
 		if (role === undefined) {
 			return 'cancelled';
 		}
-		return change(deps, { kind: 'grant', scope: where.scope, target: where.target, grantee: grantee.trim(), role });
+		return change(deps, { kind: 'grant', scope: where.scope, target: where.target, label: where.label, grantee: grantee.trim(), role });
 	});
 }
 
@@ -298,7 +299,7 @@ export async function revokeAccess(deps: ControlPlaneDependencies, node?: Contro
 			// The CLI's revoke wants a provider-qualified handle and the listing
 			// did not give one, so the person says who is meant.
 			const typed = await deps.ui.ask({
-				title: `Remove access to ${node.target}`,
+				title: `Remove access to ${node.label}`,
 				prompt: 'The listing does not give a provider-qualified handle. Write it, for example github:alice.',
 				validate: value => (isGrantee(value.trim()) ? undefined : 'Write the provider, a colon and the handle.'),
 			});
@@ -307,7 +308,7 @@ export async function revokeAccess(deps: ControlPlaneDependencies, node?: Contro
 			}
 			grantee = typed.trim();
 		}
-		return change(deps, { kind: 'revoke', scope: node.scope, target: node.target, grantee });
+		return change(deps, { kind: 'revoke', scope: node.scope, target: node.target, label: node.label, grantee });
 	});
 }
 
