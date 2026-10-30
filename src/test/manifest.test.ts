@@ -108,36 +108,17 @@ suite('Entirely manifest', () => {
 		assert.ok(banner.theme === 'dark' || banner.theme === 'light', 'the gallery banner theme is not dark or light');
 	});
 
-	test('declares and packages the Entire product icon family', () => {
+	test('declares and packages the single Entire logo glyph', () => {
 		const manifest = readManifest();
 		const icons = manifest.contributes?.icons;
 		assert.ok(icons, 'package.json declares no custom product icons');
+		assert.deepStrictEqual(Object.keys(icons), ['entire-logo'], 'the logo is the only product icon');
 
-		const expected = [
-			['entire-logo', '\\e001'],
-			['entire-compact', '\\e002'],
-			['entire-large', '\\e003'],
-			['entire-dot', '\\e004'],
-			['entire-dot-compact', '\\e005'],
-			['entire-in-progress', '\\e006'],
-			['entire-success', '\\e007'],
-			['entire-warning', '\\e008'],
-			['entire-warning-large', '\\e009'],
-			['entire-error', '\\e00a'],
-			['entire-unavailable', '\\e00b'],
-			['entire-not-connected', '\\e00c'],
-			['entire-snooze', '\\e00d'],
-			['entire-blocked', '\\e00e'],
-		] as const;
 		const fontPath = 'assets/entire-icons.woff';
-
-		for (const [id, character] of expected) {
-			const productIcon: ProductIconContribution | undefined = icons[id];
-			assert.ok(productIcon, `the '${id}' icon is not contributed`);
-			assert.ok(productIcon.description, `the '${id}' icon is not described`);
-			assert.strictEqual(productIcon.default?.fontPath, fontPath, `the '${id}' icon uses the wrong font`);
-			assert.strictEqual(productIcon.default?.fontCharacter, character, `the '${id}' icon uses the wrong code point`);
-		}
+		const productIcon: ProductIconContribution | undefined = icons['entire-logo'];
+		assert.ok(productIcon?.description, 'the logo icon is not described');
+		assert.strictEqual(productIcon.default?.fontPath, fontPath);
+		assert.strictEqual(productIcon.default?.fontCharacter, '\\e001');
 
 		const font = path.join(ROOT, fontPath);
 		assert.ok(fs.existsSync(font), `the icon font '${fontPath}' is not on disk`);
@@ -145,6 +126,13 @@ suite('Entirely manifest', () => {
 
 		const patterns = ignorePatterns(path.join(ROOT, '.vscodeignore'));
 		assert.ok(!isIgnored(fontPath, patterns), `the icon font '${fontPath}' is excluded by .vscodeignore`);
+	});
+
+	test('vendors Entire\'s official symbol the font is built from', () => {
+		const symbol = path.join(ROOT, 'assets', 'brand', 'entire-symbol-icon.svg');
+		assert.ok(fs.existsSync(symbol), 'assets/brand/entire-symbol-icon.svg is missing');
+		assert.match(fs.readFileSync(symbol, 'utf8'), /<svg[^>]*viewBox="0 0 32 32"/);
+		assert.ok(fs.existsSync(path.join(ROOT, 'assets', 'brand', 'README.md')), 'the symbol has no provenance note');
 	});
 
 	test('declares every Entire product icon the source uses', () => {
@@ -173,18 +161,19 @@ suite('Entirely manifest', () => {
 		}
 	});
 
-	test('uses a packaged 24 by 24 Marvin outline for the Activity Bar', () => {
+	test('uses Entire\'s official symbol, unaltered, for the Activity Bar', () => {
 		const container = readManifest().contributes?.viewsContainers?.activitybar?.find(view => view.id === 'entirely');
 		assert.ok(container, 'the Entirely Activity Bar container is not declared');
-		assert.strictEqual(container.icon, 'images/entirely-view.svg', 'the Activity Bar does not use the Marvin outline');
+		assert.strictEqual(container.icon, 'images/entirely-view.svg', 'the Activity Bar does not use the symbol');
 
 		const icon = path.join(ROOT, container.icon);
 		assert.ok(fs.existsSync(icon), `the Activity Bar icon '${container.icon}' is not on disk`);
 		const svg = fs.readFileSync(icon, 'utf8');
-		assert.match(svg, /viewBox="0 0 24 24"/, 'the Activity Bar icon is not sized on a 24 by 24 grid');
-		assert.match(svg, /currentColor/, 'the Activity Bar icon does not inherit the VS Code theme colour');
-		assert.match(svg, /fill="none"/, 'the Activity Bar icon is not line art');
-		assert.doesNotMatch(svg, /fill="currentColor"/, 'the Activity Bar icon has a filled shape instead of line art');
+		const official = fs.readFileSync(path.join(ROOT, 'assets', 'brand', 'entire-symbol-icon.svg'), 'utf8');
+		// Only the rendered size may differ from the vendored official file.
+		const unsized = (source: string): string => source.replace(/ (width|height)="[^"]*"/g, '');
+		assert.strictEqual(unsized(svg), unsized(official), 'the Activity Bar icon differs from the official symbol');
+		assert.match(svg, /viewBox="0 0 32 32"/, 'the symbol viewBox was changed');
 
 		const patterns = ignorePatterns(path.join(ROOT, '.vscodeignore'));
 		assert.ok(!isIgnored(container.icon, patterns), `the Activity Bar icon '${container.icon}' is excluded by .vscodeignore`);
