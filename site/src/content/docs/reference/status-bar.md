@@ -5,7 +5,7 @@ sidebar:
   order: 4
 ---
 
-Entirely adds one item to the left side of the status bar, at priority 100. That is the same priority as the Source Control item, so it sits next to it. The item always starts with Entire's logo, written `$(entire-logo)`, then the word `Entire`, then a codicon that names the state. The logo is never altered or coloured to show state. See [How Entirely works](/entirely/concepts/how-entirely-works/).
+Entirely adds one item to the left side of the status bar, at priority 100. The item always starts with Entire's logo, written `$(entire-logo)`, then the word `Entire`, then a codicon that names the state. The logo is never altered or coloured to show state. See [How Entirely works](/entirely/concepts/how-entirely-works/).
 
 If the CLI is absent, the item is hidden. A workspace that does not use Entire shows nothing, rather than a permanent error.
 

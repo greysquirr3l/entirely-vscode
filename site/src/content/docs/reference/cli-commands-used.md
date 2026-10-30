@@ -72,7 +72,7 @@ If the CLI is missing or too old to describe a command, the feature says so and 
 
 | Command | Feature | Kind |
 | --- | --- | --- |
-| `entire login` | **Sign In to Entire**, including `--device` and `--server` | Changes (your login) |
+| `entire login` | **Sign In to Entire**, including `--device` | Changes (your login) |
 | `entire logout` | **Sign Out of Entire** | Changes (your login) |
 | `entire auth status` | Whether the login is valid | Read |
 | `entire auth contexts` | Naming the acting login | Read |

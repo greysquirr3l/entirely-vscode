@@ -61,7 +61,7 @@ So expect a `neutral` result, and approve on Entire (for example with **Entirely
 
 The site in `site/` is built with Astro and Starlight and served at <https://greysquirr3l.github.io/entirely/>. The `site.yml` workflow type-checks and builds it on every pull request and push to `main`. It has no path filter on the trigger, so it always reports a result and can be a required check. The filter is applied to the build steps.
 
-Deployment is manual, from a clone of `greysquirr3l.github.io` placed next to the repository:
+Deployment is manual, from a clone of `greysquirr3l.github.io`. The clone's path is the `deploy-docs.pagesRepo` field of `site/package.json` (default `../../../greysquirr3l.github.io`, relative to `site/`):
 
 ```sh
 cd site

@@ -7,7 +7,7 @@ sidebar:
 
 Entirely declares 25 settings under `entirely.*`. Open them with **Entirely: Open Settings** or search the Settings editor for `@ext:greysquirr3l.entirely`. The defaults and ranges below are read from `contributes.configuration` in `package.json`.
 
-Every value that a person might reasonably change is a setting. Timeouts are in seconds unless a row says otherwise. A value outside the range is clamped by the editor.
+Every value that a person might reasonably change is a setting. Timeouts are in seconds unless a row says otherwise. A value outside the range is clamped by the extension when it reads the setting.
 
 ## Scope
 
@@ -86,4 +86,4 @@ See [Plugins](/entirely/guides/plugins/) and [Integrations and MCP](/entirely/gu
 
 ## Settings the extension writes
 
-Two commands write editor settings, each after you confirm and choose a scope: **Entirely: Add the Entire CLI to the Terminal PATH** writes `terminal.integrated.env.<platform>`, and **Entirely: Turn On MCP Server** writes `entirely.mcpServerEnabled`.
+Two commands write editor settings, each after you confirm. **Entirely: Add the Entire CLI to the Terminal PATH** lets you choose the scope and writes `terminal.integrated.env.<platform>`. **Entirely: Turn On MCP Server** has no scope choice: it writes `entirely.mcpServerEnabled` in the narrowest scope that takes effect (folder, then workspace, then user).

@@ -81,7 +81,7 @@ Outcomes are reported in plain terms:
 
 - **Done:** "The Entire CLI now lists it that way."
 - **Could not …:** the CLI failed, or reported success while the listing says otherwise ("the Entire CLI reported success but still lists …").
-- **Accepted but unverified:** the CLI accepted the request but the result could not be read back, for example because the listing failed.
+- **Accepted but unverified:** "The Entire CLI accepted the request to … as …, but the result could not be checked: …". The CLI accepted the request but the result could not be read back, for example because the listing failed.
 
 Revoke is stricter. If the grantee was not matched to a direct grant before the request, for instance a row that only has an id, a successful exit is reported as unconfirmed rather than done. Access a person inherits from elsewhere is not removed by revoking a direct grant, and does not count against it.
 

@@ -35,7 +35,7 @@ Entirely doesn't keep a list of flags. For commands where flags matter (trail me
 
 ## Confirmations and read-back
 
-Anything that changes Entire, your repository or your settings asks first. The dialog names the target and, where it matters, the login the command will run as. Declining changes nothing.
+Destructive changes and changes to shared state or your settings ask first (approving or commenting on a trail, and setting Entire up, run after you pick or type). The dialog names the target and, where it matters, the login the command will run as. Declining changes nothing.
 
 After a change, Entirely reads the state again and reports success only if the CLI now shows the new state. For example, a repository change is "done" only when the listing reflects it, and an agent install is confirmed by reading `agent list` again. Exit code zero isn't treated as proof by itself.
 

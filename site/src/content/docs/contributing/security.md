@@ -32,7 +32,7 @@ Out of scope: the Entire CLI and the Entire forge. Report those to Entire under 
 ## What the extension does to protect you
 
 - **No secrets.** Tokens stay in the Entire CLI's credential store. The extension never reads that store.
-- **Ask first.** Anything that changes Entire or your repository asks before it runs and says what it will touch. See [Commands](/entirely/reference/commands/).
+- **Ask first.** Destructive or shared-state changes ask before they run and say what they will touch. Approving or commenting on a trail runs right after you pick or type. See [Commands](/entirely/reference/commands/).
 - **Quiet logs.** Transcripts, prompt bodies, checkpoint payloads and search queries stay out of the output channel. Sensitive operands are redacted from logged command lines. See [Privacy and redaction](/entirely/concepts/privacy-and-redaction/).
 - **MCP configuration** is written only inside the workspace, only after you agree, and never contains a credential or a path to your CLI. See [Integrations and MCP](/entirely/guides/integrations-and-mcp/).
 - **Browser links** open only Entire addresses.

@@ -38,7 +38,7 @@ Entirely does not re-implement Entire. It finds the installed CLI, reads the JSO
 Three consequences follow:
 
 - If the CLI is missing, the extension says so and links to the install instructions. It doesn't fail obscurely.
-- Anything that changes Entire or your repository asks first and says what it will touch.
+- Changes to shared state or your working tree (merges, checkouts, deletes, installs, sign-out) ask first and say what they will touch. Approving and commenting on a trail run right after you pick or type.
 - Flags come from the CLI's own `entire agent-help` text at runtime, not from a list inside the extension.
 
 [How Entirely works](/entirely/concepts/how-entirely-works/) covers this in more detail.

@@ -10,7 +10,7 @@ Entirely contributes 63 commands. All of them share the category `Entirely`, so 
 Reading the tables:
 
 - **Where** lists the places beyond the palette. `view title` is the toolbar of a view, `inline` is the icon on a tree row, `context` is a right-click menu, `editor` is the editor's context menu or title bar.
-- **Changes** says whether the command changes anything on Entire, in the repository or in your settings. *Read* means it only reads. *Confirms* means a modal prompt names what will change and nothing runs until you agree. See [Privacy and redaction](/entirely/concepts/privacy-and-redaction/) for what the extension keeps out of its logs.
+- **Changes** says whether the command changes anything on Entire, in the repository or in your settings. *Read* means it only reads. *Confirms* means a modal prompt names what will change and nothing runs until you agree. *Asks for input, no confirmation* means you pick or type something and the command then runs without a further prompt. See [Privacy and redaction](/entirely/concepts/privacy-and-redaction/) for what the extension keeps out of its logs.
 - **Hidden** commands are registered with `commandPalette: false`. They exist for menus, tree rows and links, and never show in the palette.
 
 Several commands that have a menu entry are also in the palette, for example **Entirely: Create Repository**. The ones that are not are marked *hidden*.
@@ -22,11 +22,11 @@ Several commands that have a menu entry are also in the palette, for example **E
 | Entirely: Refresh | `entirely.refresh` | palette | Read | Re-reads the CLI for workspace, session and checkpoint state. |
 | Entirely: Open Settings | `entirely.openSettings` | palette | Read | Opens the Settings editor filtered to Entirely. |
 | Entirely: Entirely Status | `entirely.statusBar` | status bar click; hidden | Depends on state | The status bar's click action. See [Status bar](/entirely/reference/status-bar/). |
-| Entirely: Set Up Entire | `entirely.setUp` | palette | Confirms | Offers to run `entire enable` for the workspace, which installs hooks so agent sessions are recorded. Picks the agent from `entire agent list`. |
+| Entirely: Set Up Entire | `entirely.setUp` | palette | Asks for input, no confirmation | Shows a message with a **Set Up** button (not a modal), then a picker of the agents from `entire agent list`, then runs `entire enable` for that agent with no further prompt. Installs hooks so agent sessions are recorded. |
 | Entirely: Set Up Agent Integrations | `entirely.manageAgents` | palette | Confirms | Lists the agents the CLI supports, marks the installed ones, and installs or removes one. The prompt says the CLI will write the agent's hook configuration into the repository. See [Agent integrations](/entirely/guides/agent-integrations/). |
 | Entirely: Add the Entire CLI to the Terminal PATH | `entirely.repairTerminalPath` | palette | Confirms | Writes `terminal.integrated.env.<platform>` so the integrated terminal can run `entire`. You pick the settings scope first. Running it again removes the entry. |
 | Entirely: Check Where Checkpoints Are Uploaded | `entirely.checkpointDestination` | palette | Read | Reports the repository checkpoints go to and whether the CLI can reach it. |
-| Entirely: Doctor: Copy a Diagnostic Report | `entirely.doctor` | palette | Read | Copies a report of CLI version, repository state, effective settings and last error. |
+| Entirely: Doctor: Copy a Diagnostic Report | `entirely.doctor` | palette | Read | Writes a report of CLI version, repository state, effective settings and last error to the output channel, then offers **Copy to Clipboard**. |
 | Entirely: Doctor: Show the CLI's Full Diagnostic Output | `entirely.showCliDoctorOutput` | palette | Read | Shows the bare `entire doctor` output. Never run with a fix flag. |
 | Entirely: Doctor: Show the Last Entire CLI Output | `entirely.dumpCliOutput` | palette | Read | Dumps the recorded output of the last CLI call. This is the explicit way to see a payload that the output channel keeps out by default. |
 
@@ -36,7 +36,7 @@ See [Doctor and diagnostics](/entirely/guides/doctor-and-diagnostics/).
 
 | Palette title | Id | Where | Changes | What it does |
 | --- | --- | --- | --- | --- |
-| Entirely: Sign In to Entire | `entirely.signIn` | Account view title (when signed out) | Account | Runs `entire login`, with a device-code option and a server choice. |
+| Entirely: Sign In to Entire | `entirely.signIn` | Account view title (when signed out) | Account | Runs `entire login`. You choose a browser or a device code; the device-code choice is offered only when the CLI supports it. |
 | Entirely: Sign Out of Entire | `entirely.signOut` | Account view title (when signed in) | Confirms | Runs `entire logout`. The prompt warns that every saved login is signed out. |
 
 See [Accounts and contexts](/entirely/concepts/accounts-and-contexts/).
@@ -77,12 +77,12 @@ See [Search](/entirely/guides/search/) and [Blame and why](/entirely/guides/blam
 
 ## Trails and review
 
-Each action below confirms in a modal prompt and names what it changes. The merge runs a dry run first and reports blockers before it asks. The timeout is `entirely.trailActionTimeout`.
+Merge, check out, link and unlink confirm in a modal prompt that names what they change. The merge runs a dry run first and reports blockers before it asks. Approve runs right after you pick the change, and comment runs right after you type the text, so neither confirms. The timeout is `entirely.trailActionTimeout`.
 
 | Palette title | Id | Where | Changes | What it does |
 | --- | --- | --- | --- | --- |
-| Entirely: Approve a Change on a Trail | `entirely.trailApprove` | palette | Confirms | `entire trail approve`, optionally with a message. |
-| Entirely: Comment on a Change on a Trail | `entirely.trailComment` | palette | Confirms | Posts a comment (`trail comment add`) or a finding (`trail finding add`). Comment bodies are redacted from the logged command line. |
+| Entirely: Approve a Change on a Trail | `entirely.trailApprove` | palette | Asks for input, no confirmation | `entire trail approve`, run as soon as you pick the change. No message is sent. |
+| Entirely: Comment on a Change on a Trail | `entirely.trailComment` | palette | Asks for input, no confirmation | Posts a comment (`trail comment add`) as soon as you enter the text. If the CLI refuses a comment from an agent session, the note is posted as a finding (`trail finding add`) instead and you are told. Comment bodies are redacted from the logged command line. |
 | Entirely: Merge a Change on a Trail | `entirely.trailMerge` | palette | Confirms | `entire trail merge`, after a dry run that names what will be merged. |
 | Entirely: Check Out a Change on a Trail | `entirely.trailCheckout` | palette | Confirms | `entire trail checkout`. Warns about unsaved files because the checkout moves the working tree. |
 | Entirely: Link a Branch to a Trail | `entirely.trailLink` | palette | Confirms | `entire trail link`. |
@@ -129,9 +129,9 @@ The delete, visibility and access commands are hidden from the palette and live 
 | Entirely: Install Plugin | `entirely.installPlugin` | palette | Confirms | `entire plugin install`. |
 | Entirely: Refresh Integrations | `entirely.refreshIntegrations` | Integrations view title | Read | Re-checks plugins and the MCP server per workspace folder. |
 | Entirely: Install Plugin | `entirely.installIntegration` | Integrations inline icon (row with a missing plugin) | Confirms | Installs that row's plugin. It has the same title as the palette command above. |
-| Entirely: Turn On MCP Server | `entirely.enableMcpIntegration` | Integrations inline icon (row where MCP is off) | Setting | Sets `entirely.mcpServerEnabled` for the folder. |
+| Entirely: Turn On MCP Server | `entirely.enableMcpIntegration` | Integrations inline icon (row where MCP is off) | Confirms | Sets `entirely.mcpServerEnabled` in the narrowest scope that takes effect: the folder, then the workspace, then your user settings. |
 | Entirely: Add MCP Server to Project Configuration | `entirely.addMcpToProject` | Integrations inline icon (row where it can be added) | Confirms | Adds the Entire server to the project's `.mcp.json`. Never writes a credential or the CLI path. |
-| Entirely: Start MCP Server | `entirely.startMcpServer` | palette | Read | Starts `entire mcp` for the editor's agent. The editor owns the process. |
+| Entirely: Start MCP Server | `entirely.startMcpServer` | palette | Confirms, only if the setting is off | Starts `entire mcp` for the editor's agent. The editor owns the process. If `entirely.mcpServerEnabled` is off, a modal says "The Entire MCP server is turned off." and, on **Turn On**, sets it in your user settings. |
 | Entirely: Copy MCP Server Configuration | `entirely.copyMcpConfig` | palette | Read | Copies the server definition to the clipboard. |
 
 See [Plugins](/entirely/guides/plugins/) and [Integrations and MCP](/entirely/guides/integrations-and-mcp/). Plugin install and the live MCP server are covered by tests against fake CLIs. They have not been verified against a live Entire account.
