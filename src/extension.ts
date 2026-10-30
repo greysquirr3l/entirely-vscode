@@ -17,6 +17,8 @@ import {
 	createCheckpointDetailSource,
 	createCheckpointSource,
 } from './services/checkpointSource';
+import { SearchProvider } from './providers/searchProvider';
+import { WorkSearchService } from './services/workSearch';
 import { CheckpointFilter } from './services/checkpointFilter';
 import { CheckpointSearchService } from './services/checkpointSearch';
 import { CliInvocationLogger } from './services/cliLogging';
@@ -188,6 +190,26 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	});
 	context.subscriptions.push(checkpointsView);
 
+	// Search over sessions, commits, checkpoints and files. The scope is a
+	// setting, read at each search, and the acting login is named in the results.
+	const search = new SearchProvider(
+		new WorkSearchService({
+			runner,
+			workspaceRoot,
+			reach: () => (readExtensionSettings().searchScope === 'all-repositories' ? 'all' : 'current'),
+			login: () => accounts.context,
+		}),
+	);
+	context.subscriptions.push(search);
+	const searchView = vscode.window.createTreeView('entirely.search', { treeDataProvider: search });
+	context.subscriptions.push(
+		searchView,
+		search.onDidChangeTreeData(() => {
+			searchView.message = search.viewMessage;
+			void vscode.commands.executeCommand('setContext', 'entirely.searchActive', !search.isIdle);
+		}),
+	);
+
 	const sessionsView = vscode.window.createTreeView('entirely.sessions', {
 		treeDataProvider: sessions,
 	});
@@ -306,6 +328,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	});
 
 	registerCommands(context, {
+		search,
 		cliDoctor,
 		agentIntegrations: {
 			agents: agentIntegrations,

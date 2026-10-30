@@ -38,6 +38,8 @@ export interface ExtensionSettings {
 	readonly resumeWatchTimeout: number;
 	/** How long, in milliseconds, the checkpoint filter waits after typing before it searches. */
 	readonly searchDebounce: number;
+	/** Whether editor search covers the current repository or every repository the login can see. */
+	readonly searchScope: SearchScopeSetting;
 	/** The most lines of a file that blame is drawn on in the editor. */
 	readonly blameMaxDecoratedLines: number;
 	/** Whether the sessions tree is also shown in the Explorer. */
@@ -168,6 +170,13 @@ export function clampSearchDebounce(milliseconds: number): number {
 	return Math.min(MAX_SEARCH_DEBOUNCE_MS, Math.max(MIN_SEARCH_DEBOUNCE_MS, Math.floor(milliseconds)));
 }
 
+export type SearchScopeSetting = 'repository' | 'all-repositories';
+
+/** Reads the search scope, falling back to the narrower one for a value that is not recognised. */
+export function readSearchScope(value: string): SearchScopeSetting {
+	return value === 'all-repositories' ? 'all-repositories' : 'repository';
+}
+
 /** The smallest and largest line limit for drawing blame. */
 export const MIN_BLAME_LINES = 100;
 export const MAX_BLAME_LINES = 100_000;
@@ -230,6 +239,7 @@ export function readExtensionSettings(): ExtensionSettings {
 		importTimeout: clampImportTimeout(configuration.get<number>('importTimeout', 300)),
 		resumeWatchTimeout: clampResumeWatch(configuration.get<number>('resumeWatchTimeout', 60)),
 		searchDebounce: clampSearchDebounce(configuration.get<number>('searchDebounce', 400)),
+		searchScope: readSearchScope(configuration.get<string>('searchScope', 'repository')),
 		blameMaxDecoratedLines: clampBlameMaxLines(configuration.get<number>('blameMaxDecoratedLines', 5000)),
 		showSessionsInExplorer: configuration.get<boolean>('showSessionsInExplorer', false),
 		logLevel: readLogLevel(configuration.get<string>('logLevel', 'info')),

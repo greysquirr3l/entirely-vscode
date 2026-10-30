@@ -197,3 +197,30 @@ export {
 	readDoctorOutput,
 } from './cliDoctor';
 export type { CliDoctorReading, DoctorCheck } from './cliDoctor';
+export {
+	codeSearchArguments,
+	planWorkSearch,
+	readCurrentRepo,
+	workSearchArguments,
+} from './workSearchFlags';
+export type { RepositoryReach, WorkSearchPlan, WorkSearchPlanResult } from './workSearchFlags';
+export {
+	decodeFileHits,
+	decodeWorkHits,
+	describeEmptyOutcome,
+	describeScope,
+	outcomeOfReport,
+	scopeLine,
+	summariseReport,
+} from './workSearchResults';
+export type {
+	FileHit,
+	FileHitPage,
+	SearchScope,
+	WorkHit,
+	WorkHitKind,
+	WorkHitPage,
+	WorkSearchOutcome,
+	WorkSearchReport,
+} from './workSearchResults';
+export { isSameRepository, resolveInRoot } from './searchTargets';

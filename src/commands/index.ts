@@ -10,6 +10,8 @@ import { readExtensionSettings } from '../services/configuration';
 import type { CliDoctorSource } from '../services/cliDoctor';
 import { explainCheckpoint, whyThisLine } from './whyThisLine';
 import { clearCheckpointSearch, searchCheckpoints } from './checkpointSearch';
+import { openSearchResult, searchWork } from './workSearch';
+import type { SearchProvider, SearchTarget } from '../providers/searchProvider';
 import { checkpointDestination } from './checkpointDestination';
 import {
 	adoptSession,
@@ -47,6 +49,8 @@ export interface CommandDependencies {
 	readonly checkpoints: CheckpointsProvider;
 	/** The text the checkpoint tree is filtered by, and what the search found. */
 	readonly checkpointFilter: CheckpointFilter;
+	/** The Search view and what it shows. */
+	readonly search: SearchProvider;
 	/** Reads one session in full. */
 	readonly sessionDetailSource: SessionDetailSource;
 	readonly tokenUsage: TokenUsageSource;
@@ -111,6 +115,35 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 	);
 
 	context.subscriptions.push(
+		vscode.commands.registerCommand('entirely.searchWork', async (query?: unknown) => {
+			await searchWork(deps.search, query);
+		}),
+
+		vscode.commands.registerCommand('entirely.clearSearch', () => {
+			deps.search.clear();
+		}),
+
+		vscode.commands.registerCommand('entirely.openSearchResult', async (target: SearchTarget) => {
+			await openSearchResult(
+				{
+					roots: () => vscode.workspace.workspaceFolders?.map(folder => folder.uri.fsPath) ?? [],
+					findSession: async id => {
+						const listing = await deps.lifecycle.sessions();
+						const session = listing.sessions.find(candidate => candidate.id === id);
+						return session ? { kind: 'session', session } : undefined;
+					},
+					showSession: async node => {
+						await vscode.commands.executeCommand('entirely.showSessions');
+						await vscode.commands.executeCommand('entirely.selectSession', node);
+					},
+					explainCheckpoint: async id => {
+						await vscode.commands.executeCommand('entirely.explainCheckpoint', id);
+					},
+				},
+				target,
+			);
+		}),
+
 		vscode.commands.registerCommand('entirely.refresh', async () => {
 			await deps.statusController.refresh();
 			await deps.sessions.refresh();
