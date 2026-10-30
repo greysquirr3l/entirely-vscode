@@ -5,6 +5,41 @@ All notable changes to the Entirely extension are documented in this file. The f
 
 ## [Unreleased]
 
+### Added
+
+- **The CLI's log and hook traces, from the editor.** **Entirely: Doctor: Show the CLI
+  Log** and **Show Hook Traces** open the output of `entire doctor logs` and
+  `entire doctor trace` in a read-only document with a Copy action, never in the output
+  channel. The log is always asked for with a line count (`entirely.doctorLogLines`),
+  never `--follow` and never zero lines. The trace command offers the latest trace, the
+  last N (`entirely.doctorTraceCount`), a summary or the slow ones, and an optional hook
+  name, each only when the CLI's help describes the flag.
+- **Long output is cut, and the whole of it can be saved.** A log, trace or migration
+  report over `entirely.doctorOutputMaxKilobytes` opens with a banner that says how much
+  was left out. **Save the whole output** writes all of it to a `.txt` or `.log` file you
+  choose, through a temporary file, and asks before replacing one. The runner now says when
+  the CLI printed more than the 16 MB it reads.
+- **A diagnostic bundle to a file you choose.** **Entirely: Doctor: Write a Diagnostic
+  Bundle** says what `entire doctor bundle` puts in the archive, asks for an absolute `.zip`
+  path in an existing folder (not a link, not inside `.git` or `.entire`), confirms before
+  replacing a file, runs the CLI with its secret redaction on, reads the file back to check
+  it is a zip archive, and offers Reveal and Copy Path. It never opens the archive.
+  **Write an Unredacted Diagnostic Bundle** is a separate command with its own strict
+  confirmation, offered only when the CLI's help describes the raw flag.
+- **Migrate checkpoints to git refs.** **Entirely: Doctor: Migrate Checkpoints to Git
+  Refs** opens the dry run of `entire doctor migrate-checkpoints` first, then asks to
+  apply it in a modal that names the repository, the acting login and the local refs it
+  creates. It runs once as that login, never retries, never names a remote so nothing is
+  pushed, and checks the result by counting `refs/entire/checkpoints/` before and after.
+- Six settings: `entirely.doctorLogLines`, `doctorTraceCount`, `doctorOutputMaxKilobytes`,
+  `doctorReadTimeout`, `doctorBundleTimeout` and `migrateCheckpointsTimeout`.
+- A CLI without one of these subcommands is named, with its version and an update link,
+  and nothing is run.
+
+These flows were tested only against a fake CLI. The real CLI's output formats for
+`doctor logs`, `trace`, `bundle` and `migrate-checkpoints` were not observed, and the
+bundle and migration were not run against it.
+
 ## [0.2.0] - 2026-10-30
 
 ### Changed

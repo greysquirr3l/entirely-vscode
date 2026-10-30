@@ -1,6 +1,6 @@
 ---
 title: Diagnose problems
-description: Produce a diagnostic report, read the CLI's own doctor findings, use the output channel, and fix the common causes.
+description: Produce a diagnostic report, read the CLI's own doctor findings, read its log and hook traces, write a diagnostic bundle, migrate checkpoints, use the output channel, and fix the common causes.
 sidebar:
   order: 11
 ---
@@ -56,6 +56,83 @@ The "Capture pipeline" section comes from running `entire doctor` with no flags.
 Only the headline, reason and fix lines reach the report. The rest of the CLI's output can name files and sessions, and it stays out of a text you may paste publicly. To read all of it, run **Entirely: Doctor: Show the CLI's Full Diagnostic Output** (`entirely.showCliDoctorOutput`). It writes the last run's raw text to the output channel. If the report has not been run yet, it tells you to run that first. The raw text is held in memory only.
 
 `entirely.cliDoctorTimeout` (default `30`, range 5 to 300) sets how long the report waits for `entire doctor`.
+
+## The CLI's log and hook traces
+
+<Aside type="caution">
+The commands in this section and the next two were tested only against a fake CLI. Entirely read the real CLI's help for `entire doctor logs`, `trace`, `bundle` and `migrate-checkpoints`, but it did not run any of the four against the real CLI, and the format of their output was not observed. The text is shown as the CLI prints it and is never parsed.
+</Aside>
+
+**Entirely: Doctor: Show the CLI Log** (`entirely.showCliLog`) runs `entire doctor logs` and opens the newest lines in a read-only document with a **Copy** action. The output channel records only the command line and the size, never the text. The log can name files, branches and sessions, and the document says that Entirely did not copy it anywhere.
+
+- The number of lines comes from `entirely.doctorLogLines` (default 200, range 10 to 5000) and is always sent to the CLI. Entirely never runs `--follow`, which streams until you stop it, and never asks for zero lines, which the CLI reads as the whole file. To follow the log live, run `entire doctor logs --follow` in a terminal.
+- An empty log says "The log has no lines yet". That is not a failure.
+
+**Entirely: Doctor: Show Hook Traces** (`entirely.showHookTraces`) runs `entire doctor trace`. It asks for the latest trace, the last few (the number starts at `entirely.doctorTraceCount`, default 5), a summary, or only the slow traces, then an optional hook name such as `post-commit`. A choice appears only when the CLI's help describes its flag, so a CLI without a hook filter is not asked for one. When there is nothing to show, the message explains that the CLI traces only hooks that take 1.5 s or longer unless its log level was raised, and offers to open the CLI's own `.entire/settings.json` when it exists. Entirely never edits that file.
+
+### Long output
+
+A log, trace or migration report larger than `entirely.doctorOutputMaxKilobytes` (default 512, range 16 to 4096) opens cut. A log keeps its newest lines and a trace its first. The document starts with a banner such as "Showing the last 1,200 lines of 40,000. 3.1 MB left out", and **Copy** copies the banner too. If the CLI printed more than the 16 MB the extension reads, the banner says that as well.
+
+Choose **Save the whole output…** in the notification to write all of it to a `.txt` or `.log` file. The same path rules as a bundle apply (below), a file that already exists is named and confirmed before it is replaced, the text goes through a temporary file so a failure never leaves half a file, and the file is not opened.
+
+## A diagnostic bundle
+
+**Entirely: Doctor: Write a Diagnostic Bundle** (`entirely.writeDiagnosticBundle`) runs `entire doctor bundle`, which zips the CLI's logs, your Entire settings files and a snapshot of git status, history and remotes.
+
+<Steps>
+
+1. A modal says what the archive holds. Secrets are redacted by pattern; prompts, file paths and commit messages that appear in those files are not. Treat the archive as private.
+
+2. Choose **Choose where to save…** and pick a path in the save dialog (the default name is `entire-diagnostics-` and the UTC date).
+
+3. Entirely checks the path, and asks before replacing a file ("Replace /path/file.zip?"). If the path is inside the workspace, the question adds that git may offer to commit the archive.
+
+4. The CLI runs once, as the acting login, with the path you chose. The chosen path is kept out of the output channel.
+
+5. Entirely reads the file back. A regular, non-empty file that starts like a zip archive is reported as written, with its size, and offered with **Reveal in File Explorer** and **Copy Path**. A bundle that is missing or is not a zip archive is reported as unconfirmed, and a CLI refusal (for example a redaction rule that could not be loaded) as not written, with the CLI's reason.
+
+</Steps>
+
+The archive is never opened in the editor, and Entirely never creates folders for it.
+
+A path is refused, with the reason, and the CLI is not run, when it:
+
+| Path | Why |
+|---|---|
+| is relative, or has a `..` segment or a NUL | It must be a plain absolute path. |
+| does not end in `.zip` | The CLI writes a zip archive. |
+| has a parent folder that does not exist | Entirely does not create folders. |
+| is, or sits in, a symbolic link | A link could point anywhere. |
+| has a `.git` or `.entire` segment | The archive must not land in the repository's data or the CLI's own log folder it reads. |
+
+**Entirely: Doctor: Write an Unredacted Diagnostic Bundle** (`entirely.writeRawDiagnosticBundle`) is a separate command, so it is never one click from the normal one. Its modal says the archive will hold raw log lines, settings and git output, including any API keys, tokens or credentials, and to do this only when Entire support has asked. Nothing is written unless you choose **Write unredacted bundle**. It is refused when the CLI's help does not describe the raw flag.
+
+`entirely.doctorBundleTimeout` (default 120, range 10 to 900) sets how long the bundle may take.
+
+## Migrate checkpoints to git refs
+
+**Entirely: Doctor: Migrate Checkpoints to Git Refs** (`entirely.migrateCheckpoints`) converts the checkpoints on the `entire/checkpoints/v1` branch into per-checkpoint refs under `refs/entire/checkpoints/`.
+
+<Steps>
+
+1. The dry run opens first, in a read-only document headed "Dry run: nothing was written". Entirely shows the CLI's report as it is and does not parse it.
+
+2. Choose **Migrate…** to go on, or **Close**. The CLI documents the migration as idempotent: checkpoints already converted are skipped.
+
+3. A modal names the repository, the acting login and the refs it will create, and says the branch and the configured checkpoint store are not changed and nothing is pushed. There is no undo in the CLI; removing the refs afterwards needs git.
+
+4. The CLI runs once, as that login, with no flag at all, so Entirely never names a remote and, with no terminal to answer its question, the CLI never pushes. It is not retried.
+
+5. Entirely counts the `refs/entire/checkpoints/` refs again and says what changed: "Created N refs" (queued for push, which goes out on your next push), "No new refs were created", a failure with the CLI's reason, or "unconfirmed" when git could not be asked. A cancelled run says some refs may already exist and that running it again is safe. **Show the CLI's output** opens what the CLI printed.
+
+</Steps>
+
+`entirely.doctorReadTimeout` (default 30) covers the dry run, and `entirely.migrateCheckpointsTimeout` (default 300, range 10 to 1800) covers the migration.
+
+### An old or missing CLI
+
+If the CLI is not installed, each of these commands says so and shows the install command. If it is installed but has no `doctor logs`, `trace`, `bundle` or `migrate-checkpoints`, the message names the subcommand and the CLI version, offers an update link, and nothing is run. A timeout while asking is reported as a failure, not as a missing command.
 
 ## The output channel
 
@@ -138,6 +215,12 @@ Run the report, then read the "Last CLI error" section. The exact command line i
 | Setting | Default | Range | What it does |
 |---|---|---|---|
 | `entirely.cliDoctorTimeout` | `30` | 5 to 300 | Seconds the report waits for `entire doctor`. |
+| `entirely.doctorLogLines` | `200` | 10 to 5000 | Log lines shown by **Show the CLI Log**. |
+| `entirely.doctorTraceCount` | `5` | 1 to 200 | Default number of hook traces. |
+| `entirely.doctorOutputMaxKilobytes` | `512` | 16 to 4096 | Size past which a document opens cut. |
+| `entirely.doctorReadTimeout` | `30` | 5 to 300 | Seconds for the log, traces and the migration dry run. |
+| `entirely.doctorBundleTimeout` | `120` | 10 to 900 | Seconds for a diagnostic bundle. |
+| `entirely.migrateCheckpointsTimeout` | `300` | 10 to 1800 | Seconds for the migration. |
 | `entirely.logLevel` | `info` | `error`, `warn`, `info`, `debug`, `trace` | Verbosity of the `Entire` channel. |
 | `entirely.debug` | `false` | | Same as `debug` level. |
 | `entirely.cliPath` | empty | machine scope | Absolute path to `entire`. |

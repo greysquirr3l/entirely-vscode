@@ -44,7 +44,7 @@ Entirely (this extension)
 | **Hook bridge** | Reports the editor's own agent activity to the compatible `copilot-cli` integration; other integrations record their own activity |
 | **Terminal PATH repair** | Puts the Entire CLI on the integrated terminal's PATH, through the editor's own settings — no shell profile, no shell command |
 | **BYOK models** | Works with whatever model Copilot Chat is using (hosted, BYOK or local) without the extension knowing the model exists |
-| **Doctor** | A copyable diagnostic report: CLI version, repository state, effective settings, last error |
+| **Doctor** | A copyable diagnostic report: CLI version, repository state, effective settings, last error. Also reads the CLI's log and hook traces, writes a diagnostic bundle to a file you choose, and migrates checkpoints to git refs (see below) |
 
 If the CLI is missing, the extension degrades to a clear message with a link
 to the install instructions rather than failing obscurely.
@@ -397,6 +397,40 @@ report waits for it.
 Turn the volume up with `entirely.debug`, or with `entirely.logLevel` for
 finer control. There is still only one channel.
 
+### The CLI's log, hook traces, bundle and checkpoint migration
+
+Four more `entire doctor` subcommands are reachable from the Command Palette.
+None of them writes what it reads to the output channel; the channel records
+the command line and the size.
+
+- **Entirely: Doctor: Show the CLI Log** opens the newest lines of the CLI's
+  operational log (`entirely.doctorLogLines`, default 200) in a read-only
+  document with a Copy action. Following the log live (`entire doctor logs
+  --follow`) is left to the terminal.
+- **Entirely: Doctor: Show Hook Traces** asks for the latest trace, the last N,
+  a summary or only the slow ones, and an optional hook name. Only options the
+  CLI's help describes are offered.
+- A log, trace or migration report longer than `entirely.doctorOutputMaxKilobytes`
+  (default 512) opens cut, with a banner that says how much was left out, and
+  **Save the whole output** writes all of it to a file you choose.
+- **Entirely: Doctor: Write a Diagnostic Bundle** first says what the archive
+  holds (the CLI's logs, your Entire settings and a git snapshot; secrets are
+  redacted by pattern, prompts and file paths are not), then asks for a `.zip`
+  path. The path must be absolute, in an existing folder, not a link, and not
+  inside `.git` or `.entire`; replacing a file is confirmed by name. The file is
+  read back to check it is a zip archive, and offered with Reveal and Copy Path.
+  It is never opened in the editor. **Entirely: Doctor: Write an Unredacted
+  Diagnostic Bundle** is a separate command behind its own strict confirmation.
+- **Entirely: Doctor: Migrate Checkpoints to Git Refs** opens the CLI's dry run
+  first. Only then does it offer the migration, which names the repository and
+  the login it will run as, runs once, never pushes, and is checked by counting
+  the `refs/entire/checkpoints/` refs before and after.
+
+These flows were tested only against a fake CLI, and only the help of the four
+subcommands was read from the real one. The real CLI's output formats for them
+were not observed, and `doctor bundle` and `doctor migrate-checkpoints` have not
+been run against it.
+
 ## Two Entire accounts
 
 If you have more than one Entire login, the status bar tooltip says which one
@@ -487,6 +521,12 @@ remote-machine settings, never workspace settings.
 | `activityTimeout` | `30` | Activity and recap |
 | `dispatchTimeout` | `180` | Generating a dispatch |
 | `pluginTimeout` | `120` | Running or installing a plugin |
+| `doctorLogLines` | `200` | Lines of the CLI log shown (10 to 5000, never all) |
+| `doctorTraceCount` | `5` | Hook traces asked for by default (1 to 200) |
+| `doctorOutputMaxKilobytes` | `512` | Size past which a log, trace or report opens cut (16 to 4096) |
+| `doctorReadTimeout` | `30` | The log, traces and the migration dry run |
+| `doctorBundleTimeout` | `120` | Writing a diagnostic bundle |
+| `migrateCheckpointsTimeout` | `300` | The checkpoint migration |
 
 ## Requirements
 

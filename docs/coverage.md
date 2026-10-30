@@ -25,7 +25,7 @@ README. Every CLI invocation the extension can make is in section 1.
 | Excluded | A decision: the extension deliberately does not do it. The notes say why. |
 | Gap | Not done, and no decision to leave it out. Listed in section 3. |
 
-**Totals.** Rows: 133 (supported 74, excluded 7, gap 52).
+**Totals.** Rows: 133 (supported 78, excluded 7, gap 48).
 
 The totals line is read by `src/test/coverage.test.ts`, which fails when it
 disagrees with the table.
@@ -45,6 +45,10 @@ row names a command its callers never build.
 | `entire agent-help` | `src/services/cli/runner.ts` | Reading a command's flags at runtime |
 | `entire enable` | `src/services/setup.ts` | Set Up Entire |
 | `entire doctor` | `src/services/cliDoctor.ts` | The CLI's own capture-pipeline report |
+| `entire doctor logs` | `src/lib/entire/doctorFlags.ts`, `src/services/doctorDepth.ts` | The last lines of the CLI's operational log |
+| `entire doctor trace` | `src/lib/entire/doctorFlags.ts`, `src/services/doctorDepth.ts` | Hook timing traces |
+| `entire doctor bundle` | `src/lib/entire/doctorFlags.ts`, `src/services/doctorDepth.ts` | A diagnostic bundle written to a path the person chose |
+| `entire doctor migrate-checkpoints` | `src/lib/entire/doctorFlags.ts`, `src/services/checkpointMigration.ts` | A dry run, then the migration to per-checkpoint git refs |
 | `entire hooks` | `src/services/hookBridge.ts` | Reporting editor-side agent activity |
 | `entire agent list` | `src/services/agentIntegrations.ts` | Installed agent integrations |
 | `entire agent add` | `src/lib/entire/agents.ts` | Installing an agent integration |
@@ -132,10 +136,10 @@ The three rows below are the plugins the documentation names.
 | `entire status` | Supported | `src/services/statusController.ts`, `src/test/statusBar.test.ts`, `src/test/cli.test.ts` | The status bar and the doctor report. `statusBar.test.ts` (suite "Entire status controller and the acting login") runs `StatusController` against a fake CLI that answers `status`; `cli.test.ts` runs the runner against a fake CLI for the same call. |
 | `entire version` | Supported | `src/services/cli/locator.ts`, `src/test/cli.test.ts`, `src/test/cliVersion.test.ts` | `cli.test.ts` runs the locator against fake CLIs that answer `version`; `cliVersion.test.ts` covers parsing and comparison only. |
 | `entire doctor` | Supported | `entirely.showCliDoctorOutput`, `src/services/cliDoctor.ts`, `src/test/cliDoctor.test.ts` | The bare report, read-only. The fix prompts need a terminal. |
-| `entire doctor bundle` | Gap | | A diagnostic bundle for support. |
-| `entire doctor logs` | Gap | | |
-| `entire doctor migrate-checkpoints` | Gap | | |
-| `entire doctor trace` | Gap | | Hook traces. |
+| `entire doctor bundle` | Supported | `entirely.writeDiagnosticBundle`, `entirely.writeRawDiagnosticBundle`, `src/services/doctorDepth.ts`, `src/test/doctorBundle.test.ts` | Written only to a path the person chose and checked (absolute, `.zip`, existing folder, no link, not inside `.git` or `.entire`), after a notice of what the archive holds, and read back. Secret redaction stays on; the unredacted bundle is a separate command with its own modal. Tested against a fake CLI only; the real CLI's output formats were not observed, and the real subcommand was not run. Not exposed: opening the archive in the editor. |
+| `entire doctor logs` | Supported | `entirely.showCliLog`, `src/services/doctorDepth.ts`, `src/test/doctorDepth.test.ts` | The last lines open in a read-only document with Copy; a long log is cut to `entirely.doctorOutputMaxKilobytes` and can be saved whole. Tested against a fake CLI only; the real CLI's output formats were not observed, and the real subcommand was not run. `--follow` not exposed (it never ends; run it in a terminal), and `--tail 0` is never sent. |
+| `entire doctor migrate-checkpoints` | Supported | `entirely.migrateCheckpoints`, `src/services/checkpointMigration.ts`, `src/test/migrateCheckpoints.test.ts` | The dry run opens first; the migration is confirmed naming the repository and the acting login, runs once with no flag, and is checked by counting `refs/entire/checkpoints/` before and after (a real git repository in a temporary folder). Tested against a fake CLI only; the real CLI's output formats were not observed, and the real subcommand was not run. `--remote` not exposed, so the extension never pushes. |
+| `entire doctor trace` | Supported | `entirely.showHookTraces`, `src/services/doctorDepth.ts`, `src/test/doctorDepth.test.ts` | The latest trace, the last N, a summary or the slow ones, with an optional hook filter; each option is offered only when the CLI's help describes it. Tested against a fake CLI only; the real CLI's output formats were not observed, and the real subcommand was not run. `--json` not exposed. |
 | `entire import` | Supported | `entirely.importHistory`, `src/services/historyImport.ts`, `src/test/historyImport.test.ts` | A preview first, then the import. The CLI marks it experimental. One agent at a time, with the agent read from the CLI's help. |
 | `entire runner setup` | Gap | | Trail runner setup for a repository. |
 | `entire agent-help` | Supported | `src/services/cli/runner.ts`, `src/test/cli.test.ts` | How the extension reads every command's flags at runtime. The test runs `runner.usage` against a fake CLI that answers `agent-help`. |
@@ -306,13 +310,12 @@ The three rows below are the plugins the documentation names.
 Nothing below is excluded. Each is a capability the CLI has and the editor does not.
 
 1. **Setup and teardown.** `disable`, `configure`, `clean`, `runner setup`. Nothing in the editor stops capture or edits repository settings.
-2. **Diagnostics beyond the report.** `doctor bundle`, `doctor logs`, `doctor trace`, `doctor migrate-checkpoints`.
-3. **Review and expertise.** `review`, `experts`.
-4. **Token analysis across history.** `tokens`, `tokens profile`.
-5. **Checkpoint deletion.** `checkpoint delete`.
-6. **Control plane breadth.** Create and read for organisations and projects (`org create`, `org get`, `project create`, `project get`), organisation invitations (`org invite list`, `revoke`, `send`), and the repository commands `clone`, `mirror add`, `mirror detach`, `mirror remove`, `mirror resync`, `protection add`, `protection list`, `protection remove`, `remote add`, `visibility get`.
-7. **Plugin management.** `plugin browse`, `doctor`, `index update`, `info`, `remove`, `search`, `upgrade`. Only `list` and `install` are wired.
-8. **Trail depth.** `trail create`, `update`, `watch`, and the comment and finding commands that edit, reply, resolve or dismiss.
+2. **Review and expertise.** `review`, `experts`.
+3. **Token analysis across history.** `tokens`, `tokens profile`.
+4. **Checkpoint deletion.** `checkpoint delete`.
+5. **Control plane breadth.** Create and read for organisations and projects (`org create`, `org get`, `project create`, `project get`), organisation invitations (`org invite list`, `revoke`, `send`), and the repository commands `clone`, `mirror add`, `mirror detach`, `mirror remove`, `mirror resync`, `protection add`, `protection list`, `protection remove`, `remote add`, `visibility get`.
+6. **Plugin management.** `plugin browse`, `doctor`, `index update`, `info`, `remove`, `search`, `upgrade`. Only `list` and `install` are wired.
+7. **Trail depth.** `trail create`, `update`, `watch`, and the comment and finding commands that edit, reply, resolve or dismiss.
 
 ---
 
