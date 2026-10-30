@@ -322,6 +322,31 @@
         "category": "Entirely"
       },
       {
+        "command": "entirely.showCliLog",
+        "title": "Doctor: Show the CLI Log",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.showHookTraces",
+        "title": "Doctor: Show Hook Traces",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.writeDiagnosticBundle",
+        "title": "Doctor: Write a Diagnostic Bundle",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.writeRawDiagnosticBundle",
+        "title": "Doctor: Write an Unredacted Diagnostic Bundle",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.migrateCheckpoints",
+        "title": "Doctor: Migrate Checkpoints to Git Refs",
+        "category": "Entirely"
+      },
+      {
         "command": "entirely.signIn",
         "title": "Sign In to Entire",
         "category": "Entirely",
@@ -617,6 +642,48 @@
           "minimum": 10,
           "maximum": 1800,
           "markdownDescription": "How long, in seconds, **Entirely: Generate Dispatch** waits for the dispatch to be written. A dispatch written by a local agent can take a few minutes. It is never started again after a timeout."
+        },
+        "entirely.doctorLogLines": {
+          "type": "number",
+          "default": 200,
+          "minimum": 10,
+          "maximum": 5000,
+          "markdownDescription": "How many of the newest lines of the CLI's operational log **Entirely: Doctor: Show the CLI Log** asks for. The count is always passed to the CLI, which would otherwise print the whole file; `0` is never sent."
+        },
+        "entirely.doctorTraceCount": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 200,
+          "markdownDescription": "How many hook traces **Entirely: Doctor: Show Hook Traces** offers by default when you ask for the last few. You can change the number for one run."
+        },
+        "entirely.doctorOutputMaxKilobytes": {
+          "type": "number",
+          "default": 512,
+          "minimum": 16,
+          "maximum": 4096,
+          "markdownDescription": "The size, in kilobytes, past which a CLI log, hook trace or migration report is cut before it opens. The document says how much was left out, and **Save the whole output** writes all of it to a file you choose."
+        },
+        "entirely.doctorReadTimeout": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 300,
+          "markdownDescription": "How long, in seconds, to wait for `entire doctor logs`, `entire doctor trace` and the dry run of `entire doctor migrate-checkpoints`. All three only read local files and git."
+        },
+        "entirely.doctorBundleTimeout": {
+          "type": "number",
+          "default": 120,
+          "minimum": 10,
+          "maximum": 900,
+          "markdownDescription": "How long, in seconds, **Entirely: Doctor: Write a Diagnostic Bundle** waits for `entire doctor bundle`. It reads every log file and runs several git commands, so raise this for a large `.entire/logs` folder."
+        },
+        "entirely.migrateCheckpointsTimeout": {
+          "type": "number",
+          "default": 300,
+          "minimum": 10,
+          "maximum": 1800,
+          "markdownDescription": "How long, in seconds, **Entirely: Doctor: Migrate Checkpoints to Git Refs** waits for the CLI to wrap every checkpoint in a commit. It is never started again after a timeout; running it again is safe because converted checkpoints are skipped."
         },
         "entirely.importTimeout": {
           "type": "number",

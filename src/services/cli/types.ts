@@ -54,6 +54,8 @@ export type CliResult<T = unknown> =
 			readonly stdout: string;
 			readonly stderr: string;
 			readonly durationMs: number;
+			/** True when the CLI printed more than the extension reads, so the text is cut short. Absent means not. */
+			readonly truncated?: boolean;
 	  }
 	| {
 			readonly ok: false;
@@ -62,6 +64,7 @@ export type CliResult<T = unknown> =
 			readonly stdout: string;
 			readonly stderr: string;
 			readonly durationMs: number;
+			readonly truncated?: boolean;
 	  };
 
 /** A single flag, as reported by the CLI's own `agent-help` output. */

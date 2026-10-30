@@ -33,6 +33,8 @@ export type ExecOutcome =
 			readonly stderr: string;
 			readonly exitCode: number;
 			readonly durationMs: number;
+			/** True when more output was printed than the extension reads, so the text here is cut short. */
+			readonly truncated: boolean;
 	  }
 	| {
 			readonly ok: false;
@@ -43,6 +45,7 @@ export type ExecOutcome =
 			/** The code the process exited with, when it ran and exited. */
 			readonly exitCode: number | undefined;
 			readonly durationMs: number;
+			readonly truncated: boolean;
 	  };
 
 /** The most output the extension will read from one command. */
@@ -75,6 +78,11 @@ class BoundedBuffer {
 
 		this.size += size;
 		this.chunks.push(chunk);
+	}
+
+	/** Whether output past the limit was dropped. */
+	get wasTruncated(): boolean {
+		return this.truncated;
 	}
 
 	/** What was collected. */
@@ -150,6 +158,7 @@ export function execute(
 				stderr: stderr.text,
 				exitCode: undefined,
 				durationMs: Date.now() - startedAt,
+				truncated: stdout.wasTruncated || stderr.wasTruncated,
 			});
 		}, options.timeoutMs);
 
@@ -165,6 +174,7 @@ export function execute(
 				stderr: stderr.text,
 				exitCode: undefined,
 				durationMs: Date.now() - startedAt,
+				truncated: stdout.wasTruncated || stderr.wasTruncated,
 			});
 		};
 		if (options.signal?.aborted) {
@@ -194,6 +204,7 @@ export function execute(
 				stderr: stderr.text,
 				exitCode: undefined,
 				durationMs: Date.now() - startedAt,
+				truncated: stdout.wasTruncated || stderr.wasTruncated,
 			});
 		});
 
@@ -208,6 +219,7 @@ export function execute(
 					stderr: stderr.text,
 					exitCode: 0,
 					durationMs,
+					truncated: stdout.wasTruncated || stderr.wasTruncated,
 				});
 				return;
 			}
@@ -220,6 +232,7 @@ export function execute(
 				stderr: stderr.text,
 				exitCode,
 				durationMs,
+				truncated: stdout.wasTruncated || stderr.wasTruncated,
 			});
 		});
 
