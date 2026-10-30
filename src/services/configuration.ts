@@ -65,8 +65,10 @@ export interface ExtensionSettings {
 	readonly blameMaxDecoratedLines: number;
 	/** How long, in seconds, a trail review action may run before it is killed. */
 	readonly trailActionTimeout: number;
-	/** How long, in seconds, a detail loaded in the Details viewer is kept. Zero keeps nothing. */
+	/** How long, in seconds, a detail loaded in the detail panel is kept. Zero keeps nothing. */
 	readonly selectionCacheSeconds: number;
+	/** How many open trails are read to count the changes awaiting approval. Zero reads none. */
+	readonly trailBadgeLimit: number;
 	/** Whether the sessions tree is also shown in the Explorer. */
 	readonly showSessionsInExplorer: boolean;
 	/** How much the extension says. */
@@ -302,6 +304,18 @@ export function clampSelectionCacheSeconds(seconds: number): number {
 	return Math.min(MAX_SELECTION_CACHE_SECONDS, Math.max(0, Math.floor(seconds)));
 }
 
+/** The bounds of how many open trails are read for the Trails badge. */
+export const DEFAULT_TRAIL_BADGE_LIMIT = 10;
+export const MAX_TRAIL_BADGE_LIMIT = 50;
+
+/** Puts the Trails badge read limit in range. Zero turns the read off. */
+export function clampTrailBadgeLimit(count: number): number {
+	if (!Number.isFinite(count)) {
+		return DEFAULT_TRAIL_BADGE_LIMIT;
+	}
+	return Math.min(MAX_TRAIL_BADGE_LIMIT, Math.max(0, Math.floor(count)));
+}
+
 /**
  * Reads the extension's settings.
  *
@@ -352,6 +366,7 @@ export function readExtensionSettings(): ExtensionSettings {
 		selectionCacheSeconds: clampSelectionCacheSeconds(
 			configuration.get<number>('selectionCacheSeconds', DEFAULT_SELECTION_CACHE_SECONDS),
 		),
+		trailBadgeLimit: clampTrailBadgeLimit(configuration.get<number>('trailBadgeLimit', DEFAULT_TRAIL_BADGE_LIMIT)),
 		showSessionsInExplorer: configuration.get<boolean>('showSessionsInExplorer', false),
 		logLevel: readLogLevel(configuration.get<string>('logLevel', 'info')),
 		debug: configuration.get<boolean>('debug', false),

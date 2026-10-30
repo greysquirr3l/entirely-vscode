@@ -1,4 +1,4 @@
-import type { Trail, TrailChange, TrailSelector } from './trail';
+import { branchLabel, type Trail, type TrailChange, type TrailSelector } from './trail';
 
 /**
  * What a reviewer can pick.
@@ -37,7 +37,7 @@ export function describePick(pick: TrailPick): string {
 
 	const title = pick.change.title ? ` — ${pick.change.title}` : '';
 
-	return `${pick.change.branch} (${pick.change.repository}/${pick.change.number})${title}`;
+	return `${branchLabel(pick.change)} (${pick.change.repository}/${pick.change.number})${title}`;
 }
 
 /**

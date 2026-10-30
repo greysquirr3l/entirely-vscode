@@ -11,10 +11,11 @@ import {
 	type Trail,
 	type TrailMergePlan,
 } from '../lib/entire';
-import { TrailsProvider } from '../providers/trailsProvider';
+import { TrailsProvider, type TrailsNode } from '../providers/trailsProvider';
 import { CliLocator } from '../services/cli/locator';
 import { CliRunner } from '../services/cli/runner';
 import { createTrailListingSource } from '../services/trailListing';
+import { TrailChangesService } from '../services/trailChanges';
 import { TrailService } from '../services/trailService';
 import { MERGE_PLAN, TRAIL_LIST, fakeTrailCli, invocations } from './support/trailCli';
 
@@ -59,45 +60,62 @@ function sourceFor(answers: Parameters<typeof fakeTrailCli>[0]) {
 		workspaceRoot: () => process.cwd(),
 		actingHandle: () => undefined,
 	});
-	return { cli, source: createTrailListingSource(trails) };
+	const changes = new TrailChangesService({ trails, ttlSeconds: () => 30 });
+	return {
+		cli,
+		trails,
+		changes,
+		source: createTrailListingSource(trails),
+		/** What the provider reads changes through, with the badge read limited as given. */
+		reading: (badgeLimit = 10) => ({ changes, badgeLimit: () => badgeLimit }),
+	};
 }
 
 suite('Entire trail surface', () => {
-	test('list-trails: the trail list is populated from the CLI trail list', async () => {
-		const { cli, source } = sourceFor({});
+	test('list-trails: the trail list is populated from the CLI trail list, and carries no changes', async () => {
+		const { cli, source, reading } = sourceFor({});
 		const listing = await source();
 
 		assert.strictEqual(listing.project, 'gh/greysquirr3l');
 		assert.strictEqual(listing.trails.length, 1);
 		assert.strictEqual(listing.trails[0].trail.number, 40);
-		assert.strictEqual(listing.trails[0].changes.length, 1);
+		assert.strictEqual(listing.trails[0].changes.length, 0, 'the CLI list has no changes key');
 
 		const asked = invocations(cli.log).find(line => line.startsWith('trail list'));
 		assert.ok(asked, 'the CLI was asked for the list');
 		assert.match(asked, /--project gh\/greysquirr3l/);
 
-		const provider = new TrailsProvider(source, () => 0);
+		const provider = new TrailsProvider(source, () => 0, reading(0));
 		await provider.refresh();
-		const [node] = provider.getChildren();
+		const [node] = provider.getChildren() as TrailsNode[];
 		assert.strictEqual(provider.getTreeItem(node).label, '#40 Shape the thing');
-		assert.strictEqual(provider.getChildren(node).length, 1);
+		assert.match(String(provider.getTreeItem(node).description), /changes not loaded/);
+		assert.deepStrictEqual(
+			invocations(cli.log).filter(line => line.startsWith('trail show')),
+			[],
+			'listing and rendering read no trail',
+		);
+
+		const children = await provider.getChildren(node);
+		assert.strictEqual(children.length, 1);
+		assert.match(String(provider.getTreeItem(node).description), /1 change/);
 		provider.dispose();
 	});
 
 	test('pending-approval: a change the CLI says is awaiting approval is surfaced', async () => {
-		const { source } = sourceFor({
+		const { source, reading } = sourceFor({
 			merge: JSON.stringify({
 				...MERGE_PLAN,
 				mergeable: false,
 				blockers: ['approvals: 1 required, 0 given'],
 			}),
 		});
-		const provider = new TrailsProvider(source, () => 0);
+		const provider = new TrailsProvider(source, () => 0, reading());
 		await provider.refresh();
 
 		assert.strictEqual(provider.pendingCount, 1);
-		const [trail] = provider.getChildren();
-		const [change] = provider.getChildren(trail);
+		const [trail] = provider.getChildren() as TrailsNode[];
+		const [change] = (await provider.getChildren(trail)) as TrailsNode[];
 		assert.match(String(provider.getTreeItem(change).description), /awaiting approval/);
 		assert.match(String(provider.getTreeItem(trail).description), /1 awaiting approval/);
 		provider.dispose();
@@ -145,12 +163,14 @@ suite('Entire trail surface', () => {
 		assert.strictEqual(none.kind, 'open');
 
 		// End to end: one approval on record, but the CLI still blocks.
-		const { source } = sourceFor({
+		const { source, changes } = sourceFor({
 			approvals: APPROVED,
 			merge: JSON.stringify({ ...MERGE_PLAN, mergeable: false, blockers: ['approval gate'] }),
 		});
 		const listing = await source();
-		assert.strictEqual(pendingApprovals(listing.trails).length, 1);
+		const read = await changes.changesOf(listing.trails[0].trail);
+		assert.strictEqual(read.kind, 'ok');
+		assert.strictEqual(pendingApprovals(read.kind === 'ok' ? [read.entry] : []).length, 1);
 	});
 
 	test('another blocker is not an approval wait, and no answer is unknown', () => {

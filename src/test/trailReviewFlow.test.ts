@@ -14,6 +14,7 @@ import {
 	type TrailReviewDependencies,
 } from '../commands/trailReview';
 import { CliRunner } from '../services/cli/runner';
+import { TrailChangesService } from '../services/trailChanges';
 import { TrailService } from '../services/trailService';
 import { MERGE_PLAN, fakeTrailCli, invocations } from './support/trailCli';
 
@@ -96,13 +97,18 @@ async function withPrompts(
 
 /** The dependencies a flow needs, bound to a fake CLI. */
 function dependenciesFor(runner: CliRunner): TrailReviewDependencies {
-	return {
-		trails: new TrailService({
-			runner,
-			workspaceRoot: () => undefined,
-			actingHandle: () => 'greysquirr3l',
-		}),
+	const trails = new TrailService({
+		runner,
+		workspaceRoot: () => undefined,
 		actingHandle: () => 'greysquirr3l',
+	});
+	// The CLI's list carries no changes, so a change is chosen from what
+	// `trail show` reports, as the extension does.
+	const changes = new TrailChangesService({ trails, ttlSeconds: () => 0 });
+	return {
+		trails,
+		actingHandle: () => 'greysquirr3l',
+		withChanges: list => changes.withChanges(list, 50),
 	};
 }
 

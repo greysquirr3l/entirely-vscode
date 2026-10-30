@@ -26,6 +26,11 @@ export interface TrailReviewDependencies {
 	readonly actingHandle: () => string | undefined;
 	/** Called after the CLI has changed a trail or one of its changes, so what is shown about it can be read again. */
 	readonly changed?: (pick: TrailPick) => void;
+	/**
+	 * Fills in the changes of the listed trails. The CLI's list carries none,
+	 * so a change can only be chosen once they have been read.
+	 */
+	readonly withChanges?: (trails: readonly Trail[]) => Promise<readonly Trail[]>;
 }
 
 /**
@@ -108,7 +113,8 @@ async function changeToActOn(
 		return undefined;
 	}
 
-	const pick = await choose(changePicks(listed.trails), title, placeHolder);
+	const trails = deps.withChanges ? await deps.withChanges(listed.trails) : listed.trails;
+	const pick = await choose(changePicks(trails), title, placeHolder);
 	return pick?.kind === 'change' ? pick : undefined;
 }
 

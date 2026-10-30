@@ -1,6 +1,10 @@
 import type { Trail, TrailApproval, TrailChange, TrailGate, TrailMergePlan } from './trail';
 import { pluralise } from './text';
 
+/** The details of the `unknown` gate a change gets when it has nothing left to gate. */
+export const MERGED_DETAIL = 'the change is merged';
+export const CLOSED_DETAIL = 'the trail is closed';
+
 /** A change together with the state of its gate. */
 export interface GatedChange {
 	readonly change: TrailChange;
@@ -84,7 +88,10 @@ export function describeGate(gate: TrailGate): string {
 		case 'blocked':
 			return gate.blockers.length > 0 ? `blocked · ${gate.blockers[0]}` : 'blocked';
 		case 'unknown':
-			return 'gate unknown';
+			if (gate.detail === MERGED_DETAIL) {
+				return 'merged';
+			}
+			return gate.detail === CLOSED_DETAIL ? 'trail closed' : 'gate unknown';
 	}
 }
 

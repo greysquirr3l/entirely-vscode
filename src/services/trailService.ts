@@ -281,7 +281,7 @@ export class TrailService {
 		return { kind: 'failed', detail: describeTrailFailure(result.detail, result.stderr) };
 	}
 
-	/** Whether this CLI has `trail show`, which the Details viewer needs. */
+	/** Whether this CLI has `trail show`, which the detail panel needs. */
 	showCapability(): Promise<TrailCapability> {
 		return this.usage.probe('trail show');
 	}

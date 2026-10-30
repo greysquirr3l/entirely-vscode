@@ -55,7 +55,13 @@ export interface TrailChange {
 	readonly id: string;
 	/** The repository the change is in, as the CLI names it. */
 	readonly repository: string;
-	/** The branch the change lives on. */
+	/**
+	 * The branch the change lives on.
+	 *
+	 * The CLI sends an empty string for a change that has no branch, such as
+	 * one that was merged and whose branch is gone, so it can be empty. Use
+	 * `branchLabel` to show it.
+	 */
 	readonly branch: string;
 	/** The change's number within its repository. */
 	readonly number: number;
@@ -72,6 +78,14 @@ export interface TrailChange {
 	 * normal.
 	 */
 	readonly current?: boolean;
+}
+
+/** What a change without a branch is called. */
+export const NO_BRANCH = 'no branch';
+
+/** The branch of a change, or the words for a change that has none. */
+export function branchLabel(change: { readonly branch: string }): string {
+	return change.branch.trim().length > 0 ? change.branch : NO_BRANCH;
 }
 
 /** The state a trail is in. */
@@ -303,7 +317,9 @@ export function decodeTrailChange(value: unknown, path: string): DecodeResult<Tr
 		return repository;
 	}
 
-	const branch = requireString(read, 'branch');
+	// An empty branch is a real answer, and a missing one is read the same
+	// way: a change without a branch must not drop out of its trail.
+	const branch = optionalString(read, 'branch');
 	if (!branch.ok) {
 		return branch;
 	}
@@ -336,7 +352,7 @@ export function decodeTrailChange(value: unknown, path: string): DecodeResult<Tr
 		value: {
 			id: id.value,
 			repository: repository.value,
-			branch: branch.value,
+			branch: branch.value ?? '',
 			number: number.value,
 			title: title.value,
 			status: status.value,
