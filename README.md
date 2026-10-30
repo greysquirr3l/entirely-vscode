@@ -8,7 +8,7 @@ Entirely is an unofficial, community extension. It is not affiliated with or
 endorsed by Entire.
 
 A Visual Studio Code extension for [Entire](https://entire.com), the Git
-forge built for agent-human collaboration.
+forge built for agent-human collaboration. It is tested with Entire CLI 0.12.2.
 
 Entire records what coding agents did as **sessions**, freezes them into
 **checkpoints**, and publishes that history so a team can see what every
@@ -25,8 +25,8 @@ Entirely (this extension)
 
 | Surface | What it shows |
 |---|---|
-| **Status bar** | Whether the workspace is tracked by Entire, and whether an agent session is live right now, shown as Entire's logo with a codicon beside it for each state (a pulse for a running session, a warning for a problem) |
-| **Entire view** | Every session Entire tracks for the repository — across all worktrees, not just the open folder |
+| **Status bar** | Whether the workspace is tracked by Entire, and whether an agent session is live right now: `$(entire-logo) Entire` followed by a codicon for the state |
+| **Sessions view** | Every session Entire tracks for the repository, across all worktrees, not just the open folder. It can also appear in the Explorer |
 | **Session detail** | The selected session in full, ended ones included: agent, model, tokens, files touched and tool calls, with the transcript opening in a read-only editor |
 | **Session actions** | Stop, attach, adopt and resume a session from the palette or its context menu, each only when you ask |
 | **Checkpoint history** | Recorded checkpoints, opening straight into the native diff editor |
@@ -34,34 +34,61 @@ Entirely (this extension)
 | **File blame** | `entire blame` for the active file: every line marked as attributed, recorded but not synced, or not attributed to any recorded change |
 | **Trails view** | The trails of the project this repository belongs to, with a badge counting the changes that await an approval |
 | **Trail review** | Approve, comment on, merge, check out, link and unlink the work on an Entire trail — each action confirmed, and each merge naming what it merges |
-| **Account view** | Who the CLI is signed in as, and which jurisdiction the account belongs to — with sign-in and sign-out |
+| **Account view** | Who the CLI is signed in as, and which jurisdiction the account belongs to, with sign-in and sign-out |
+| **Activity view** | Recent sessions and commits across your repositories on Entire, a recap, and a generated dispatch you can copy |
+| **Search view** | Past agent work, commits and code, searched by the CLI in this repository or in all of them (`entirely.searchScope`) |
+| **Control Plane view** | Projects, repositories, organisations and clusters you can see, and who has access, with confirmed changes |
 | **Integrations view** | Whether each suggested Entire plugin and the Entire MCP server is available in each workspace folder, with click-to-install and click-to-add |
+| **MCP server** | Offers `entire mcp` to the editor's agent, and can add it to a project's `.mcp.json` |
 | **Agent integrations** | Lists the agents the CLI supports, and installs or removes one after you confirm what it will touch; more than one can be installed |
 | **Hook bridge** | Reports the editor's own agent activity to the compatible `copilot-cli` integration; other integrations record their own activity |
 | **Terminal PATH repair** | Puts the Entire CLI on the integrated terminal's PATH, through the editor's own settings — no shell profile, no shell command |
-| **BYOK models** | Works with whatever model Copilot Chat is using — hosted, BYOK, or local — without the extension knowing the model exists |
+| **BYOK models** | Works with whatever model Copilot Chat is using (hosted, BYOK or local) without the extension knowing the model exists |
 | **Doctor** | A copyable diagnostic report: CLI version, repository state, effective settings, last error |
 
-The extension never re-implements Entire. It discovers the installed CLI,
-reads its JSON output, and shells out for anything mutating. If the CLI is
-missing, the extension degrades quietly rather than failing obscurely.
+If the CLI is missing, the extension degrades to a clear message with a link
+to the install instructions rather than failing obscurely.
 
-**Model-agnostic by construction.** No model name, provider or context-window
-size is hardcoded anywhere. The model is an opaque string, recorded exactly
-as the Copilot transcript reports it — so a BYOK model from any provider and
-a local Ollama model work the same as a hosted one, and a model the
-extension has never seen is not a special case.
+## Views
+
+Entirely adds an **Entirely for Entire** container to the activity bar, with
+Entire's symbol as its icon. Four views are open by default and five start
+collapsed. Commands that show a collapsed view expand it.
+
+| View | Default | Holds |
+|---|---|---|
+| Sessions | Open | The sessions Entire tracks for the repository |
+| Session | Open | The selected session in full |
+| Checkpoints | Open | Recorded checkpoints, with search |
+| Trails | Open | Trails of the project, and their changes |
+| Activity | Collapsed | Recent sessions and commits, recap, dispatch |
+| Search | Collapsed | Results of a search of past work and code |
+| Integrations | Collapsed | Plugins and the MCP server, per folder |
+| Control Plane | Collapsed | Projects, repositories, organisations, clusters |
+| Account | Collapsed | The login the CLI is using |
+| Entirely Sessions (Explorer) | Hidden | The sessions tree, in the Explorer, when `entirely.showSessionsInExplorer` is on |
+
+The status bar item reads `$(entire-logo) Entire` plus a state codicon:
+`$(pulse)` for a running session, `$(warning)` for a checkpoint problem or an
+unreadable CLI, `$(circle-slash)` when the workspace is not set up,
+`$(circle-outline)` for a folder that is not a repository, `$(eye-closed)` when
+the login cannot see the workspace, and `$(error)` for a login the CLI does not
+have. A workspace that does not use Entire shows nothing.
+
+**Model-agnostic.** No model name, provider or context-window size is
+hardcoded. The model is an opaque string, recorded as the transcript reports
+it, so a BYOK or local model works the same as a hosted one.
 
 ## Status
 
-**Version 0.1.0.** The extension talks to the Entire CLI and shows what it
-knows: which repository is tracked, which agents are running, what each
-session did, and why a line of code is the way it is. It compiles, lints and
-passes its extension-host tests.
+**Version 0.2.0.** Before 1.0, minor versions may change things. The command
+list and the setting names are the surface a user actually touches, so they
+are the most likely thing to change.
 
-The command list and the setting names are still provisional. They are the
-surface a user actually touches, so they are the most likely thing to change
-in a later version.
+What the extension covers of the Entire CLI, what it leaves out on purpose,
+and what is still a gap is tracked command by command in
+[docs/coverage.md](docs/coverage.md). The changes in each version are in the
+[changelog](CHANGELOG.md).
 
 ## Screenshots
 
@@ -278,6 +305,13 @@ workspace folders or those settings change. It never polls.
   rewritten; you are shown what to add instead. A project that already lists
   the Entire server, under any name, is shown as configured and left alone.
 
+Separately, the extension registers `entire mcp` as an MCP server for the
+editor's own agent (`entirely.mcpServerEnabled`, on by default). The editor
+starts and stops the process. **Entirely: Start MCP Server** starts it, and
+**Entirely: Copy MCP Server Configuration** copies the entry for other tools.
+That provider writes no configuration file. Only **Add** in the Integrations
+view writes `.mcp.json`.
+
 Two questions are asked once: the first time missing plugins are found, one
 notification lists them and offers to install the ones you pick (once per
 machine, recorded when it is shown); and the first time a project's MCP
@@ -310,6 +344,19 @@ inherited PATH is a *reference*, not a copy, so the terminal takes the live
 PATH rather than a snapshot of it taken when the setting was written.
 
 Running the command again takes the directory off again.
+
+## Privacy
+
+- Transcripts, prompt bodies, checkpoint payloads, search queries and API
+  responses are never written to the `Entire` output channel, not even with
+  debug on. The channel records byte counts instead, and operands that carry
+  such content are redacted in the logged command line.
+- The content of the last CLI call is available only through **Entirely:
+  Doctor: Show the Last Entire CLI Output**.
+- The extension reads no credentials. Tokens stay in the CLI's own store.
+- Anything that changes Entire or your repository is confirmed first, and says
+  what it will touch.
+- The extension opens only Entire addresses in your browser.
 
 ## When something is not working
 
@@ -390,10 +437,12 @@ nobody is signed in, the view says so and offers to sign in; when the CLI
 could not be asked, it says it does not know, rather than claiming that nobody
 is signed in.
 
-**Sign In to Entire** uses the CLI's device-code flow, so it works on a
-machine with no graphical display, where the browser redirect has nowhere to
-open. The code you have to type is shown in a panel while the command waits,
-because the command does not finish until you approve it.
+**Sign In to Entire** runs the CLI's login. On a desktop window it offers
+the browser flow or a device code. In a remote window (Remote-SSH, a
+container, WSL, Codespaces or a browser-based editor) the CLI cannot open your
+browser, so Entirely uses a code, says so, and opens the code page in your own
+browser. The code you have to type is shown in a panel while the command
+waits, because the command does not finish until you approve it.
 
 **Sign Out of Entire** says what it is about to do before it does it: every
 login saved on this machine is signed out, not only the one in use, and every
@@ -405,11 +454,57 @@ service, or the file-backed fallback — and never asks the CLI for a
 credential. What it shows you is where the credentials are kept, not the
 credentials themselves.
 
+## Settings
+
+Every setting is under `entirely.` and is in the Settings editor. Times are in
+seconds unless noted. `cliPath` and `cliContext` can only be set in user
+settings, never by a workspace.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `cliPath` | empty | Absolute path to `entire`. Empty means `PATH`, then the documented install locations |
+| `cliContext` | empty | The saved login to act as. Empty follows the CLI's own login |
+| `minimumCliVersion` | `0.12.2` | The oldest CLI whose output is read in full |
+| `refreshInterval` | `30` | How often to re-read workspace and session state. `0` means only when a command runs |
+| `showSessionsInExplorer` | `false` | Also show the sessions tree in the Explorer |
+| `logLevel` | `info` | `error`, `warn`, `info`, `debug` or `trace` |
+| `debug` | `false` | Say more in the output channel, same as the `debug` log level |
+| `editorHookAgent` | `copilot-cli` | The integration the editor's own agent events are forwarded to |
+| `agentLookupCacheSeconds` | `30` | How long the agent list and hook-file scan are reused |
+| `suggestedPlugins` | `graph`, `investigate`, `brain` | Plugins the Integrations view shows |
+| `mcpServerEnabled` | `true` | Offer `entire mcp` to the editor as an MCP server |
+| `offerIntegrationInstall` | `true` | Offer once to install missing plugins, and once per project to add the MCP server to `.mcp.json` |
+| `searchScope` | `repository` | `repository` or `all-repositories` for the Search view |
+| `searchDebounce` | `400` | Milliseconds to wait after you stop typing in checkpoint search |
+| `blameMaxDecoratedLines` | `5000` | Longest file marked in the editor by Blame |
+| `transcriptTimeout` | `60` | Opening a transcript |
+| `trailActionTimeout` | `60` | A trail review action |
+| `lifecycleActionTimeout` | `60` | Stop, attach, adopt, and agent install and removal |
+| `resumeWatchTimeout` | `60` | How long Resume watches for the session to become active |
+| `importTimeout` | `300` | Importing past agent history |
+| `cliDoctorTimeout` | `30` | The CLI's own doctor check in the report |
+| `controlPlaneTimeout` | `60` | Each Control Plane and API call |
+| `activityTimeout` | `30` | Activity and recap |
+| `dispatchTimeout` | `180` | Generating a dispatch |
+| `pluginTimeout` | `120` | Running or installing a plugin |
+
 ## Requirements
 
-* The [Entire CLI](https://docs.entire.com/installation) — `entire version`
-  must run. Without it the extension stays dormant.
-* VS Code 1.140 or newer.
+* The [Entire CLI](https://docs.entire.com/installation). `entire version`
+  must run. Without it the extension shows how to install it and does nothing
+  else. It is tested with CLI 0.12.2 (`entirely.minimumCliVersion`); an older
+  CLI works, and the doctor report says what will be missing.
+* VS Code 1.140 or newer (`engines.vscode` is `^1.140.0`).
+
+The extension runs in the workspace host, so in a remote window the CLI must
+be installed on the remote machine.
+
+## Install
+
+Until it is on the Visual Studio Marketplace or Open VSX, install a `.vsix`
+from a [GitHub release](https://github.com/greysquirr3l/entirely-vscode/releases)
+with **Extensions: Install from VSIX**. Then open a folder that uses Entire.
+If the CLI is not on `PATH`, set `entirely.cliPath`.
 
 ## Maintaining
 
@@ -484,7 +579,7 @@ for the people using the extension.
 
 ### Releasing
 
-A release is a tag. Push `v0.1.0` and the `Release` workflow builds the
+A release is a tag. Push a tag such as `v0.2.0` and the `Release` workflow builds the
 package, checks what is in it, publishes it to the Visual Studio Marketplace
 and to Open VSX, and then makes a GitHub release with the `.vsix` attached.
 A tag whose version does not match `package.json` stops the build rather
@@ -508,8 +603,16 @@ one can be made to wait for a review before it publishes.
 
 MIT
 
+## Trademarks
+
+Entire and the Entire symbol are trademarks of Entire Inc. Entirely uses the
+symbol unmodified, only to identify the integration. Entirely is not affiliated
+with or endorsed by Entire. See [assets/brand/README.md](assets/brand/README.md)
+and [docs/icon-font.md](docs/icon-font.md).
+
 ## Issues
 
 Found something broken, or want to see something built? The repository and
 issue tracker live at
 [greysquirr3l/entirely-vscode](https://github.com/greysquirr3l/entirely-vscode).
+To report a security problem, see [SECURITY.md](SECURITY.md).
