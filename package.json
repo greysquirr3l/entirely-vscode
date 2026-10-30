@@ -2,7 +2,7 @@
   "name": "entirely",
   "publisher": "greysquirr3l",
   "displayName": "Entirely",
-  "description": "Entire — code management for agent-human collaboration: sessions, checkpoints, trails, and review, in the editor.",
+  "description": "Unofficial extension for Entire: sessions, checkpoints, trails and review for agent-human collaboration, in the editor.",
   "version": "0.1.0",
   "license": "MIT",
   "icon": "images/logo.png",
@@ -51,8 +51,8 @@
       "activitybar": [
         {
           "id": "entirely",
-          "title": "Entirely",
-          "icon": "$(git-branch)"
+          "title": "Entirely for Entire",
+          "icon": "$(robot)"
         }
       ]
     },
@@ -60,19 +60,43 @@
       "entirely": [
         {
           "id": "entirely.sessions",
-          "name": "Sessions"
+          "name": "Sessions",
+          "visibility": "visible"
         },
         {
           "id": "entirely.sessionDetail",
-          "name": "Session"
+          "name": "Session",
+          "visibility": "visible"
         },
         {
           "id": "entirely.checkpoints",
-          "name": "Checkpoints"
+          "name": "Checkpoints",
+          "visibility": "visible"
+        },
+        {
+          "id": "entirely.activity",
+          "name": "Activity",
+          "visibility": "collapsed"
+        },
+        {
+          "id": "entirely.search",
+          "name": "Search",
+          "visibility": "collapsed"
+        },
+        {
+          "id": "entirely.integrations",
+          "name": "Integrations",
+          "visibility": "collapsed"
+        },
+        {
+          "id": "entirely.controlPlane",
+          "name": "Control Plane",
+          "visibility": "collapsed"
         },
         {
           "id": "entirely.authentication",
-          "name": "Account"
+          "name": "Account",
+          "visibility": "collapsed"
         }
       ],
       "explorer": [
@@ -85,6 +109,25 @@
     },
     "viewsWelcome": [
       {
+        "view": "entirely.integrations",
+        "contents": "The Entire CLI is needed to see which integrations are available.\n[Show How to Install](https://docs.entire.com/installation)\n[Refresh](command:entirely.refreshIntegrations)",
+        "when": "entirely.integrationsState == no-cli"
+      },
+      {
+        "view": "entirely.integrations",
+        "contents": "Open a folder to see which Entire integrations are available in it.",
+        "when": "entirely.integrationsState == no-folder"
+      },
+      {
+        "view": "entirely.activity",
+        "contents": "See recent sessions and commits across your repositories on Entire.\n[Open Activity](command:entirely.refreshActivity)\n[Generate a Dispatch](command:entirely.generateDispatch)"
+      },
+      {
+        "view": "entirely.search",
+        "contents": "Search past agent work, commits and code.\n[Search](command:entirely.searchWork)",
+        "when": "!entirely.searchActive"
+      },
+      {
         "view": "entirely.sessions",
         "contents": "No sessions yet.\nSessions are recorded automatically when an agent runs in a repository that Entire tracks.\n[Refresh](command:entirely.refresh)"
       },
@@ -94,7 +137,8 @@
       },
       {
         "view": "entirely.checkpoints",
-        "contents": "No checkpoints yet.\nA checkpoint is recorded when agent work is committed, and appears here once it is.\n[Refresh](command:entirely.refresh)"
+        "contents": "No checkpoints yet.\nA checkpoint is recorded when agent work is committed, and appears here once it is.\n[Refresh](command:entirely.refresh)",
+        "when": "!entirely.checkpointFilterActive"
       },
       {
         "view": "entirely.explorerSessions",
@@ -137,6 +181,24 @@
         "category": "Entirely"
       },
       {
+        "command": "entirely.openTranscript",
+        "title": "Open Session Transcript",
+        "category": "Entirely",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "entirely.showOwnSession",
+        "title": "Show Only This Workspace's Session",
+        "category": "Entirely",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "entirely.showAllSessions",
+        "title": "Show All Sessions",
+        "category": "Entirely",
+        "icon": "$(clear-all)"
+      },
+      {
         "command": "entirely.openCheckpointFile",
         "title": "Open Checkpoint Diff",
         "category": "Entirely"
@@ -144,6 +206,46 @@
       {
         "command": "entirely.whyThisLine",
         "title": "Why Does This Line Exist?",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.stopSession",
+        "title": "Stop Session",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.attachSession",
+        "title": "Attach Session to a Commit",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.adoptSession",
+        "title": "Adopt Session from Another Worktree",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.resumeSession",
+        "title": "Resume Session",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.manageAgents",
+        "title": "Set Up Agent Integrations",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.importHistory",
+        "title": "Import Past Agent History as Read-Only Checkpoints",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.blameFile",
+        "title": "Blame This File",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.clearBlame",
+        "title": "Clear Blame",
         "category": "Entirely"
       },
       {
@@ -167,6 +269,11 @@
         "category": "Entirely"
       },
       {
+        "command": "entirely.showCliDoctorOutput",
+        "title": "Doctor: Show the CLI's Full Diagnostic Output",
+        "category": "Entirely"
+      },
+      {
         "command": "entirely.signIn",
         "title": "Sign In to Entire",
         "category": "Entirely",
@@ -182,6 +289,173 @@
         "command": "entirely.dumpCliOutput",
         "title": "Doctor: Show the Last Entire CLI Output",
         "category": "Entirely"
+      },
+      {
+        "command": "entirely.searchWork",
+        "title": "Search Past Work and Code",
+        "category": "Entirely",
+        "icon": "$(search)"
+      },
+      {
+        "command": "entirely.clearSearch",
+        "title": "Clear Search Results",
+        "category": "Entirely",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "entirely.openSearchResult",
+        "title": "Open Search Result",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.searchCheckpoints",
+        "title": "Search Checkpoints",
+        "category": "Entirely",
+        "icon": "$(search)"
+      },
+      {
+        "command": "entirely.clearCheckpointSearch",
+        "title": "Clear Checkpoint Search",
+        "category": "Entirely",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "entirely.openActivity",
+        "title": "Open Activity",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.refreshActivity",
+        "title": "Refresh Activity",
+        "category": "Entirely",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "entirely.showActivitySessions",
+        "title": "Show Recent Sessions in Activity",
+        "category": "Entirely",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "entirely.showActivityCommits",
+        "title": "Show Recent Commits in Activity",
+        "category": "Entirely",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "entirely.generateDispatch",
+        "title": "Generate Dispatch",
+        "category": "Entirely",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "entirely.copyDispatch",
+        "title": "Copy Dispatch",
+        "category": "Entirely",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "entirely.showRecap",
+        "title": "Show Recap",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.openControlPlane",
+        "title": "Open Control Plane",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.refreshControlPlane",
+        "title": "Refresh Control Plane",
+        "category": "Entirely",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "entirely.createRepository",
+        "title": "Create Repository",
+        "category": "Entirely",
+        "icon": "$(add)"
+      },
+      {
+        "command": "entirely.deleteRepository",
+        "title": "Delete Repository",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.setRepositoryVisibility",
+        "title": "Change Repository Visibility",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.deleteProject",
+        "title": "Delete Project",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.deleteOrganisation",
+        "title": "Delete Organisation",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.grantAccess",
+        "title": "Give Access",
+        "category": "Entirely",
+        "icon": "$(person-add)"
+      },
+      {
+        "command": "entirely.revokeAccess",
+        "title": "Remove Access",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.runApiCall",
+        "title": "Call the Entire API",
+        "category": "Entirely",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "entirely.runPluginCommand",
+        "title": "Run Plugin Command",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.installPlugin",
+        "title": "Install Plugin",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.startMcpServer",
+        "title": "Start MCP Server",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.copyMcpConfig",
+        "title": "Copy MCP Server Configuration",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.refreshIntegrations",
+        "title": "Refresh Integrations",
+        "category": "Entirely",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "entirely.installIntegration",
+        "title": "Install Plugin",
+        "category": "Entirely",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "entirely.enableMcpIntegration",
+        "title": "Turn On MCP Server",
+        "category": "Entirely",
+        "icon": "$(play)"
+      },
+      {
+        "command": "entirely.addMcpToProject",
+        "title": "Add MCP Server to Project Configuration",
+        "category": "Entirely",
+        "icon": "$(add)"
       }
     ],
     "configuration": {
@@ -233,23 +507,223 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "Say more in the Entire output channel: the exact command line, working directory and exit code of every Entire CLI invocation, and an excerpt of what it produced. Equivalent to setting `entirely.logLevel` to `debug`, and it does not add a second channel."
+        },
+        "entirely.transcriptTimeout": {
+          "type": "number",
+          "default": 60,
+          "minimum": 5,
+          "maximum": 600,
+          "markdownDescription": "How long, in seconds, to wait for the Entire CLI to hand over a session transcript before giving up. A long session produces a large transcript, so raise this if opening one times out."
+        },
+        "entirely.editorHookAgent": {
+          "type": "string",
+          "default": "copilot-cli",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "markdownDescription": "The agent integration whose hook payload layout matches the editor's own agent events (the name `entire agent list` prints). Editor events currently use the Copilot CLI payload format, so only `copilot-cli` can be bridged; other values are reported and not forwarded."
+        },
+        "entirely.agentLookupCacheSeconds": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 600,
+          "markdownDescription": "How long, in seconds, to reuse the Entire agent list and hook-file scan for editor events. Install and remove actions refresh it immediately."
+        },
+        "entirely.lifecycleActionTimeout": {
+          "type": "number",
+          "default": 60,
+          "minimum": 5,
+          "maximum": 600,
+          "markdownDescription": "How long, in seconds, to wait for `entire session stop`, `attach` or `adopt` before giving up. Attaching a session to a pushed commit uploads the transcript, so raise this on a slow connection."
+        },
+        "entirely.cliDoctorTimeout": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 300,
+          "markdownDescription": "How long, in seconds, the doctor report waits for `entire doctor` before it records that the CLI's own checks did not finish. The command only reports; it is never run with a flag that changes anything."
+        },
+        "entirely.controlPlaneTimeout": {
+          "type": "number",
+          "default": 60,
+          "minimum": 5,
+          "maximum": 900,
+          "markdownDescription": "How long, in seconds, to wait for each call the Control Plane view and its commands make to the Entire CLI: a listing, a change, or an API call. Deleting a repository together with its mirrors waits for the mirrors to go, so raise this for a large one. A change that times out is read back, and reported as done only if the CLI now lists it that way."
+        },
+        "entirely.activityTimeout": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 300,
+          "markdownDescription": "How long, in seconds, the Activity view and **Entirely: Show Recap** wait for `entire activity` and `entire recap`. Both are read from Entire's servers in their static, non-interactive form."
+        },
+        "entirely.dispatchTimeout": {
+          "type": "number",
+          "default": 180,
+          "minimum": 10,
+          "maximum": 1800,
+          "markdownDescription": "How long, in seconds, **Entirely: Generate Dispatch** waits for the dispatch to be written. A dispatch written by a local agent can take a few minutes. It is never started again after a timeout."
+        },
+        "entirely.importTimeout": {
+          "type": "number",
+          "default": 300,
+          "minimum": 10,
+          "maximum": 3600,
+          "markdownDescription": "How long, in seconds, to wait for `entire import` (and its preview) before giving up. An import reads up to a month of an agent's transcripts, so raise this for a large history. A timed-out import can be run again: turns already imported are skipped."
+        },
+        "entirely.resumeWatchTimeout": {
+          "type": "number",
+          "default": 60,
+          "minimum": 5,
+          "maximum": 600,
+          "markdownDescription": "How long, in seconds, **Entirely: Resume Session** watches the session list for the resumed session to become active before it reports that it did not see one. The resume itself keeps running in its terminal."
+        },
+        "entirely.blameMaxDecoratedLines": {
+          "type": "number",
+          "default": 5000,
+          "minimum": 100,
+          "maximum": 100000,
+          "markdownDescription": "The longest file, in lines, that **Entirely: Blame This File** draws in the editor. A longer file is still blamed and shown in the panel, but nothing is drawn beside its lines."
+        },
+        "entirely.searchScope": {
+          "type": "string",
+          "enum": [
+            "repository",
+            "all-repositories"
+          ],
+          "enumDescriptions": [
+            "Search only the repository this workspace belongs to.",
+            "Search every repository the acting login can see."
+          ],
+          "default": "repository",
+          "markdownDescription": "Where **Entirely: Search Past Work and Code** looks. The Search view always says which scope a search ran in and which login it ran as."
+        },
+        "entirely.searchDebounce": {
+          "type": "number",
+          "default": 400,
+          "minimum": 100,
+          "maximum": 3000,
+          "markdownDescription": "How long, in milliseconds, to wait after you stop typing in the checkpoint search box before asking the Entire CLI to search. Raise this to send fewer searches while you type."
+        },
+        "entirely.pluginTimeout": {
+          "type": "number",
+          "default": 120,
+          "minimum": 10,
+          "maximum": 1800,
+          "markdownDescription": "How long, in seconds, **Entirely: Run Plugin Command** and **Entirely: Install Plugin** wait for the plugin or the download. A plugin runs as the login the extension acts as. It is never started again after a timeout."
+        },
+        "entirely.mcpServerEnabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Offer `entire mcp` to the editor as an MCP server, so the editor's agent can reach Entire. The editor starts and stops the process; Entirely does not write the editor's own MCP configuration. Start it with **Entirely: Start MCP Server**. To add the server to a project's `.mcp.json` for other agents, use the Integrations view."
+        },
+        "entirely.suggestedPlugins": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,40}$"
+          },
+          "default": [
+            "graph",
+            "investigate",
+            "brain"
+          ],
+          "markdownDescription": "The Entire plugins the **Integrations** view shows a status for, and the plugin picker offers when none is installed. Each is the part after `entire-` in the plugin's executable name. A name that cannot name a plugin is ignored."
+        },
+        "entirely.offerIntegrationInstall": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Offer once per machine to install the suggested Entire plugins that are missing, and once per project to add the Entire MCP server to the project's `.mcp.json`. Turn this off to never be asked; the **Integrations** view still shows the status."
         }
       }
     },
     "menus": {
       "view/title": [
-      {
-        "command": "entirely.signIn",
-        "when": "view == entirely.authentication && !entirely.signedIn",
-        "group": "navigation@1"
-      },
-      {
-        "command": "entirely.signOut",
-        "when": "view == entirely.authentication && entirely.signedIn",
-        "group": "navigation@1"
-      }
-    ],
-    "commandPalette": [
+        {
+          "command": "entirely.refreshIntegrations",
+          "when": "view == entirely.integrations",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.showActivityCommits",
+          "when": "view == entirely.activity && entirely.activityListing != commits",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.showActivitySessions",
+          "when": "view == entirely.activity && entirely.activityListing == commits",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.generateDispatch",
+          "when": "view == entirely.activity",
+          "group": "navigation@2"
+        },
+        {
+          "command": "entirely.refreshActivity",
+          "when": "view == entirely.activity",
+          "group": "navigation@3"
+        },
+        {
+          "command": "entirely.signIn",
+          "when": "view == entirely.authentication && !entirely.signedIn",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.signOut",
+          "when": "view == entirely.authentication && entirely.signedIn",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.showOwnSession",
+          "when": "view == entirely.sessions && !entirely.ownSessionOnly",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.showAllSessions",
+          "when": "view == entirely.sessions && entirely.ownSessionOnly",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.searchWork",
+          "when": "view == entirely.search",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.clearSearch",
+          "when": "view == entirely.search && entirely.searchActive",
+          "group": "navigation@2"
+        },
+        {
+          "command": "entirely.searchCheckpoints",
+          "when": "view == entirely.checkpoints",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.clearCheckpointSearch",
+          "when": "view == entirely.checkpoints && entirely.checkpointFilterActive",
+          "group": "navigation@2"
+        },
+        {
+          "command": "entirely.createRepository",
+          "when": "view == entirely.controlPlane",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.runApiCall",
+          "when": "view == entirely.controlPlane",
+          "group": "navigation@2"
+        },
+        {
+          "command": "entirely.refreshControlPlane",
+          "when": "view == entirely.controlPlane",
+          "group": "navigation@3"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "entirely.openSearchResult",
+          "when": "false"
+        },
         {
           "command": "entirely.statusBar",
           "when": "false"
@@ -265,6 +739,37 @@
         {
           "command": "entirely.explainCheckpoint",
           "when": "false"
+        },
+        {
+          "command": "entirely.deleteRepository",
+          "when": "false"
+        },
+        {
+          "command": "entirely.setRepositoryVisibility",
+          "when": "false"
+        },
+        {
+          "command": "entirely.deleteProject",
+          "when": "false"
+        },
+        {
+          "command": "entirely.deleteOrganisation",
+          "when": "false"
+        },
+        {
+          "command": "entirely.grantAccess",
+          "when": "false"
+        },
+        {
+          "command": "entirely.revokeAccess",
+          "when": "false"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "entirely.copyDispatch",
+          "when": "resourceScheme == entirely-generated && resourceExtname == .md",
+          "group": "navigation"
         }
       ],
       "editor/context": [
@@ -272,9 +777,112 @@
           "command": "entirely.whyThisLine",
           "group": "1_entirely@1",
           "when": "editorTextFocus"
+        },
+        {
+          "command": "entirely.blameFile",
+          "group": "1_entirely@2",
+          "when": "editorTextFocus && resourceScheme == file"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "entirely.installIntegration",
+          "when": "view == entirely.integrations && viewItem == entirely.integrationPluginMissing",
+          "group": "inline"
+        },
+        {
+          "command": "entirely.enableMcpIntegration",
+          "when": "view == entirely.integrations && viewItem == entirely.integrationMcpOff",
+          "group": "inline"
+        },
+        {
+          "command": "entirely.addMcpToProject",
+          "when": "view == entirely.integrations && viewItem == entirely.integrationMcpConfigAddable",
+          "group": "inline"
+        },
+        {
+          "command": "entirely.openTranscript",
+          "when": "view == entirely.sessions && viewItem =~ /^entirely\\.(session|importedSession)$/",
+          "group": "inline"
+        },
+        {
+          "command": "entirely.resumeSession",
+          "when": "view == entirely.sessions && viewItem == entirely.session",
+          "group": "2_lifecycle@1"
+        },
+        {
+          "command": "entirely.attachSession",
+          "when": "view == entirely.sessions && viewItem == entirely.session",
+          "group": "2_lifecycle@2"
+        },
+        {
+          "command": "entirely.adoptSession",
+          "when": "view == entirely.sessions && viewItem == entirely.session",
+          "group": "2_lifecycle@3"
+        },
+        {
+          "command": "entirely.stopSession",
+          "when": "view == entirely.sessions && viewItem == entirely.session",
+          "group": "3_destructive@1"
+        },
+        {
+          "command": "entirely.createRepository",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpProject",
+          "group": "1_manage@1"
+        },
+        {
+          "command": "entirely.grantAccess",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpProject",
+          "group": "1_manage@2"
+        },
+        {
+          "command": "entirely.deleteProject",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpProject",
+          "group": "3_destructive@1"
+        },
+        {
+          "command": "entirely.setRepositoryVisibility",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpRepository",
+          "group": "1_manage@1"
+        },
+        {
+          "command": "entirely.grantAccess",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpRepository",
+          "group": "1_manage@2"
+        },
+        {
+          "command": "entirely.deleteRepository",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpRepository",
+          "group": "3_destructive@1"
+        },
+        {
+          "command": "entirely.grantAccess",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpOrganisation",
+          "group": "1_manage@1"
+        },
+        {
+          "command": "entirely.deleteOrganisation",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpOrganisation",
+          "group": "3_destructive@1"
+        },
+        {
+          "command": "entirely.grantAccess",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpAccess",
+          "group": "1_manage@1"
+        },
+        {
+          "command": "entirely.revokeAccess",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpGrant",
+          "group": "3_destructive@1"
         }
       ]
-    }
+    },
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "entirely.entireMcpServers",
+        "label": "Entire"
+      }
+    ]
   },
   "capabilities": {
     "untrustedWorkspaces": {

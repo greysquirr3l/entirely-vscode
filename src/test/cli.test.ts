@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import { CliLocator } from '../services/cli/locator';
+import { makeTempDir } from './support/tempDir';
 import { CliRunner } from '../services/cli/runner';
 import { parseJson } from '../services/cli/json';
 import { parseUsage } from '../services/cli/usage';
@@ -70,7 +71,7 @@ suite('Entire CLI runner', () => {
 	});
 
 	function makeDirectory(prefix: string): string {
-		const directory = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+		const directory = makeTempDir(prefix);
 		temporaryDirectories.push(directory);
 		return directory;
 	}
@@ -470,7 +471,7 @@ suite('Entire CLI discovery helpers', () => {
 	});
 
 	test('ignores relative PATH entries', () => {
-		const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-cli-relative-path-'));
+		const directory = makeTempDir('entire-cli-relative-path-');
 		temporaryDirectories.push(directory);
 
 		const relativeEntry = path.relative(process.cwd(), directory);
@@ -489,7 +490,7 @@ suite('Entire CLI discovery helpers', () => {
 	});
 
 	test('uses a configured path in preference to everything else', () => {
-		const home = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-cli-configured-'));
+		const home = makeTempDir('entire-cli-configured-');
 		temporaryDirectories.push(home);
 
 		const configured = path.join(home, 'somewhere', 'entire');
@@ -515,7 +516,7 @@ suite('Entire CLI discovery helpers', () => {
 
 suite('Entire CLI locator', () => {
 	test('exposes the resolved path without running another lookup', async () => {
-		const home = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-cli-peek-'));
+		const home = makeTempDir('entire-cli-peek-');
 		temporaryDirectories.push(home);
 
 		const installDirectory = path.join(home, '.local', 'bin');
@@ -538,7 +539,7 @@ suite('Entire CLI locator', () => {
 
 suite('Entire CLI with domain decoders', () => {
 	test('decodes the status payload through the runner', async () => {
-		const home = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-cli-domain-'));
+		const home = makeTempDir('entire-cli-domain-');
 		temporaryDirectories.push(home);
 
 		const installDirectory = path.join(home, '.local', 'bin');
@@ -562,7 +563,7 @@ suite('Entire CLI with domain decoders', () => {
 	});
 
 	test('reports a payload the decoder rejects as invalid output', async () => {
-		const home = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-cli-badshape-'));
+		const home = makeTempDir('entire-cli-badshape-');
 		temporaryDirectories.push(home);
 
 		const installDirectory = path.join(home, '.local', 'bin');

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import type { CheckpointDetail } from '../lib/entire';
+import { parseRequestedLine, type CheckpointDetail } from '../lib/entire';
 import { WhyPanel } from '../providers/whyPanel';
 import type { WhyService } from '../services/whyService';
 
@@ -15,9 +15,10 @@ export interface WhyCommandDependencies {
  * Answers why the line under the cursor is the way it is.
  *
  * The question is put to the CLI's own `why` command, so the answer says
- * the same thing here as it does in the CLI and on the web.
+ * the same thing here as it does in the CLI and on the web. A line number
+ * may be given (the blame hover does); without one the cursor line is used.
  */
-export async function whyThisLine(deps: WhyCommandDependencies): Promise<void> {
+export async function whyThisLine(deps: WhyCommandDependencies, requestedLine?: unknown): Promise<void> {
 	const editor = vscode.window.activeTextEditor;
 	if (!editor) {
 		await vscode.window.showInformationMessage(
@@ -27,7 +28,9 @@ export async function whyThisLine(deps: WhyCommandDependencies): Promise<void> {
 	}
 
 	const file = editor.document.uri.fsPath;
-	const line = editor.selection.active.line + 1;
+	// The blame hover passes the line it was drawn on. Anything that is
+	// not a positive whole number falls back to the cursor.
+	const line = parseRequestedLine(requestedLine) ?? editor.selection.active.line + 1;
 
 	const result = await deps.why.explainLine(file, line);
 

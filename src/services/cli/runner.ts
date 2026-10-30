@@ -41,6 +41,50 @@ export interface RunOptions {
 	 * which login the CLI would use on its own.
 	 */
 	readonly ignoreContext?: boolean;
+	/**
+	 * The saved login this one command acts as, in place of the pinned one.
+	 *
+	 * A change that was confirmed as a named login is run as exactly that
+	 * login, even when the CLI's own active login has moved since.
+	 */
+	readonly context?: string;
+	/**
+	 * Keeps the output out of the invocation record.
+	 *
+	 * A transcript is the user's own conversation with an agent. The record
+	 * still says how many bytes came back, but neither the debug excerpt in
+	 * the output channel nor the dump command can reach the text.
+	 */
+	readonly withholdBodies?: boolean;
+	/**
+	 * Keeps the operands out of the invocation record.
+	 *
+	 * Everything after the first `--` is replaced with a marker in the
+	 * recorded command line. A search query is the user's own words about
+	 * their own history, and the output channel is not where it belongs.
+	 */
+	readonly redactOperands?: boolean;
+	/**
+	 * Keeps every argument from this index on out of the invocation record.
+	 *
+	 * The index counts the arguments given to the runner, before any
+	 * `--context` pair is added. For a command whose operands are free text
+	 * that cannot follow a `--`, such as the words handed to a plugin.
+	 */
+	readonly redactFrom?: number;
+	/** Aborting kills the process and the result is a `cancelled` failure. */
+	readonly signal?: AbortSignal;
+}
+
+/** What is recorded in place of a redacted operand. */
+export const REDACTED_OPERAND = '<redacted>';
+
+/** The arguments with everything after the first `--` replaced. */
+function redactOperands(args: readonly string[]): readonly string[] {
+	const separator = args.indexOf('--');
+	return separator === -1
+		? args
+		: [...args.slice(0, separator + 1), ...args.slice(separator + 1).map(() => REDACTED_OPERAND)];
 }
 
 /** One invocation, and the bodies it produced. */
@@ -110,6 +154,35 @@ export class CliRunner {
 	/** The discovery result for the CLI, running a lookup if it is stale. */
 	discover(): Promise<Awaited<ReturnType<CliLocator['current']>>> {
 		return this.locator.current();
+	}
+
+	/**
+	 * What a terminal needs to run a command the way the runner would.
+	 *
+	 * A command that asks the user questions cannot run through the runner,
+	 * which has no terminal. The terminal still has to run the same binary as
+	 * the same login, so the path and the pinned login come from here.
+	 */
+	async terminalCommand(
+		args: readonly string[],
+	): Promise<
+		| { readonly ok: true; readonly path: string; readonly args: readonly string[]; readonly env: Record<string, string> }
+		| { readonly ok: false; readonly detail: string }
+	> {
+		const discovery = await this.locator.current();
+		if (discovery.state === 'absent') {
+			return { ok: false, detail: 'the Entire CLI is not installed' };
+		}
+		if (discovery.state === 'broken') {
+			return { ok: false, detail: `the Entire CLI at ${discovery.path} is not usable: ${discovery.detail}` };
+		}
+		const context = this.pinnedContext;
+		return {
+			ok: true,
+			path: discovery.path,
+			args: context ? ['--context', context, ...args] : [...args],
+			env: context ? { ENTIRE_CONTEXT: context } : {},
+		};
 	}
 
 	/** Forgets the cached discovery result. */
@@ -226,6 +299,22 @@ export class CliRunner {
 	}
 
 	/**
+	 * Reads a command's `--help`, for the commands `agent-help` does not know.
+	 *
+	 * Experimental (labs) commands are runnable but missing from
+	 * `agent-help`, so their flags can only come from the command's own help.
+	 */
+	async help(command: string, options: RunOptions = {}): Promise<CliResult<CliCommandUsage>> {
+		const segments = command.trim().split(/\s+/).filter(part => part.length > 0);
+		const performed = await this.perform([...segments, '--help'], options);
+		this.report(performed);
+		if (!performed.result.ok) {
+			return performed.result;
+		}
+		return { ...performed.result, value: parseUsage(command, performed.result.stdout) };
+	}
+
+	/**
 	 * Runs a command and remembers what it did.
 	 *
 	 * The reporting is left to the caller, so that a command whose output
@@ -236,11 +325,30 @@ export class CliRunner {
 		args: readonly string[],
 		options: RunOptions,
 	): Promise<PerformedInvocation> {
+		const performed = await this.performUnredacted(args, options);
+		let recorded = performed.invocation.args;
+		if (options.redactOperands) {
+			recorded = redactOperands(recorded);
+		}
+		const from = options.redactFrom;
+		if (from !== undefined) {
+			const start = performed.invocation.args.length - args.length + Math.max(0, from);
+			recorded = recorded.map((arg, index) => (index >= start ? REDACTED_OPERAND : arg));
+		}
+		return recorded === performed.invocation.args
+			? performed
+			: { ...performed, invocation: { ...performed.invocation, args: recorded } };
+	}
+
+	private async performUnredacted(
+		args: readonly string[],
+		options: RunOptions,
+	): Promise<PerformedInvocation> {
 		const discovery = await this.locator.current();
 
 		// The pinned login is worked out once, here, so that the command
 		// line that is recorded is the command line that was run.
-		const context = options.ignoreContext ? undefined : this.pinnedContext;
+		const context = options.ignoreContext ? undefined : (options.context ?? this.pinnedContext);
 		const effectiveArgs = context ? ['--context', context, ...args] : [...args];
 
 		if (discovery.state === 'absent') {
@@ -308,17 +416,20 @@ export class CliRunner {
 				: options.env,
 			onStdout: options.onStdout,
 			onStderr: options.onStderr,
+			signal: options.signal,
 		};
 
 		const outcome = await execute(discovery.path, effectiveArgs, execOptions);
 		const inputBytes = byteLength(options.input);
 		const stdoutBytes = byteLength(outcome.stdout);
 		const stderrBytes = byteLength(outcome.stderr);
-		const bodies: CliInvocationBodies = {
-			input: options.input,
-			stdout: outcome.stdout,
-			stderr: outcome.stderr,
-		};
+		const bodies: CliInvocationBodies = options.withholdBodies
+			? {}
+			: {
+					input: options.input,
+					stdout: outcome.stdout,
+					stderr: outcome.stderr,
+				};
 
 		if (!outcome.ok) {
 			return {

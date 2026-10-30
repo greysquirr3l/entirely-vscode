@@ -2,6 +2,7 @@ import {
 	decodeArray,
 	decodeRecord,
 	fields,
+	optionalBoolean,
 	optionalNumber,
 	optionalString,
 	optionalTimestamp,
@@ -34,7 +35,7 @@ export function decodeSession(value: unknown, path = 'session'): DecodeResult<Se
 		return status;
 	}
 
-	const worktreePath = requireString(read, 'worktree_path');
+	const worktreePath = optionalString(read, 'worktree_path');
 	if (!worktreePath.ok) {
 		return worktreePath;
 	}
@@ -42,6 +43,11 @@ export function decodeSession(value: unknown, path = 'session'): DecodeResult<Se
 	const branch = optionalString(read, 'branch');
 	if (!branch.ok) {
 		return branch;
+	}
+
+	const kind = optionalString(read, 'kind');
+	if (!kind.ok) {
+		return kind;
 	}
 
 	const startedAt = optionalTimestamp(read, 'started_at');
@@ -94,6 +100,8 @@ export function decodeSession(value: unknown, path = 'session'): DecodeResult<Se
 			status: status.value,
 			worktreePath: worktreePath.value,
 			branch: branch.value,
+			kind: kind.value,
+			readOnly: optionalBoolean(read, 'read_only') ?? false,
 			startedAt: startedAt.value,
 			lastActive: lastActive.value,
 			turns: turns.value,

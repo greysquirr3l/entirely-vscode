@@ -4,7 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import {
-	CLI_HOOKS_FILE,
+	EDITOR_LOADED_HOOKS_DIRECTORY,
 	HOOK_EVENTS,
 	HookBridge,
 	copilotHome,
@@ -15,6 +15,8 @@ import {
 	type HookPayload,
 } from '../services/hookBridge';
 import type { CliRunner } from '../services/cli';
+import { makeTempDir } from './support/tempDir';
+import { FixedTargets, bridgedTarget } from './support/hookTargets';
 
 /** A runner that records what it was asked to run. */
 class RecordingRunner {
@@ -58,7 +60,7 @@ suiteTeardown(() => {
 
 /** Creates a temporary directory. */
 function temporary(): string {
-	const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-hooks-'));
+	const directory = makeTempDir('entire-hooks-');
 	directories.push(directory);
 	return directory;
 }
@@ -72,6 +74,7 @@ function bridgeWith(
 	return new HookBridge({
 		runner: runner.asRunner(),
 		workspaceRoot: () => workspaceRoot,
+		agents: new FixedTargets(bridgedTarget('copilot-cli')),
 		env,
 		homeDir: '/home/tester',
 	});
@@ -273,17 +276,19 @@ suite('Entire hook delivery', () => {
 		assert.strictEqual(runner.calls.length, 0);
 	});
 
-	test('stands down when the CLI has installed its own hooks', async () => {
+	test('stands down for an agent whose hook file the editor loads itself', async () => {
 		const runner = new RecordingRunner();
-		const workspace = temporary();
-		fs.mkdirSync(path.join(workspace, path.dirname(CLI_HOOKS_FILE)), { recursive: true });
-		fs.writeFileSync(path.join(workspace, CLI_HOOKS_FILE), '{}', 'utf8');
+		const bridge = new HookBridge({
+			runner: runner.asRunner(),
+			workspaceRoot: () => '/work/repo',
+			agents: new FixedTargets(
+				bridgedTarget('copilot-cli', [`${EDITOR_LOADED_HOOKS_DIRECTORY}entire.json`]),
+			),
+		});
 
-		const bridge = bridgeWith(runner, workspace);
+		const results = await bridge.deliverToAgents('SessionStart', {});
 
-		const delivered = await bridge.deliver('SessionStart', {});
-
-		assert.strictEqual(delivered, false);
+		assert.deepStrictEqual(results, [{ agent: 'copilot-cli', delivered: false, skipped: 'already-reported' }]);
 		assert.strictEqual(runner.calls.length, 0);
 	});
 

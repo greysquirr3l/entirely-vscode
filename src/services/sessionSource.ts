@@ -1,4 +1,13 @@
-import { decodeSessionList, unwrap, type SessionListing, type SessionSource } from '../lib/entire';
+import {
+	NO_OWN_SESSION,
+	decodeCurrentSession,
+	decodeSessionList,
+	ownSessionOnly,
+	unwrap,
+	type SessionListing,
+	type SessionQuery,
+	type SessionSource,
+} from '../lib/entire';
 import { CliRunner } from './cli';
 
 /**
@@ -12,7 +21,7 @@ export function createSessionSource(
 	runner: CliRunner,
 	workspaceRoot: () => string | undefined,
 ): SessionSource {
-	return async (): Promise<SessionListing> => {
+	return async (query?: SessionQuery): Promise<SessionListing> => {
 		const result = await runner.runJson(
 			['session', 'list', '--json'],
 			value => unwrap(decodeSessionList(value)),
@@ -23,6 +32,26 @@ export function createSessionSource(
 			return { sessions: [], emptyReason: result.detail };
 		}
 
-		return { sessions: result.value };
+		if (!query?.ownOnly) {
+			return { sessions: result.value };
+		}
+
+		// `session current` names the session that belongs to this
+		// worktree. It exits non-zero when the CLI has no state for one,
+		// which here is an answer rather than a fault.
+		const current = await runner.runJson(
+			['session', 'current', '--json'],
+			value => unwrap(decodeCurrentSession(value)),
+			{ cwd: workspaceRoot() },
+		);
+
+		if (!current.ok) {
+			return {
+				sessions: [],
+				emptyReason: current.reason === 'exit-code' ? NO_OWN_SESSION : current.detail,
+			};
+		}
+
+		return ownSessionOnly(result.value, current.value);
 	};
 }

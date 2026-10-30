@@ -1,6 +1,14 @@
 import * as vscode from 'vscode';
 
-import { humanizeStatus, pluralise, truncatePrompt, type Session, type SessionSource } from '../lib/entire';
+import {
+	IMPORTED_LABEL,
+	humanizeStatus,
+	isImportedSession,
+	pluralise,
+	truncatePrompt,
+	type Session,
+	type SessionSource,
+} from '../lib/entire';
 import { Tooltip } from './markdown';
 
 /** A group of sessions that share a status. */
@@ -71,6 +79,7 @@ export function buildGroups(sessions: readonly Session[]): SessionGroupNode[] {
 /** The one-line summary of a session shown beside its label. */
 export function describeSession(session: Session): string {
 	const parts = [
+		...(isImportedSession(session) ? [IMPORTED_LABEL] : []),
 		humanizeStatus(session.status),
 		session.branch ?? 'no branch',
 		pluralise(session.turns ?? 0, 'turn'),
@@ -89,7 +98,12 @@ export function tooltipFor(session: Session): vscode.MarkdownString {
 
 	tooltip.item('Session', session.id);
 	tooltip.item('Branch', session.branch ?? 'not on a branch');
-	tooltip.item('Worktree', session.worktreePath);
+	if (session.worktreePath !== undefined) {
+		tooltip.item('Worktree', session.worktreePath);
+	}
+	if (isImportedSession(session)) {
+		tooltip.item('Origin', IMPORTED_LABEL);
+	}
 	tooltip.item(
 		'Turns',
 		`${session.turns ?? 0}${session.pendingTurns ? ` (${session.pendingTurns} pending)` : ''}`,
@@ -128,6 +142,7 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionNode> {
 	private timer: NodeJS.Timeout | undefined;
 	private selected: SessionItemNode | undefined;
 	private emptyReasonText: string | undefined;
+	private ownOnly = false;
 
 	readonly onDidChangeTreeData: vscode.Event<SessionNode | undefined> = this.changed.event;
 
@@ -151,9 +166,20 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionNode> {
 		return this.emptyReasonText;
 	}
 
+	/** Whether the tree shows only the workspace's own session. */
+	get showsOwnSessionOnly(): boolean {
+		return this.ownOnly;
+	}
+
+	/** Narrows the tree to the workspace's own session, or widens it again. */
+	async setOwnSessionOnly(ownOnly: boolean): Promise<void> {
+		this.ownOnly = ownOnly;
+		await this.refresh();
+	}
+
 	/** Re-reads the sessions and re-renders the tree. */
 	async refresh(): Promise<void> {
-		const listing = await this.source();
+		const listing = await this.source({ ownOnly: this.ownOnly });
 		this.groups = buildGroups(listing.sessions);
 		this.emptyReasonText = listing.sessions.length === 0 ? listing.emptyReason : undefined;
 		this.changed.fire(undefined);
@@ -185,9 +211,12 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionNode> {
 
 		item.description = describeSession(session);
 		item.tooltip = tooltipFor(session);
-		item.contextValue = 'entirely.session';
+		// An imported session is read-only, so it gets a context of its own
+		// and the lifecycle menus (resume, attach, adopt, stop) do not match it.
+		const imported = isImportedSession(session);
+		item.contextValue = imported ? 'entirely.importedSession' : 'entirely.session';
 		item.iconPath = new vscode.ThemeIcon(
-			session.status === 'active' ? 'pulse' : 'history',
+			imported ? 'lock' : session.status === 'active' ? 'pulse' : 'history',
 		);
 		item.command = {
 			command: 'entirely.selectSession',

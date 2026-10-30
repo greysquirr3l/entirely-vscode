@@ -11,7 +11,8 @@ import {
 	unwrap,
 } from '../lib/entire';
 import { readLogLevel, shouldLog, type LogLevel } from '../services/logger';
-import { effectiveLogLevel } from '../services/configuration';
+import { makeTempDir } from './support/tempDir';
+import { clampAgentLookupCacheSeconds, effectiveLogLevel } from '../services/configuration';
 import { readEntireSettings, settingsLayers } from '../services/settingsSource';
 
 suite('Entire settings decoding', () => {
@@ -91,8 +92,8 @@ suite('Entire settings layering', () => {
 	});
 
 	test('reads the effective settings from the files in that order', () => {
-		const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-settings-'));
-		const home = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-home-'));
+		const workspace = makeTempDir('entire-settings-');
+		const home = makeTempDir('entire-home-');
 
 		try {
 			fs.mkdirSync(path.join(workspace, '.entire'), { recursive: true });
@@ -128,8 +129,8 @@ suite('Entire settings layering', () => {
 	});
 
 	test('reads the settings that are there when there are none', () => {
-		const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-settings-'));
-		const home = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-home-'));
+		const workspace = makeTempDir('entire-settings-');
+		const home = makeTempDir('entire-home-');
 
 		try {
 			const settings = readEntireSettings(workspace, home);
@@ -143,8 +144,8 @@ suite('Entire settings layering', () => {
 	});
 
 	test('ignores a settings file it cannot parse', () => {
-		const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-settings-'));
-		const home = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-home-'));
+		const workspace = makeTempDir('entire-settings-');
+		const home = makeTempDir('entire-home-');
 
 		try {
 			fs.mkdirSync(path.join(workspace, '.entire'), { recursive: true });
@@ -242,7 +243,7 @@ suite('Entire extension settings', () => {
 			const declared = schema.default;
 			const actual = inspected.defaultValue;
 			const same =
-				declared === '' ? actual === undefined || actual === '' : actual === declared;
+				declared === '' ? actual === undefined || actual === '' : JSON.stringify(actual) === JSON.stringify(declared);
 
 			assert.ok(
 				same,
@@ -261,6 +262,8 @@ suite('Entire extension settings', () => {
 			'entirely.minimumCliVersion',
 			'entirely.logLevel',
 			'entirely.debug',
+			'entirely.editorHookAgent',
+			'entirely.agentLookupCacheSeconds',
 		]) {
 			assert.ok(properties[key], `the setting '${key}' is not declared`);
 		}
@@ -268,11 +271,35 @@ suite('Entire extension settings', () => {
 });
 
 suite('Entire effective log level', () => {
+	test('bounds the agent lookup cache lifetime', () => {
+		assert.strictEqual(clampAgentLookupCacheSeconds(30), 30);
+		assert.strictEqual(clampAgentLookupCacheSeconds(1), 5);
+		assert.strictEqual(clampAgentLookupCacheSeconds(99999), 600);
+		assert.strictEqual(clampAgentLookupCacheSeconds(Number.NaN), 30);
+	});
+
 	test('is the level the user chose when the debug setting is off', () => {
 		assert.strictEqual(
 			effectiveLogLevel({
 				cliPath: undefined,
 				refreshInterval: 30,
+				transcriptTimeout: 60,
+				searchDebounce: 400,
+				searchScope: 'repository',
+				lifecycleActionTimeout: 60,
+				cliDoctorTimeout: 30,
+				controlPlaneTimeout: 60,
+				activityTimeout: 30,
+				dispatchTimeout: 180,
+				pluginTimeout: 120,
+				mcpServerEnabled: true,
+				suggestedPlugins: ['graph', 'investigate', 'brain'],
+				offerIntegrationInstall: true,
+				editorHookAgent: 'copilot-cli',
+				agentLookupCacheSeconds: 30,
+				importTimeout: 300,
+				resumeWatchTimeout: 60,
+				blameMaxDecoratedLines: 5000,
 				showSessionsInExplorer: false,
 				minimumCliVersion: '0.12.2',
 				logLevel: 'warn',
@@ -287,6 +314,23 @@ suite('Entire effective log level', () => {
 			effectiveLogLevel({
 				cliPath: undefined,
 				refreshInterval: 30,
+				transcriptTimeout: 60,
+				searchDebounce: 400,
+				searchScope: 'repository',
+				lifecycleActionTimeout: 60,
+				cliDoctorTimeout: 30,
+				controlPlaneTimeout: 60,
+				activityTimeout: 30,
+				dispatchTimeout: 180,
+				pluginTimeout: 120,
+				mcpServerEnabled: true,
+				suggestedPlugins: ['graph', 'investigate', 'brain'],
+				offerIntegrationInstall: true,
+				editorHookAgent: 'copilot-cli',
+				agentLookupCacheSeconds: 30,
+				importTimeout: 300,
+				resumeWatchTimeout: 60,
+				blameMaxDecoratedLines: 5000,
 				showSessionsInExplorer: false,
 				minimumCliVersion: '0.12.2',
 				logLevel: 'info',
@@ -301,6 +345,23 @@ suite('Entire effective log level', () => {
 			effectiveLogLevel({
 				cliPath: undefined,
 				refreshInterval: 30,
+				transcriptTimeout: 60,
+				searchDebounce: 400,
+				searchScope: 'repository',
+				lifecycleActionTimeout: 60,
+				cliDoctorTimeout: 30,
+				controlPlaneTimeout: 60,
+				activityTimeout: 30,
+				dispatchTimeout: 180,
+				pluginTimeout: 120,
+				mcpServerEnabled: true,
+				suggestedPlugins: ['graph', 'investigate', 'brain'],
+				offerIntegrationInstall: true,
+				editorHookAgent: 'copilot-cli',
+				agentLookupCacheSeconds: 30,
+				importTimeout: 300,
+				resumeWatchTimeout: 60,
+				blameMaxDecoratedLines: 5000,
 				showSessionsInExplorer: false,
 				minimumCliVersion: '0.12.2',
 				logLevel: 'trace',

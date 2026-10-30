@@ -11,6 +11,7 @@ import {
 	isSignedIn,
 } from '../lib/entire';
 import { AccountContextService } from '../services/accountContext';
+import { makeTempDir } from './support/tempDir';
 import { AuthenticationService } from '../services/authentication';
 import { CliLocator } from '../services/cli/locator';
 import { CliRunner } from '../services/cli/runner';
@@ -27,7 +28,7 @@ suiteTeardown(() => {
 
 /** Creates a temporary directory. */
 function makeDirectory(prefix: string): string {
-	const directory = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+	const directory = makeTempDir(prefix);
 	temporaryDirectories.push(directory);
 	return directory;
 }

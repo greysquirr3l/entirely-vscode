@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import type { EntireSettings, WorkspaceStatus } from '../lib/entire';
+import { makeTempDir } from './support/tempDir';
 import {
 	inspectCheckpointDestination,
 	renderCheckpointDestination,
@@ -43,7 +44,7 @@ function cliBody(status: string, visible: string): string {
 		'\trepo)',
 		'\t\tcase "$2" in',
 		`\t\t\tview) echo '${JSON.stringify(MIRROR_REPO)}' ;;`,
-		`\t\t\tmirror) echo '${visible}' ;;`,
+		`\t\t\tmirror) case "$3" in list) echo '${visible}' ;; *) echo "unknown subcommand" >&2; exit 2 ;; esac ;;`,
 		'\t\t\t*) echo "unknown subcommand" >&2; exit 2 ;;',
 		'\t\tesac',
 		'\t\t;;',
@@ -54,7 +55,7 @@ function cliBody(status: string, visible: string): string {
 
 /** A runner bound to a fake CLI. */
 function runnerFor(body: string): CliRunner {
-	const home = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-destination-home-'));
+	const home = makeTempDir('entire-destination-home-');
 	const bin = path.join(home, '.local', 'bin');
 	fs.mkdirSync(bin, { recursive: true });
 

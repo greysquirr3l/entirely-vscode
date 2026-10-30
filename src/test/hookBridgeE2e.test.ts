@@ -5,6 +5,8 @@ import * as os from 'os';
 import * as path from 'path';
 
 import { CliRunner } from '../services/cli';
+import { makeTempDir } from './support/tempDir';
+import { AgentIntegrationService } from '../services/agentIntegrations';
 import { CliLocator } from '../services/cli/locator';
 import { HookBridge } from '../services/hookBridge';
 import { decodeWorkspaceStatus, unwrap } from '../lib/entire';
@@ -30,7 +32,7 @@ suite('Entire hook bridge against the real CLI', function () {
 
 	/** Creates a temporary directory. */
 	function temporary(prefix: string): string {
-		const directory = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+		const directory = makeTempDir(prefix);
 		directories.push(directory);
 		return directory;
 	}
@@ -45,11 +47,12 @@ suite('Entire hook bridge against the real CLI', function () {
 		return new CliRunner(locator);
 	}
 
-	test('records the model the transcript reports, untouched', async () => {
+	test('records the model the transcript reports, untouched', async function () {
 		const runner = await realCli();
 		if (!runner) {
 			// The extension is tested against a CLI that is not there all
 			// the time, and there is nothing to check without one.
+			this.skip();
 			return;
 		}
 
@@ -102,6 +105,15 @@ suite('Entire hook bridge against the real CLI', function () {
 		const bridge = new HookBridge({
 			runner,
 			workspaceRoot: () => workspace,
+			// Real discovery: `agent list` and the scan of the hook files, with
+			// the CLI's own hook file removed above so the bridge is the reporter.
+			agents: new AgentIntegrationService({
+				runner,
+				workspaceRoot: () => workspace,
+				timeoutSeconds: () => 60,
+				cacheTtlMs: () => 30_000,
+				editorAgent: () => 'copilot-cli',
+			}),
 			env,
 		});
 

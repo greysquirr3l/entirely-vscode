@@ -1,98 +1,20 @@
 import { randomUUID } from 'crypto';
-import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+import type { AgentHookSource } from './agentIntegrations';
 import type { CliRunner } from './cli';
 
-/**
- * The editor events the bridge reports.
- *
- * These are the names the editor uses. They are not the names the CLI
- * uses, and the CLI checks the pairing and drops a mismatch without a
- * word, so the mapping between the two is kept in one table below.
- */
-export type EditorHookEvent =
-	| 'SessionStart'
-	| 'UserPromptSubmit'
-	| 'Stop'
-	| 'PreToolUse'
-	| 'PostToolUse'
-	| 'SubagentStart'
-	| 'SubagentStop'
-	| 'PreCompact'
-	| 'ErrorOccurred';
+import {
+	HOOK_EVENTS,
+	resolveHookName,
+	type CliHookName,
+	type EditorHookEvent,
+	type HookEventRoute,
+} from '../lib/entire/hookEvents';
 
-/** The verbs the CLI's hook command accepts. */
-export type CliHookName =
-	| 'session-start'
-	| 'user-prompt-submitted'
-	| 'agent-stop'
-	| 'session-end'
-	| 'pre-tool-use'
-	| 'post-tool-use'
-	| 'subagent-start'
-	| 'subagent-stop'
-	| 'error-occurred';
-
-/** One row of the mapping table. */
-export interface HookEventRoute {
-	/** The editor event. */
-	readonly event: EditorHookEvent;
-	/** The CLI verb that carries it, when the CLI has one. */
-	readonly hook?: CliHookName;
-	/**
-	 * The CLI verb for the terminal form of the event.
-	 *
-	 * The editor overloads one `Stop` event for both the end of a turn and
-	 * the end of a session, and the two are told apart by reason.
-	 */
-	readonly terminalHook?: CliHookName;
-}
-
-/**
- * The mapping from editor events to CLI verbs.
- *
- * This table is the only place the mapping lives, so it can be read in one
- * go and tested as a whole.
- *
- * `PreCompact` has no verb: the CLI has no hook that will carry it, and it
- * drops such an event without a word, so sending one would lose it
- * quietly. The editor's `Stop` is the one event that has two verbs.
- */
-export const HOOK_EVENTS: readonly HookEventRoute[] = [
-	{ event: 'SessionStart', hook: 'session-start' },
-	{ event: 'UserPromptSubmit', hook: 'user-prompt-submitted' },
-	{ event: 'Stop', hook: 'agent-stop', terminalHook: 'session-end' },
-	{ event: 'PreToolUse', hook: 'pre-tool-use' },
-	{ event: 'PostToolUse', hook: 'post-tool-use' },
-	{ event: 'SubagentStart', hook: 'subagent-start' },
-	{ event: 'SubagentStop', hook: 'subagent-stop' },
-	{ event: 'ErrorOccurred', hook: 'error-occurred' },
-	{ event: 'PreCompact' },
-];
-
-/**
- * The CLI verb that carries an editor event.
- *
- * Returns undefined when the CLI has no verb for the event, which is the
- * signal not to send it at all.
- */
-export function resolveHookName(
-	event: EditorHookEvent,
-	terminal = false,
-): CliHookName | undefined {
-	const route = HOOK_EVENTS.find(candidate => candidate.event === event);
-	if (!route) {
-		return undefined;
-	}
-
-	if (terminal && route.terminalHook) {
-		return route.terminalHook;
-	}
-
-	return route.hook;
-}
+export { HOOK_EVENTS, resolveHookName };
+export type { CliHookName, EditorHookEvent, HookEventRoute };
 
 /**
  * The payload, in the editor's dialect.
@@ -167,13 +89,34 @@ export function transcriptPath(sessionId: string, home: string): string {
 	return path.join(home, 'session-state', sessionId, 'events.jsonl');
 }
 
-/** Where the CLI installs its own hooks for Copilot CLI. */
-export const CLI_HOOKS_FILE = path.join('.github', 'hooks', 'entire.json');
+/**
+ * The directory whose hook files the editor loads and fires itself.
+ *
+ * An agent whose hooks live here is already reported by the editor, so the
+ * bridge does not send the same events again.
+ */
+export const EDITOR_LOADED_HOOKS_DIRECTORY = '.github/hooks/';
+
+/**
+ * What became of an event for one agent.
+ *
+ * `delivered` means the CLI accepted the hook command for the agent the
+ * editor's events belong to, nothing more. It is never true for an agent
+ * the editor's payload layout does not match.
+ */
+export interface HookDelivery {
+	readonly agent: string;
+	readonly delivered: boolean;
+	/** Why it was not delivered. */
+	readonly skipped?: 'not-bridged' | 'already-reported' | 'failed';
+}
 
 /** What the bridge needs to do its job. */
 export interface HookBridgeOptions {
 	readonly runner: CliRunner;
-	/** The workspace root, where the CLI's own hooks would be installed. */
+	/** Which agent the editor's events are addressed to, and which installed agents they are not. */
+	readonly agents: AgentHookSource;
+	/** The workspace root the agents' hooks are installed in. */
 	readonly workspaceRoot: () => string | undefined;
 	/** The environment the agent's home is read from. */
 	readonly env?: NodeJS.ProcessEnv;
@@ -188,19 +131,23 @@ export interface HookBridgeOptions {
 	readonly homeDir?: string;
 	/** Records a delivery, for the output channel. */
 	readonly log?: (line: string) => void;
+	/** Reports a configuration problem that can prevent editor events from being delivered. */
+	readonly warn?: (line: string) => void;
 }
 
 /**
  * Reports editor-side agent activity to Entire.
  *
  * The bridge speaks the CLI's hook protocol: it invokes
- * `entire hooks copilot-cli <event>` with the event as JSON on stdin, and
+ * `entire hooks <editor agent> <event>` with the event as JSON on stdin, and
  * the CLI does the writing. Nothing here ever throws, and nothing here
  * ever waits on the user: a hook that has not finished must never stand
  * between the user and the thing they asked for.
  */
 export class HookBridge {
 	private readonly sessionIds = new Map<string, string>();
+	private readonly notBridgedNoted = new Set<string>();
+	private readonly editorAgentIssuesNoted = new Set<string>();
 
 	constructor(private readonly options: HookBridgeOptions) {}
 
@@ -236,36 +183,103 @@ export class HookBridge {
 	/**
 	 * Reports an event and waits for the delivery.
 	 *
-	 * Returns true when the event was delivered. A failure is never an
-	 * error the user sees: a missing CLI, a broken CLI or a CLI that
-	 * rejects the event are all the same thing to the editor, which is
+	 * Returns true when the event reached at least one agent. A failure is
+	 * never an error the user sees: a missing CLI, a broken CLI or a CLI
+	 * that rejects the event are all the same thing to the editor, which is
 	 * that nothing happened.
 	 */
 	async deliver(event: EditorHookEvent, details: HookEventDetails = {}): Promise<boolean> {
+		const results = await this.deliverToAgents(event, details);
+		return results.some(result => result.delivered);
+	}
+
+	/**
+	 * Reports an event to the agent whose payload layout matches the editor's.
+	 *
+	 * Every other installed agent is named in the result as not bridged and is
+	 * never invoked: those agents run their own hooks, and a hook verb with the
+	 * same name as an editor event does not make their payload layout the same.
+	 * The CLI accepts a payload it cannot read and records nothing, so there
+	 * would be no way to tell. The editor's agent is also left alone when its
+	 * hook file is one the editor loads itself, which would double the events.
+	 */
+	async deliverToAgents(
+		event: EditorHookEvent,
+		details: HookEventDetails = {},
+	): Promise<readonly HookDelivery[]> {
 		try {
-			return await this.send(event, details);
+			return await this.sendAll(event, details);
 		} catch {
-			return false;
+			return [];
 		}
 	}
 
 	/** Does the work of delivering one event. */
-	private async send(event: EditorHookEvent, details: HookEventDetails): Promise<boolean> {
-		const verb = resolveHookName(event, details.terminal ?? false);
-		if (!verb) {
+	private async sendAll(
+		event: EditorHookEvent,
+		details: HookEventDetails,
+	): Promise<readonly HookDelivery[]> {
+		if (!resolveHookName(event, details.terminal ?? false)) {
 			// The CLI has no hook that will carry this event, and it drops
 			// such an event without a word. Sending it would lose it
 			// quietly, so it is not sent.
+			return [];
+		}
+
+		const targets = await this.options.agents.targets();
+		if (targets.editorAgentIssue) {
+			this.noteEditorAgentIssue(targets.editorAgentIssue);
+		}
+		if (!targets.ok) {
+			return [];
+		}
+
+		const results: HookDelivery[] = [];
+		for (const other of targets.notBridged) {
+			this.noteNotBridged(other.agent, other.reason);
+			results.push({ agent: other.agent, delivered: false, skipped: 'not-bridged' });
+		}
+		const target = targets.bridged;
+		if (!target) {
+			return results;
+		}
+		if (target.installed && target.files.some(file => file.startsWith(EDITOR_LOADED_HOOKS_DIRECTORY))) {
+			// The editor reads this agent's hook file itself, so the same
+			// activity is already being reported. Reporting it again
+			// would double it.
+			results.push({ agent: target.agent, delivered: false, skipped: 'already-reported' });
+			return results;
+		}
+		const delivered = await this.send(target.agent, event, details);
+		results.push(delivered ? { agent: target.agent, delivered } : { agent: target.agent, delivered, skipped: 'failed' });
+		return results;
+	}
+
+	/** Says once per agent that editor events are not forwarded to it. */
+	private noteNotBridged(agent: string, reason: string): void {
+		if (this.notBridgedNoted.has(agent)) {
+			return;
+		}
+		this.notBridgedNoted.add(agent);
+		this.options.log?.(`not bridged ${agent}: ${reason}`);
+	}
+
+	private noteEditorAgentIssue(issue: string): void {
+		if (this.editorAgentIssuesNoted.has(issue)) {
+			return;
+		}
+		this.editorAgentIssuesNoted.add(issue);
+		this.options.warn?.(issue);
+	}
+
+	/** Delivers one event to one agent. */
+	private async send(agent: string, event: EditorHookEvent, details: HookEventDetails): Promise<boolean> {
+		const verb = resolveHookName(event, details.terminal ?? false);
+		if (!verb) {
 			return false;
 		}
 
 		const workspaceRoot = this.options.workspaceRoot();
-		if (this.cliHooksInstalled(workspaceRoot)) {
-			// The CLI's own hooks are installed, so the same activity is
-			// already being reported. Reporting it again would double it.
-			return false;
-		}
-
 		const sessionId = details.sessionId ?? this.sessionId(workspaceRoot);
 		const cwd = details.cwd ?? workspaceRoot;
 		if (!cwd) {
@@ -281,7 +295,7 @@ export class HookBridge {
 		const payload = this.payloadFor(event, details, sessionId, cwd, env);
 		const body = JSON.stringify(payload);
 
-		const result = await this.options.runner.run(['hooks', 'copilot-cli', verb], {
+		const result = await this.options.runner.run(['hooks', agent, verb], {
 			cwd,
 			input: body,
 			// The CLI is given the same environment the transcript path was
@@ -294,7 +308,7 @@ export class HookBridge {
 			return false;
 		}
 
-		this.options.log?.(`${verb} ${sessionId}`);
+		this.options.log?.(`${agent} ${verb} ${sessionId}`);
 		return true;
 	}
 
@@ -368,18 +382,5 @@ export class HookBridge {
 		}
 
 		return payload;
-	}
-
-	/** Whether the CLI's own hooks are installed in this workspace. */
-	private cliHooksInstalled(workspaceRoot: string | undefined): boolean {
-		if (!workspaceRoot) {
-			return false;
-		}
-
-		try {
-			return fs.existsSync(path.join(workspaceRoot, CLI_HOOKS_FILE));
-		} catch {
-			return false;
-		}
 	}
 }

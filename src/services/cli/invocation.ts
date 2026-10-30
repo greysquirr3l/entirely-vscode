@@ -40,6 +40,7 @@ export type CliInvocationOutcome =
 	| 'timeout'
 	| 'exit-code'
 	| 'spawn-failed'
+	| 'cancelled'
 	| 'invalid-output';
 
 /**

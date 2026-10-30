@@ -1,4 +1,11 @@
-import { isAttributed, type WhyAnswer, type WhyLine, type WhySummary } from '../lib/entire';
+import {
+	lineState,
+	UNATTRIBUTED_LABEL,
+	UNSYNCED_LABEL,
+	type WhyAnswer,
+	type WhyLine,
+	type WhySummary,
+} from '../lib/entire';
 
 /**
  * Escapes text for HTML.
@@ -28,6 +35,24 @@ const ATTRIBUTION_COLOURS: Record<WhyLine['attribution'], string> = {
 	checkpoint: 'var(--vscode-charts-purple, #b180d7)',
 	uncommitted: 'var(--vscode-descriptionForeground, #999999)',
 };
+
+/**
+ * The words for a line.
+ *
+ * A line with no recorded change and a line whose recorded change has not
+ * synced read differently here, in the single-line answer and in the
+ * table of a whole file alike.
+ */
+function wordsFor(line: WhyLine): string {
+	switch (lineState(line)) {
+		case 'unattributed':
+			return UNATTRIBUTED_LABEL;
+		case 'unsynced':
+			return UNSYNCED_LABEL;
+		case 'attributed':
+			return ATTRIBUTION_WORDS[line.attribution];
+	}
+}
 
 /** A row of facts about a line. */
 function fact(label: string, value: string | undefined): string {
@@ -63,7 +88,7 @@ function candidatesFor(line: WhyLine): string {
 
 /** The explanation of one line. */
 function renderLine(line: WhyLine): string {
-	const attributed = isAttributed(line);
+	const attributed = lineState(line) !== 'unattributed';
 
 	const facts = [
 		fact('Author', line.author),
@@ -105,8 +130,8 @@ function renderLine(line: WhyLine): string {
 	if (!attributed) {
 		return `
 			<div class="verdict unattributed">
-				<strong>Not attributed.</strong>
-				<span>Nothing in Entire's history accounts for this line yet.</span>
+				<strong>${escapeHtml(UNATTRIBUTED_LABEL)}.</strong>
+				<span>Entire has no recorded change that accounts for this line.</span>
 			</div>
 			${content}
 			${factsBlock}`;
@@ -115,7 +140,7 @@ function renderLine(line: WhyLine): string {
 	return `
 		<div class="verdict">
 			<span class="dot" style="background:${ATTRIBUTION_COLOURS[line.attribution]}"></span>
-			<strong>${escapeHtml(ATTRIBUTION_WORDS[line.attribution])}</strong>
+			<strong>${escapeHtml(wordsFor(line))}</strong>
 		</div>
 		${content}
 		${factsBlock}
@@ -148,12 +173,12 @@ function renderSummary(summary: WhySummary): string {
 
 /** One row of the table of a whole file. */
 function renderRow(line: WhyLine): string {
-	const facts = [line.author, line.shortCommitSha].filter(
+	const facts = [line.agent, line.author, line.shortCommitSha].filter(
 		(part): part is string => typeof part === 'string' && part.length > 0,
 	);
 
 	return `<tr><td class="number">${line.lineNumber}</td><td class="status">${escapeHtml(
-		ATTRIBUTION_WORDS[line.attribution],
+		wordsFor(line),
 	)}</td><td class="detail">${escapeHtml(facts.join(' · '))}</td></tr>`;
 }
 
