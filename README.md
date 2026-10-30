@@ -299,8 +299,10 @@ Their real output and exit codes are unobserved.
   own dry run runs first and opens in a read-only editor; the question follows, with
   one line of the preview. The skip-confirmation flag also overrides the CLI's own
   live-session guard, so it is passed only after you confirm here: live sessions in scope
-  are named and the button reads **Delete anyway**. Cleaning everything, or cleaning with
-  a CLI that has no preview, also needs the folder name typed. The result is checked
+  are named, the button reads **Delete anyway**, and you must type the folder name. Cleaning
+  everything, cleaning with a CLI that has no preview, or cleaning when the live sessions
+  could not be read also needs the folder name typed. Turning capture off asks for it too
+  when the live sessions could not be read. The result is checked
   against a fresh session list.
 - **Configure Entire Settings** (`entire configure`). You see the current value and file of
   each setting, tick the ones to change, give values (backend choices and remote providers

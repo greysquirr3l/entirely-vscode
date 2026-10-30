@@ -77,8 +77,8 @@ All notable changes to the Entirely extension are documented in this file. The f
   **Disable Capture** (pick the settings file; live sessions named), **Remove Entire from
   This Repository** (`disable --uninstall`; the question says the CLI has no preview, lists
   what its help says is removed and the hook files found, and needs the folder name typed),
-  **Clean Session Data** (the CLI's dry run opens first; a **Delete anyway** button when a
-  live session is in scope, because the skip-confirmation flag also overrides the CLI's own
+  **Clean Session Data** (the CLI's dry run opens first; a **Delete anyway** button and the folder name typed when a
+  live session is in scope (or could not be read), because the skip-confirmation flag also overrides the CLI's own
   guard; also in the session context menu), **Configure Entire Settings** (only the ticked
   settings, to the file you pick, read back from the settings files) and **Set Up Trail
   Runners** (defaults and the tailoring prompt call no provider; a preview and a tailoring

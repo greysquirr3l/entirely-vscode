@@ -64,11 +64,11 @@ Afterwards Entirely reads status, the `.entire` directory and the hook files. If
 1. Pick the scope: **This HEAD** (the default), **All session data**, or **One session**.
 2. The CLI's own dry run runs first. It deletes nothing and asks nothing. Its text opens in a read-only editor, as the CLI wrote it.
 3. Read the modal. It names the folder, the scope, the login, what the CLI's help says the scope deletes, one line of the preview and any live session in scope.
-4. Choose **Delete**, or **Delete anyway** when a live session is in scope.
+4. Choose **Delete**, or **Delete anyway** (and type the folder name) when a live session is in scope.
 
 </Steps>
 
-The skip-confirmation flag of `clean` also overrides the CLI's own live-session guard, so Entirely does not rely on that guard. The live sessions read just before the question are named in it, and the button says **Delete anyway** to show that you have read them. Cleaning all session data, or cleaning with a CLI whose help has no preview flag, also needs the folder name typed. A CLI without a preview is told so plainly: "this version of the CLI has no preview".
+The skip-confirmation flag of `clean` also overrides the CLI's own live-session guard, so Entirely does not rely on that guard. The live sessions read just before the question are named in it, the button says **Delete anyway**, and you must also type the folder name, because Enter would otherwise confirm the modal. Cleaning all session data, cleaning with a CLI whose help has no preview flag, and cleaning or turning capture off when the live sessions could not be read also need the folder name typed. A CLI without a preview is told so plainly: "this version of the CLI has no preview".
 
 A preview that fails stops the flow, and a preview that prints nothing means there is nothing to clean. The result is checked against a fresh session list: the sessions that went away are named, and a session you asked to clean that is still listed makes the result unconfirmed. The preview is the CLI's own text and the session lists are Entirely's reading of `session list`, so they are worded differently.
 

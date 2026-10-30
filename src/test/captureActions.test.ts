@@ -137,9 +137,11 @@ suite('Capture control: confirmations', () => {
 		assert.match(live.detail, /Would delete: 2/);
 		assert.match(live.detail, /overrides its own live-session guard/);
 		assert.match(live.detail, /Checkpoints already recorded are not on that list/);
-		assert.strictEqual(live.requireTyped, undefined);
+		assert.strictEqual(live.requireTyped, 'widgets');
+		assert.match(live.detail, /Type the folder name widgets/);
 		const quiet = captureConfirmationFor({ kind: 'clean', scope: { kind: 'head' } }, facts({ cleanList: lists.head, hasPreview: true }));
 		assert.strictEqual(quiet.action, 'Delete');
+		assert.strictEqual(quiet.requireTyped, undefined, 'no live session and a preview: only the modal');
 	});
 
 	test('clean of everything, or with no preview, needs the folder name typed and says there is no preview', () => {
@@ -260,7 +262,8 @@ suite('Capture control: outcomes and verdicts', () => {
 		assert.strictEqual(captureConfirmationFor(clean, facts({ liveSessions: undefined, hasPreview: true })).requireTyped, 'widgets');
 		assert.match(captureConfirmationFor(clean, facts({ liveSessions: undefined, hasPreview: true })).detail, /Type the folder name widgets/);
 		assert.strictEqual(captureConfirmationFor(clean, facts({ liveSessions: [], hasPreview: true })).requireTyped, undefined);
-		assert.strictEqual(captureConfirmationFor(clean, facts({ liveSessions: ['s'], hasPreview: true })).requireTyped, undefined);
+		assert.strictEqual(captureConfirmationFor(clean, facts({ liveSessions: ['s'], hasPreview: true })).requireTyped, 'widgets');
+		assert.strictEqual(captureConfirmationFor(clean, facts({ liveSessions: ['s'], hasPreview: true })).action, 'Delete anyway');
 		const disable = { kind: 'disable', target: 'local' } as const;
 		assert.strictEqual(captureConfirmationFor(disable, facts({ liveSessions: undefined })).requireTyped, 'widgets');
 		assert.strictEqual(captureConfirmationFor(disable, facts({ liveSessions: [] })).requireTyped, undefined);

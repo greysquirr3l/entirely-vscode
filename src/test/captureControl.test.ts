@@ -352,7 +352,30 @@ suite('Capture control: clean', () => {
 		assert.strictEqual(prompt.action, 'Delete anyway');
 		assert.match(prompt.detail, /1 session is live: live-7 \(codex on feature\)\. Cleaning removes their state and they stop being recorded/);
 		assert.match(prompt.detail, /overrides its own live-session guard/);
+		assert.strictEqual(prompt.requireTyped, 'repo');
+		assert.deepStrictEqual(ui.typedPrompts, ['repo']);
 		assert.strictEqual(args(cli.mutating()[0]), 'clean --force');
+	});
+
+	test('a live session in scope: no call until the typed name matches, and a wrong or empty name runs nothing', async () => {
+		for (const typed of ['wrong', '', '  ', undefined]) {
+			const cli = fakeCaptureCli({ sessions: [{ id: 'live-7', status: 'active', scope: 'head' }] });
+			const { deps } = captureHarness(cli, { choices: ['head'], typed: [typed] });
+			assert.deepStrictEqual(await cleanSessionData(deps), { kind: 'cancelled' }, String(typed));
+			assert.deepStrictEqual(cli.mutating(), [], String(typed));
+			assert.deepStrictEqual(cli.sessionIds(), ['live-7']);
+		}
+		const cli = fakeCaptureCli({ sessions: [{ id: 'live-7', status: 'active', scope: 'head' }] });
+		const { deps } = captureHarness(cli, { choices: ['head'], onConfirm: () => assert.deepStrictEqual(cli.mutating(), []) });
+		assert.strictEqual((await cleanSessionData(deps)).kind, 'done');
+	});
+
+	test('a live session in the one-session and all scopes also needs the typed name', async () => {
+		const cli = fakeCaptureCli({ sessions: [{ id: 'live-7', status: 'active', scope: 'other' }] });
+		const one = captureHarness(cli, { typed: ['nope'] });
+		assert.deepStrictEqual(await cleanSessionData(one.deps, 'live-7'), { kind: 'cancelled' });
+		assert.strictEqual(one.ui.confirmations[0].action, 'Delete anyway');
+		assert.deepStrictEqual(cli.mutating(), []);
 	});
 
 	test('declining the Delete anyway wording leaves the live session and passes no override', async () => {
@@ -368,6 +391,8 @@ suite('Capture control: clean', () => {
 		const { deps, ui } = captureHarness(cli, { choices: ['head'], onConfirm: () => assert.deepStrictEqual(cli.mutating(), []) });
 		await cleanSessionData(deps);
 		assert.strictEqual(ui.confirmations[0].action, 'Delete');
+		assert.strictEqual(ui.confirmations[0].requireTyped, undefined);
+		assert.deepStrictEqual(ui.typedPrompts, [], 'HEAD scope with no live session asks only the modal');
 		assert.strictEqual(args(cli.mutating()[0]), 'clean --force');
 	});
 

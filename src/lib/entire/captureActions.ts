@@ -325,6 +325,8 @@ export function confirmationFor(action: CaptureAction, facts: ConfirmationFacts)
 						: 'session data for the current HEAD';
 			const list = facts.cleanList ?? [];
 			const live = facts.liveSessions ?? [];
+			// Enter would confirm a modal's only button, so a live session, an unreadable list, all data or no preview also need the name typed.
+			const typed = scope.kind === 'all' || !facts.hasPreview || unreadable || live.length > 0;
 			const preview = facts.hasPreview
 				? `Preview, in the CLI's own words (the full text is open in an editor): ${facts.previewSummary ?? 'it printed nothing'}`
 				: 'This version of the CLI has no preview, so Entirely cannot show what will be deleted.';
@@ -338,10 +340,10 @@ export function confirmationFor(action: CaptureAction, facts: ConfirmationFacts)
 					liveSentence(facts, 'Cleaning removes their state and they stop being recorded.'),
 					"Once you confirm here, Entirely passes the CLI's skip-confirmation flag, which also overrides its own live-session guard. This message is the guard.",
 					`${runs('clean')} ${local}`,
-					scope.kind === 'all' || !facts.hasPreview || unreadable ? `Type the folder name ${name} to continue.` : undefined,
+					typed ? `Type the folder name ${name} to continue.` : undefined,
 				]),
 				action: live.length > 0 ? 'Delete anyway' : 'Delete',
-				requireTyped: scope.kind === 'all' || !facts.hasPreview || unreadable ? name : undefined,
+				requireTyped: typed ? name : undefined,
 			};
 		}
 
