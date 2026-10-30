@@ -684,6 +684,17 @@ suite('Other control plane changes', () => {
 		assert.deepStrictEqual(cli.callsTo('repo grant remove'), ['alice@us.auth.entire.io|repo grant remove -- /et/widgets/web github:bob']);
 	});
 
+	test('revoking an organisation grant runs org grant remove once and checks the list', async () => {
+		const grant: AccessGrant = { granteeName: 'github:bob', role: 'member', source: 'org' };
+		const cli = fakeControlCli({
+			out: { org_grant_list_Acme: JSON.stringify([grant]) },
+			after: { 'org_grant_list_Acme.org_grant_remove': '[]' },
+		});
+		const node: ControlNode = { kind: 'grant', scope: 'org', target: 'Acme', grant };
+		assert.strictEqual(await revokeAccess(depsFor(cli, fakeUi()), node), 'done');
+		assert.deepStrictEqual(cli.callsTo('org grant remove'), ['alice@us.auth.entire.io|org grant remove -- Acme github:bob']);
+	});
+
 	test('an inherited grant that remains does not count as a failed revoke', async () => {
 		const direct: AccessGrant = { granteeName: 'github:bob', role: 'writer', source: 'repo' };
 		const inherited = { granteeName: 'github:bob', role: 'reader', source: 'inherited from project' };

@@ -203,7 +203,7 @@ The three rows below are the plugins the documentation names.
 | `entire org invite send` | Gap | | |
 | `entire org grant list` | Supported | `entirely.openControlPlane`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
 | `entire org grant add` | Supported | `entirely.grantAccess`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
-| `entire org grant remove` | Supported | `entirely.revokeAccess`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
+| `entire org grant remove` | Supported | `entirely.revokeAccess`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | Run through `revokeAccess` against the fake CLI; the test asserts the single `org grant remove` call and the list re-check. |
 | `entire project list` | Supported | `entirely.openControlPlane`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
 | `entire project create` | Gap | | |
 | `entire project get` | Gap | | |
@@ -271,7 +271,7 @@ The three rows below are the plugins the documentation names.
 | Command | Status | Evidence | Notes |
 | --- | --- | --- | --- |
 | `entire activity` | Supported | `entirely.openActivity`, `src/services/activity.ts`, `src/test/activity.test.ts` | The static output, never the terminal interface. |
-| `entire recap` | Supported | `entirely.showRecap`, `src/services/recap.ts`, `src/test/activity.test.ts` | |
+| `entire recap` | Supported | `entirely.showRecap`, `src/services/recap.ts`, `src/test/dispatch.test.ts`, `src/test/activity.test.ts` | `dispatch.test.ts` (suite "Entire recap") runs `RecapService` against a fake CLI and feeds `showRecap`; `activity.test.ts` covers flag and argument building only (`recapArguments`, `recapPeriods`, `readCommandFlags`). |
 | `entire dispatch` | Supported | `entirely.generateDispatch`, `src/services/dispatch.ts`, `src/test/dispatch.test.ts` | |
 | `entire plugin list` | Supported | `entirely.runPluginCommand`, `src/services/plugins.ts`, `src/test/plugins.test.ts` | |
 | `entire plugin install` | Supported | `entirely.installPlugin`, `src/services/plugins.ts`, `src/test/plugins.test.ts` | |
