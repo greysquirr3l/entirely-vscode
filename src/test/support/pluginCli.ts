@@ -67,6 +67,13 @@ Usage:
   entire mcp [flags]
 `;
 
+/** `completion` is hidden like `mcp`: in no listing, yet `entire completion --help` works. */
+export const COMPLETION_HELP = `Generate the autocompletion script for entire for the specified shell.
+
+Usage:
+  entire completion [command]
+`;
+
 export const PLUGIN_LIST_EMPTY = `No plugins installed in /home/x/.local/share/entire/plugins/bin.
 Install one with 'entire plugin install <name|url|path>', or drop an entire-<name> binary anywhere on $PATH.
 `;
@@ -76,7 +83,7 @@ export interface FakePluginOptions {
 	helps?: Record<string, string | null>;
 	/** What `entire plugin list` prints. */
 	list?: string;
-	/** Plugins that exist, with the text each prints. */
+	/** Plugins that exist (also add them to `list` to have them installed), with the text each prints. */
 	plugins?: Record<string, string>;
 	/** Commands that exit 1 with this text on stderr. */
 	fail?: Record<string, string>;
@@ -110,6 +117,7 @@ export function fakePluginCli(options: FakePluginOptions = {}): FakePluginCli {
 		plugin_install: PLUGIN_INSTALL_HELP,
 		graph: GRAPH_HELP,
 		'mcp_--help': MCP_HELP,
+		'completion_--help': COMPLETION_HELP,
 		...(options.helps ?? {}),
 	};
 	for (const [key, text] of Object.entries(helps)) {
@@ -127,15 +135,16 @@ export function fakePluginCli(options: FakePluginOptions = {}): FakePluginCli {
 
 	const script = [
 		'#!/bin/sh',
+		'known() { case "$1" in graph|brain|investigate) echo "the entire-$1 plugin is not installed; run \'entire plugin install $1\' and retry" >&2; exit 1 ;; esac; }',
 		'CTX=none',
 		'if [ "$1" = "--context" ]; then CTX="$2"; shift 2; fi',
 		`S='${state}'`,
 		'case "$1" in',
 		'\tversion) echo "entire 0.12.2"; exit 0 ;;',
-		'\tagent-help) shift; k=$(echo "$*" | tr " " "_"); [ -z "$k" ] && k=_; if [ -f "$S/help/$k" ]; then cat "$S/help/$k"; exit 0; fi; echo "Error: Invalid usage: unknown command" >&2; exit 1 ;;',
+		'\tagent-help) shift; k=$(echo "$*" | tr " " "_"); [ -z "$k" ] && k=_; if [ -f "$S/help/$k" ]; then cat "$S/help/$k"; exit 0; fi; known "$1"; echo "Error: Invalid usage: unknown command" >&2; exit 1 ;;',
 		'esac',
 		'k=$(echo "$*" | tr " " "_")',
-		'case "$*" in *--help) if [ -f "$S/help/$k" ]; then cat "$S/help/$k"; exit 0; fi; cat "$S/help/--help"; echo "Error: Invalid usage: unknown command \\"$1\\"" >&2; exit 1 ;; esac',
+		'case "$*" in *--help) if [ -f "$S/help/$k" ]; then cat "$S/help/$k"; exit 0; fi; known "$1"; cat "$S/help/--help"; echo "Error: Invalid usage: unknown command \\"$1\\"" >&2; exit 1 ;; esac',
 		`echo "$CTX|$ENTIRE_CONTEXT|$*" >> '${log}'`,
 		'if [ -f "$S/fail/$1" ]; then cat "$S/fail/$1" >&2; exit 1; fi',
 		'case "$1" in',
@@ -143,6 +152,7 @@ export function fakePluginCli(options: FakePluginOptions = {}): FakePluginCli {
 		'\tplugin) k2="plugin_$2"; if [ -f "$S/out/$k2" ]; then cat "$S/out/$k2"; else echo "done"; fi; exit 0 ;;',
 		'esac',
 		'if [ -f "$S/out/$1" ]; then echo "$(cat "$S/out/$1") as ${ENTIRE_CONTEXT:-nobody}"; exit 0; fi',
+		'known "$1"',
 		'echo "Error: Invalid usage: unknown command \\"$1\\"; run `entire agent-help` for the list of commands" >&2',
 		'exit 1',
 	].join('\n');

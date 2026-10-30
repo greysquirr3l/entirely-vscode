@@ -13,6 +13,7 @@ import {
 	describesMcpServer,
 	installCommandLine,
 	invalidPluginArguments,
+	isMissingPlugin,
 	isPluginName,
 	isUnknownCommand,
 	mcpClientConfig,
@@ -101,6 +102,21 @@ suite('Entire plugin help and list text', () => {
 		assert.strictEqual(isUnknownCommand('Error: unknown command "other"', 'graph'), false);
 		assert.strictEqual(isUnknownCommand('graph failed: boom', 'graph'), false);
 		assert.strictEqual(isUnknownCommand('unknown command "a.b"', 'a-b'), false);
+	});
+
+	test('recognises both ways the CLI says a plugin is not installed, for that name only', () => {
+		const real = "the entire-graph plugin is not installed; run 'entire plugin install graph' and retry";
+		assert.strictEqual(isMissingPlugin(real, 'graph'), true);
+		assert.strictEqual(isMissingPlugin(real.toUpperCase(), 'graph'), true);
+		assert.strictEqual(isMissingPlugin('Error: Invalid usage: unknown command "graph"', 'graph'), true);
+		assert.strictEqual(isMissingPlugin(real, 'brain'), false);
+		assert.strictEqual(isMissingPlugin('the entire-a-b plugin is not installed', 'a.b'), false);
+		assert.strictEqual(isMissingPlugin('graph failed: boom', 'graph'), false);
+	});
+
+	test('reads a plugin called name as a row, and only the upper-case heading as a heading', () => {
+		assert.deepStrictEqual(parseInstalledPlugins('NAME  VERSION  SOURCE\nname  v1.0\n'), [{ name: 'name', detail: 'v1.0' }]);
+		assert.deepStrictEqual(parseInstalledPlugins('NAME\n'), []);
 	});
 
 	test('says which plugin is missing and how to install it', () => {
@@ -204,7 +220,7 @@ suite('Entire plugin service', () => {
 	});
 
 	test('falls back to the plugin own --help when agent-help does not know it', async () => {
-		const cli = fakePluginCli({ helps: { graph: null, 'graph_--help': GRAPH_HELP } });
+		const cli = fakePluginCli({ helps: { graph: null, 'graph_--help': GRAPH_HELP }, list: 'graph  v1\n' });
 		const usage = await pluginService(cli).usage('graph');
 		assert.ok(usage.ok);
 	});
@@ -215,6 +231,71 @@ suite('Entire plugin service', () => {
 		assert.strictEqual(usage.ok, false);
 		assert.ok(!usage.ok && 'missing' in usage && usage.missing);
 		assert.match(usage.ok ? '' : usage.detail, /investigate/);
+	});
+
+	test('missing-plugin: the CLI message for a known plugin that is not installed is read by usage and by run', async () => {
+		const cli = fakePluginCli();
+		for (const name of ['graph', 'brain', 'investigate']) {
+			const missingBrain = name === 'graph' ? fakePluginCli({ helps: { graph: null } }) : cli;
+			const usage = await pluginService(missingBrain).usage(name);
+			assert.ok(!usage.ok && 'missing' in usage && usage.missing, `usage ${name}`);
+			assert.match(usage.ok ? '' : usage.detail, new RegExp(name));
+		}
+		for (const name of ['brain', 'investigate']) {
+			assert.deepStrictEqual(await pluginService(cli).run(name, ['why'], ALICE), { kind: 'missing', name });
+		}
+		assert.strictEqual(cli.calls().length, 2);
+	});
+
+	test('missing-plugin: the unknown command message for a name the CLI does not know is still read as missing', async () => {
+		const cli = fakePluginCli();
+		const usage = await pluginService(cli).usage('zzzfoo');
+		assert.ok(!usage.ok && 'missing' in usage && usage.missing);
+		assert.deepStrictEqual(await pluginService(cli).run('zzzfoo', [], ALICE), { kind: 'missing', name: 'zzzfoo' });
+	});
+
+	test('missing-plugin: a failed agent-help that names the plugin is enough, whatever --help says', async () => {
+		const cli = fakePluginCli({ helps: { 'brain_--help': null } });
+		const usage = await pluginService(cli).usage('brain');
+		assert.ok(!usage.ok && 'missing' in usage && usage.missing);
+	});
+
+	test('refuses hidden built-in commands, which no listing names but --help answers', async () => {
+		const cli = fakePluginCli();
+		for (const name of ['mcp', 'completion']) {
+			const outcome = await pluginService(cli).run(name, [], ALICE);
+			assert.strictEqual(outcome.kind, 'failed', name);
+			assert.match(outcome.kind === 'failed' ? outcome.detail : '', /command of the Entire CLI itself/);
+			const usage = await pluginService(cli).usage(name);
+			assert.ok(!usage.ok && !('missing' in usage), name);
+		}
+		assert.deepStrictEqual(cli.calls().filter(call => !call.endsWith('|plugin list')), []);
+	});
+
+	test('allows a name the CLI answers when an installed plugin holds it', async () => {
+		const cli = fakePluginCli({ list: 'completion  v1\n', plugins: { completion: 'plugin output' } });
+		const outcome = await pluginService(cli).run('completion', [], ALICE);
+		assert.deepStrictEqual(outcome, { kind: 'done', text: `plugin output as ${ALICE.name}` });
+	});
+
+	test('records the plugin name but not the words typed after it', async () => {
+		const cli = fakePluginCli();
+		await pluginService(cli).run('graph', ['query', 'why is auth slow'], ALICE);
+		const record = cli.recorded.find(item => item.invocation.args.includes('graph') && !item.invocation.args.includes('--help'));
+		assert.ok(record);
+		assert.deepStrictEqual(record.invocation.args, ['--context', ALICE.name, 'graph', '<redacted>', '<redacted>']);
+		assert.ok(!JSON.stringify(cli.recorded).includes('why is auth slow'));
+	});
+
+	test('the runner records every argument unless redactFrom is set', async () => {
+		const cli = fakePluginCli();
+		await cli.runner.run(['plugin', 'list', 'visible'], { cwd: cli.dir });
+		await cli.runner.run(['plugin', 'list', 'hidden'], { cwd: cli.dir, redactFrom: 2 });
+		await cli.runner.run(['plugin', 'list', 'also'], { cwd: cli.dir, context: ALICE.name, redactFrom: 0 });
+		const argsOf = cli.recorded.slice(-3).map(item => item.invocation.args);
+		assert.deepStrictEqual(argsOf[0], ['plugin', 'list', 'visible']);
+		assert.deepStrictEqual(argsOf[1], ['plugin', 'list', '<redacted>']);
+		assert.deepStrictEqual(argsOf[2], ['--context', ALICE.name, '<redacted>', '<redacted>', '<redacted>']);
 	});
 
 	test('lists installed plugins and reports a missing CLI', async () => {

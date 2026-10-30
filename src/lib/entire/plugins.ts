@@ -51,6 +51,15 @@ export interface InstalledPlugin {
 }
 
 /**
+ * Whether a line is the column heading of the list: NAME on its own or
+ * followed by other upper-case column titles. A plugin called `name` has a
+ * row with lower-case words after it, which is not a heading.
+ */
+function isListHeader(line: string): boolean {
+	return /^NAME(\s+[A-Z][A-Z_/ -]*)*$/.test(line);
+}
+
+/**
  * Reads `entire plugin list`.
  *
  * The CLI prints text. With nothing installed it prints a sentence and a
@@ -62,7 +71,7 @@ export function parseInstalledPlugins(text: string): readonly InstalledPlugin[] 
 	const found: InstalledPlugin[] = [];
 	for (const raw of text.split(/\r?\n/)) {
 		const line = raw.trim();
-		if (line.length === 0 || /^(no plugins|install one|name\b)/i.test(line)) {
+		if (line.length === 0 || /^(no plugins|install one)/i.test(line) || isListHeader(line)) {
 			continue;
 		}
 		const [first, ...rest] = line.split(/\s+/);
@@ -148,10 +157,28 @@ export function readBuiltinCommands(...helps: readonly string[]): ReadonlySet<st
 	return names;
 }
 
-/** Whether the CLI's refusal means no command or plugin has this name. */
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Whether the CLI's refusal says no command or plugin has this name at all. */
 export function isUnknownCommand(output: string, name: string): boolean {
-	const quoted = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	return new RegExp(`unknown command\\s+["'\`]?${quoted}["'\`]?`, 'i').test(output);
+	return new RegExp(`unknown command\\s+["'\`]?${escapeRegExp(name)}["'\`]?`, 'i').test(output);
+}
+
+/**
+ * Whether the CLI's refusal means this plugin is not installed.
+ *
+ * The CLI says `the entire-NAME plugin is not installed; run 'entire plugin
+ * install NAME' and retry` for a plugin it knows of, such as graph, brain
+ * and investigate, and `unknown command "NAME"` for a name it does not know.
+ * Both mean the same thing to the person: the plugin is not there.
+ */
+export function isMissingPlugin(output: string, name: string): boolean {
+	return (
+		isUnknownCommand(output, name) ||
+		new RegExp(`\\bentire-${escapeRegExp(name)}\\s+plugin\\s+is\\s+not\\s+installed`, 'i').test(output)
+	);
 }
 
 /** The install line a person can run themselves. */

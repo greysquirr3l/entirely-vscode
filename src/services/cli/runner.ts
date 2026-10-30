@@ -64,6 +64,14 @@ export interface RunOptions {
 	 * their own history, and the output channel is not where it belongs.
 	 */
 	readonly redactOperands?: boolean;
+	/**
+	 * Keeps every argument from this index on out of the invocation record.
+	 *
+	 * The index counts the arguments given to the runner, before any
+	 * `--context` pair is added. For a command whose operands are free text
+	 * that cannot follow a `--`, such as the words handed to a plugin.
+	 */
+	readonly redactFrom?: number;
 	/** Aborting kills the process and the result is a `cancelled` failure. */
 	readonly signal?: AbortSignal;
 }
@@ -318,13 +326,18 @@ export class CliRunner {
 		options: RunOptions,
 	): Promise<PerformedInvocation> {
 		const performed = await this.performUnredacted(args, options);
-		if (!options.redactOperands) {
-			return performed;
+		let recorded = performed.invocation.args;
+		if (options.redactOperands) {
+			recorded = redactOperands(recorded);
 		}
-		return {
-			...performed,
-			invocation: { ...performed.invocation, args: redactOperands(performed.invocation.args) },
-		};
+		const from = options.redactFrom;
+		if (from !== undefined) {
+			const start = performed.invocation.args.length - args.length + Math.max(0, from);
+			recorded = recorded.map((arg, index) => (index >= start ? REDACTED_OPERAND : arg));
+		}
+		return recorded === performed.invocation.args
+			? performed
+			: { ...performed, invocation: { ...performed.invocation, args: recorded } };
 	}
 
 	private async performUnredacted(

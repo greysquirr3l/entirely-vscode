@@ -317,6 +317,7 @@ export {
 	installCommandLine,
 	invalidPluginArguments,
 	isPluginName,
+	isMissingPlugin,
 	isUnknownCommand,
 	parseInstalledPlugins,
 	pickInstallFlags,

@@ -3,7 +3,7 @@ import {
 	failureDetail,
 	invalidPluginArguments,
 	isPluginName,
-	isUnknownCommand,
+	isMissingPlugin,
 	parseInstalledPlugins,
 	pickInstallFlags,
 	pluginArguments,
@@ -100,7 +100,22 @@ export class PluginService implements PluginSource {
 		if (!builtins.ok) {
 			return builtins.detail;
 		}
-		return builtins.value.has(name.toLowerCase()) ? `"${name}" is a command of the Entire CLI itself, not a plugin` : undefined;
+		const itself = `"${name}" is a command of the Entire CLI itself, not a plugin`;
+		if (builtins.value.has(name.toLowerCase())) {
+			return itself;
+		}
+		// Hidden commands (mcp, completion) are in no listing, but the CLI
+		// answers their --help. A name it answers that no installed plugin
+		// holds is one of its own commands.
+		const answered = await this.options.runner.help(name, { cwd: this.cwd });
+		if (!answered.ok) {
+			return undefined;
+		}
+		const installed = await this.installed();
+		if (!installed.ok) {
+			return `${itself}, or cannot be checked: ${installed.detail}`;
+		}
+		return installed.value.some(plugin => plugin.name.toLowerCase() === name.toLowerCase()) ? undefined : itself;
 	}
 
 	async usage(name: string): Promise<Read<PluginUsage> | { readonly ok: false; readonly missing: true; readonly detail: string }> {
@@ -112,7 +127,10 @@ export class PluginService implements PluginSource {
 		const guide = await this.options.runner.usage(name, options);
 		const read = guide.ok ? guide : await this.options.runner.help(name, options);
 		if (!read.ok) {
-			if (isUnknownCommand(`${read.stderr}\n${read.stdout}`, name)) {
+			if (!guide.ok && isMissingPlugin(`${guide.stderr}\n${guide.stdout}`, name)) {
+				return { ok: false, missing: true, detail: `the ${name} plugin is not installed` };
+			}
+			if (isMissingPlugin(`${read.stderr}\n${read.stdout}`, name)) {
 				return { ok: false, missing: true, detail: `the ${name} plugin is not installed` };
 			}
 			return { ok: false, detail: describeHelpFailure(name, `read the ${name} plugin's help`, read.reason, failureDetail(read.stderr, read.stdout, read.detail)) };
@@ -132,13 +150,16 @@ export class PluginService implements PluginSource {
 			context: acting.name,
 			env: staticEnvironment(),
 			withholdBodies: true,
+			// Everything after the plugin name is what the person typed: a prompt, a query.
+			// The name stays visible so the record still says which plugin ran.
+			redactFrom: 1,
 			signal,
 		});
 		if (!result.ok) {
 			if (result.reason === 'cancelled') {
 				return { kind: 'cancelled' };
 			}
-			if (isUnknownCommand(`${result.stderr}\n${result.stdout}`, name)) {
+			if (isMissingPlugin(`${result.stderr}\n${result.stdout}`, name)) {
 				return { kind: 'missing', name };
 			}
 			if (result.reason === 'timeout') {
