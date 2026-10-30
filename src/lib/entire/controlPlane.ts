@@ -321,8 +321,14 @@ const MAX_API_PATH = 2000;
  *
  * The CLI picks the host, so the extension only ever passes a path: it
  * starts with a slash, has no whitespace or control characters, and is
- * not a URL that would name a host of someone's choosing.
+ * not a URL that would name a host of someone's choosing. A backslash
+ * and a `.` or `..` segment, also percent-encoded, are refused because
+ * they can walk out of the API's path.
  */
 export function isApiPath(value: string): boolean {
-	return value.startsWith('/') && !value.startsWith('//') && value.length <= MAX_API_PATH && !/[\s\u0000-\u001f]/.test(value);
+	if (!value.startsWith('/') || value.startsWith('//') || value.length > MAX_API_PATH || /[\s\u0000-\u001f\\]/.test(value)) {
+		return false;
+	}
+	const path = value.split(/[?#]/, 1)[0];
+	return !path.split('/').some(segment => /^(\.|%2e){1,2}$/i.test(segment));
 }

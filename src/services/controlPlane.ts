@@ -150,6 +150,8 @@ export class ControlPlaneService implements ControlPlaneSource {
 		if (!prepared.ok) {
 			return { kind: 'failed', detail: prepared.detail };
 		}
+		// A revoke can only be confirmed against a direct grant seen before it.
+		const held = action.kind === 'revoke' ? await this.directGrantSeen(action) : undefined;
 
 		const result = await this.options.runner.run(prepared.args, {
 			cwd: this.options.workspaceRoot(),
@@ -162,7 +164,7 @@ export class ControlPlaneService implements ControlPlaneSource {
 			const detail = explain(result);
 			// A cascade delete can outlast the timeout and still finish.
 			if (result.reason === 'timeout') {
-				const verdict = await this.verify(action);
+				const verdict = await this.verify(action, held);
 				return verdict.kind === 'confirmed'
 					? { kind: 'done', summary: '' }
 					: { kind: 'failed', detail: `${detail}; the change is not listed yet, so it may still be running` };
@@ -174,7 +176,7 @@ export class ControlPlaneService implements ControlPlaneSource {
 		}
 
 		const summary = failureDetail('', result.stdout || result.stderr, '');
-		const verdict = await this.verify(action);
+		const verdict = await this.verify(action, held);
 		switch (verdict.kind) {
 			case 'confirmed':
 				return { kind: 'done', summary };
@@ -314,7 +316,7 @@ export class ControlPlaneService implements ControlPlaneSource {
 	}
 
 	/** Reads the object back and says whether it matches what was asked for. */
-	private async verify(action: ControlAction): Promise<Verdict> {
+	private async verify(action: ControlAction, heldBefore: boolean | undefined): Promise<Verdict> {
 		switch (action.kind) {
 			case 'delete-repository': {
 				const read = await this.repositories(action.project);
@@ -382,6 +384,12 @@ export class ControlPlaneService implements ControlPlaneSource {
 					: { kind: 'contradicted', detail: `lists ${action.grantee} as ${held[0].role}, not ${action.role}` };
 			}
 			case 'revoke': {
+				if (heldBefore !== true) {
+					return {
+						kind: 'unreadable',
+						detail: `the extension could not confirm the access was removed, because ${action.grantee} was not matched to a direct grant on ${action.target} before the request`,
+					};
+				}
 				const read = await this.grants(action.scope, action.target);
 				if (!read.ok) {
 					return { kind: 'unreadable', detail: read.detail };
@@ -393,6 +401,12 @@ export class ControlPlaneService implements ControlPlaneSource {
 					: { kind: 'confirmed' };
 			}
 		}
+	}
+
+	/** Whether a listing read now holds a direct grant for the person a revoke names. */
+	private async directGrantSeen(action: Extract<ControlAction, { kind: 'revoke' }>): Promise<boolean> {
+		const read = await this.grants(action.scope, action.target);
+		return read.ok && read.value.some(grant => grantIsFor(grant, action.grantee) && !/inherit/i.test(grant.source ?? ''));
 	}
 
 	/** Reads `agent-help` for one command, now. A failed lookup is never kept. */

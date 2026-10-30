@@ -140,6 +140,15 @@ suite('Control plane payloads', () => {
 		assert.ok(!isApiPath('//example.com/x'));
 		assert.ok(!isApiPath('api/v1'));
 		assert.ok(!isApiPath('/a b'));
+		assert.ok(!isApiPath('/api/../x'));
+		assert.ok(!isApiPath('/api/./x'));
+		assert.ok(!isApiPath('/api/%2e%2E/x'));
+		assert.ok(!isApiPath('/api/%2E/x'));
+		assert.ok(!isApiPath('/api/.%2e/x'));
+		assert.ok(!isApiPath('/..'));
+		assert.ok(!isApiPath('/\\host'));
+		assert.ok(!isApiPath('/api\\x'));
+		assert.ok(isApiPath('/api/v1/file.name/..x'));
 	});
 });
 
@@ -673,6 +682,35 @@ suite('Other control plane changes', () => {
 		});
 		const node: ControlNode = { kind: 'grant', scope: 'repo', target: '/et/widgets/web', grant: direct };
 		assert.strictEqual(await revokeAccess(depsFor(cli, fakeUi()), node), 'done');
+	});
+
+	test('a revoke whose person was never matched in the listing is unconfirmed, not done', async () => {
+		const grant: AccessGrant = { granteeId: '01HXYZ', role: 'reader', source: 'project' };
+		const cli = fakeControlCli({ out: { project_grant_list_widgets: JSON.stringify([grant]) } });
+		const ui = fakeUi({ asks: ['github:bob'] });
+		const node: ControlNode = { kind: 'grant', scope: 'project', target: 'widgets', grant };
+		assert.strictEqual(await revokeAccess(depsFor(cli, ui), node), 'unconfirmed');
+		assert.strictEqual(cli.callsTo('project grant remove').length, 1);
+		assert.match(ui.warned[0], /could not confirm the access was removed/);
+	});
+
+	test('a revoke is done when the direct grant seen before is gone afterwards', async () => {
+		const grant: AccessGrant = { granteeName: 'github:bob', role: 'reader', source: 'project' };
+		const cli = fakeControlCli({
+			out: { project_grant_list_widgets: JSON.stringify([grant]) },
+			after: { 'project_grant_list_widgets.project_grant_remove': '[]' },
+		});
+		const node: ControlNode = { kind: 'grant', scope: 'project', target: 'widgets', grant };
+		assert.strictEqual(await revokeAccess(depsFor(cli, fakeUi()), node), 'done');
+	});
+
+	test('a revoke is failed when the direct grant seen before is still listed', async () => {
+		const grant: AccessGrant = { granteeName: 'github:bob', role: 'reader', source: 'project' };
+		const cli = fakeControlCli({ out: { project_grant_list_widgets: JSON.stringify([grant]) } });
+		const ui = fakeUi();
+		const node: ControlNode = { kind: 'grant', scope: 'project', target: 'widgets', grant };
+		assert.strictEqual(await revokeAccess(depsFor(cli, ui), node), 'failed');
+		assert.match(ui.warned[0], /still lists github:bob/);
 	});
 
 	test('a grant with no qualified handle asks who is meant instead of guessing', async () => {
