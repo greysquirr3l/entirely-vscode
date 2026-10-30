@@ -47,6 +47,18 @@ export interface ExtensionSettings {
 	readonly dispatchTimeout: number;
 	/** How long, in seconds, a plugin command or a plugin install may take. */
 	readonly pluginTimeout: number;
+	/** How many lines of the CLI log the doctor shows. */
+	readonly doctorLogLines: number;
+	/** How many hook traces the doctor asks for by default. */
+	readonly doctorTraceCount: number;
+	/** The size, in kilobytes, past which a doctor document is cut and the rest can be saved to a file. */
+	readonly doctorOutputMaxKilobytes: number;
+	/** How long, in seconds, the log, trace and migration dry run may take. */
+	readonly doctorReadTimeout: number;
+	/** How long, in seconds, a diagnostic bundle may take to write. */
+	readonly doctorBundleTimeout: number;
+	/** How long, in seconds, the checkpoint migration may take. */
+	readonly migrateCheckpointsTimeout: number;
 	/** Whether the Entire MCP server is offered to the editor's agent. */
 	readonly mcpServerEnabled: boolean;
 	/** The plugins the Integrations view and the install offer suggest. */
@@ -205,6 +217,79 @@ export function clampPluginTimeout(seconds: number): number {
 	return Math.min(MAX_PLUGIN_TIMEOUT_SECONDS, Math.max(MIN_PLUGIN_TIMEOUT_SECONDS, Math.floor(seconds)));
 }
 
+/** The log lines shown: never zero, which the CLI reads as the whole file. */
+export const MIN_DOCTOR_LOG_LINES = 10;
+export const MAX_DOCTOR_LOG_LINES = 5000;
+export const DEFAULT_DOCTOR_LOG_LINES = 200;
+
+/** Puts the log line count inside a range that has a bound at both ends. */
+export function clampDoctorLogLines(lines: number): number {
+	if (!Number.isFinite(lines)) {
+		return DEFAULT_DOCTOR_LOG_LINES;
+	}
+	return Math.min(MAX_DOCTOR_LOG_LINES, Math.max(MIN_DOCTOR_LOG_LINES, Math.floor(lines)));
+}
+
+export const MIN_DOCTOR_TRACE_COUNT = 1;
+export const MAX_DOCTOR_TRACE_COUNT = 200;
+export const DEFAULT_DOCTOR_TRACE_COUNT = 5;
+
+/** Puts the default trace count inside the range the CLI is asked for. */
+export function clampDoctorTraceCount(count: number): number {
+	if (!Number.isFinite(count)) {
+		return DEFAULT_DOCTOR_TRACE_COUNT;
+	}
+	return Math.min(MAX_DOCTOR_TRACE_COUNT, Math.max(MIN_DOCTOR_TRACE_COUNT, Math.floor(count)));
+}
+
+export const MIN_DOCTOR_OUTPUT_KILOBYTES = 16;
+export const MAX_DOCTOR_OUTPUT_KILOBYTES = 4096;
+export const DEFAULT_DOCTOR_OUTPUT_KILOBYTES = 512;
+
+/** Puts the size cap of a doctor document inside a range an editor opens comfortably. */
+export function clampDoctorOutputMaxKilobytes(kilobytes: number): number {
+	if (!Number.isFinite(kilobytes)) {
+		return DEFAULT_DOCTOR_OUTPUT_KILOBYTES;
+	}
+	return Math.min(MAX_DOCTOR_OUTPUT_KILOBYTES, Math.max(MIN_DOCTOR_OUTPUT_KILOBYTES, Math.floor(kilobytes)));
+}
+
+/** The bounds of the doctor's read-only subcommands, in seconds. None of them waits on the network. */
+export const MIN_DOCTOR_READ_TIMEOUT_SECONDS = 5;
+export const MAX_DOCTOR_READ_TIMEOUT_SECONDS = 300;
+
+/** Puts the doctor read timeout inside the range the extension will wait for. */
+export function clampDoctorReadTimeout(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return 30;
+	}
+	return Math.min(MAX_DOCTOR_READ_TIMEOUT_SECONDS, Math.max(MIN_DOCTOR_READ_TIMEOUT_SECONDS, Math.floor(seconds)));
+}
+
+/** The bounds of the time a diagnostic bundle may take, in seconds. It reads every log and runs git. */
+export const MIN_DOCTOR_BUNDLE_TIMEOUT_SECONDS = 10;
+export const MAX_DOCTOR_BUNDLE_TIMEOUT_SECONDS = 900;
+
+/** Puts the bundle timeout inside the range the extension will wait for. */
+export function clampDoctorBundleTimeout(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return 120;
+	}
+	return Math.min(MAX_DOCTOR_BUNDLE_TIMEOUT_SECONDS, Math.max(MIN_DOCTOR_BUNDLE_TIMEOUT_SECONDS, Math.floor(seconds)));
+}
+
+/** The bounds of the time the checkpoint migration may take, in seconds. It wraps every checkpoint in a commit. */
+export const MIN_MIGRATE_CHECKPOINTS_TIMEOUT_SECONDS = 10;
+export const MAX_MIGRATE_CHECKPOINTS_TIMEOUT_SECONDS = 1800;
+
+/** Puts the migration timeout inside the range the extension will wait for. */
+export function clampMigrateCheckpointsTimeout(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return 300;
+	}
+	return Math.min(MAX_MIGRATE_CHECKPOINTS_TIMEOUT_SECONDS, Math.max(MIN_MIGRATE_CHECKPOINTS_TIMEOUT_SECONDS, Math.floor(seconds)));
+}
+
 /** The bounds of the time an import may take, in seconds. Imports read a month of transcripts. */
 export const MIN_IMPORT_TIMEOUT_SECONDS = 10;
 export const MAX_IMPORT_TIMEOUT_SECONDS = 3600;
@@ -324,6 +409,14 @@ export function readExtensionSettings(): ExtensionSettings {
 		activityTimeout: clampActivityTimeout(configuration.get<number>('activityTimeout', 30)),
 		dispatchTimeout: clampDispatchTimeout(configuration.get<number>('dispatchTimeout', 180)),
 		pluginTimeout: clampPluginTimeout(configuration.get<number>('pluginTimeout', 120)),
+		doctorLogLines: clampDoctorLogLines(configuration.get<number>('doctorLogLines', DEFAULT_DOCTOR_LOG_LINES)),
+		doctorTraceCount: clampDoctorTraceCount(configuration.get<number>('doctorTraceCount', DEFAULT_DOCTOR_TRACE_COUNT)),
+		doctorOutputMaxKilobytes: clampDoctorOutputMaxKilobytes(
+			configuration.get<number>('doctorOutputMaxKilobytes', DEFAULT_DOCTOR_OUTPUT_KILOBYTES),
+		),
+		doctorReadTimeout: clampDoctorReadTimeout(configuration.get<number>('doctorReadTimeout', 30)),
+		doctorBundleTimeout: clampDoctorBundleTimeout(configuration.get<number>('doctorBundleTimeout', 120)),
+		migrateCheckpointsTimeout: clampMigrateCheckpointsTimeout(configuration.get<number>('migrateCheckpointsTimeout', 300)),
 		mcpServerEnabled: configuration.get<boolean>('mcpServerEnabled', true),
 		suggestedPlugins: readSuggestedPlugins(configuration.get<unknown>('suggestedPlugins', DEFAULT_SUGGESTED_PLUGINS)),
 		offerIntegrationInstall: configuration.get<boolean>('offerIntegrationInstall', true),
