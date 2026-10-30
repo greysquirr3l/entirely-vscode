@@ -40,6 +40,19 @@ If the CLI is missing or too old to describe a command, the feature says so and 
 The four `doctor` subcommands above were tested only against a fake CLI. The real CLI's help for them was read, but none of the four was run against it, and their output formats were not observed.
 | `entire hooks` | The hook bridge, which reports editor-side agent events to one configured agent. The CLI marks it internal | Changes (records events) |
 
+## Stopping, configuring and cleaning capture
+
+| Command | Feature | Kind |
+| --- | --- | --- |
+| `entire disable` | **Disable Capture**. One of two target flags (this checkout or the shared file), read from the help | Changes |
+| `entire disable --uninstall` | **Remove Entire from This Repository**. The mode flag and the skip-confirmation flag are read from the help; the second is passed only after you typed the folder name | Changes |
+| `entire configure` | **Configure Entire Settings**. Only the ticked settings and one target flag; never run bare | Changes |
+| `entire clean` | **Clean Session Data**. The skip-confirmation flag (which also overrides the CLI's live-session guard) only after the modal; the scope is the default, the all flag or the session flag | Changes |
+| `entire clean --dry-run` | The preview shown before a clean. Deletes nothing and asks nothing | Read |
+| `entire runner setup` | **Set Up Trail Runners**. One of four forms; `runner` is not in `agent-help`, so its flags come from `runner setup --help`. A preview and a tailoring call the configured summary provider | Changes |
+
+These six were tested only against a fake CLI. Their help was read; none of them was run against the real CLI, so their output and exit codes were not observed. See [Stop, configure and clean capture](/entirely/guides/capture-control/).
+
 ## Agent integrations
 
 | Command | Feature | Kind |

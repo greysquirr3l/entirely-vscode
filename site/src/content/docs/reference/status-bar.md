@@ -24,6 +24,8 @@ The text, tooltip and click action come from `src/services/statusBar.ts` and `cl
 | Login not known to the CLI | `$(entire-logo) Entire $(error)` | "Entirely is set to use a login the Entire CLI does not have." followed by the CLI's detail | Shows an error with the detail |
 | CLI could not be read | `$(entire-logo) Entire $(warning)` | "Entirely could not read the Entire CLI:" followed by the detail | Shows an error with a **Show Logs** button that opens the output channel |
 
+After **Disable Capture** or **Remove Entire**, the repository reads as "Not set up", because that is what `status --json` reports once Entire is off. No separate "capture off" state is added, and the click offers to set Entire up again. The status bar has no menu of its own; the capture-control commands are in the Command Palette (see [Stop, configure and clean capture](/entirely/guides/capture-control/)).
+
 The two error states differ on purpose. `$(error)` is a mistake in your settings: `entirely.cliContext` names a login the CLI does not have. `$(warning)` on its own means the CLI did not answer. A workspace with a checkpoint problem shows `$(warning)` after the state codicon, so you can tell it apart from a healthy one by looking at the bar. The tracked and running tooltips can also carry these lines, in this order:
 
 1. The checkpoint problem, if there is one.
