@@ -190,3 +190,10 @@ export {
 export type { AgentAddFlags, AgentEntry } from './agents';
 export { DEFAULT_EDITOR_HOOK_AGENT, classifyAgent, describeBridging, findHookVerbs } from './agentHooks';
 export type { HookBridging } from './agentHooks';
+export {
+	MAX_DOCTOR_FINDINGS,
+	describeCliDoctor,
+	parseDoctorOutput,
+	readDoctorOutput,
+} from './cliDoctor';
+export type { CliDoctorReading, DoctorCheck } from './cliDoctor';

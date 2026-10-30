@@ -43,6 +43,7 @@ import { BlameDecorations } from './providers/blameDecorations';
 import { BlameService } from './services/blameService';
 import { WhyService } from './services/whyService';
 import { EditorLifecycleUi } from './commands/lifecycleUi';
+import { CliDoctorService } from './services/cliDoctor';
 import { SessionLifecycleService } from './services/sessionLifecycle';
 import { launchInTerminal } from './services/resumeTerminal';
 import { EditorImportUi } from './commands/importUi';
@@ -298,7 +299,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		timeoutSeconds: () => readExtensionSettings().importTimeout,
 	});
 
+	const cliDoctor = new CliDoctorService({
+		runner,
+		workspaceRoot,
+		timeoutSeconds: () => readExtensionSettings().cliDoctorTimeout,
+	});
+
 	registerCommands(context, {
+		cliDoctor,
 		agentIntegrations: {
 			agents: agentIntegrations,
 			ui: new EditorAgentUi(),

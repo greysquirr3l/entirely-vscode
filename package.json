@@ -226,6 +226,11 @@
         "category": "Entirely"
       },
       {
+        "command": "entirely.showCliDoctorOutput",
+        "title": "Doctor: Show the CLI's Full Diagnostic Output",
+        "category": "Entirely"
+      },
+      {
         "command": "entirely.signIn",
         "title": "Sign In to Entire",
         "category": "Entirely",
@@ -331,6 +336,13 @@
           "minimum": 5,
           "maximum": 600,
           "markdownDescription": "How long, in seconds, to wait for `entire session stop`, `attach` or `adopt` before giving up. Attaching a session to a pushed commit uploads the transcript, so raise this on a slow connection."
+        },
+        "entirely.cliDoctorTimeout": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 300,
+          "markdownDescription": "How long, in seconds, the doctor report waits for `entire doctor` before it records that the CLI's own checks did not finish. The command only reports; it is never run with a flag that changes anything."
         },
         "entirely.importTimeout": {
           "type": "number",

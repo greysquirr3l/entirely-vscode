@@ -264,6 +264,17 @@ settings in effect; and the last error the CLI gave. The report is one
 block of text and one action to copy it, because it is usually on its way
 into an issue.
 
+The report also carries the CLI's own verdict on the capture pipeline, from
+`entire doctor`, under "Capture pipeline". A healthy pipeline is reported as
+healthy; each problem the CLI finds is listed as a finding with its reason and
+fix. A failing or timed-out `entire doctor`, and a CLI too old to have the
+command, are reported as such rather than left blank. The extension runs the
+command without flags, so it only reports and never repairs (`entire doctor
+--force` is yours to run). Only each finding's headline and its reason and fix
+lines reach the report; the full text is behind **Entirely: Doctor: Show the
+CLI's Full Diagnostic Output**. `entirely.cliDoctorTimeout` sets how long the
+report waits for it.
+
 Turn the volume up with `entirely.debug`, or with `entirely.logLevel` for
 finer control. There is still only one channel.
 

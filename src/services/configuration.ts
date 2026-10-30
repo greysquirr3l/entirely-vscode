@@ -30,6 +30,8 @@ export interface ExtensionSettings {
 	readonly transcriptTimeout: number;
 	/** How long, in seconds, a session lifecycle command (stop, attach, adopt) may take. */
 	readonly lifecycleActionTimeout: number;
+	/** How long, in seconds, `entire doctor` may take when the doctor report asks it. */
+	readonly cliDoctorTimeout: number;
 	/** How long, in seconds, a history import (and its preview) may take. */
 	readonly importTimeout: number;
 	/** How long, in seconds, to watch for a resumed session to become active. */
@@ -112,6 +114,21 @@ export function clampLifecycleTimeout(seconds: number): number {
 	return Math.min(
 		MAX_LIFECYCLE_TIMEOUT_SECONDS,
 		Math.max(MIN_LIFECYCLE_TIMEOUT_SECONDS, Math.floor(seconds)),
+	);
+}
+
+/** The bounds of the time `entire doctor` may take, in seconds. */
+export const MIN_CLI_DOCTOR_TIMEOUT_SECONDS = 5;
+export const MAX_CLI_DOCTOR_TIMEOUT_SECONDS = 300;
+
+/** Puts the CLI doctor timeout inside the range the extension will wait for. */
+export function clampCliDoctorTimeout(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return 30;
+	}
+	return Math.min(
+		MAX_CLI_DOCTOR_TIMEOUT_SECONDS,
+		Math.max(MIN_CLI_DOCTOR_TIMEOUT_SECONDS, Math.floor(seconds)),
 	);
 }
 
@@ -209,6 +226,7 @@ export function readExtensionSettings(): ExtensionSettings {
 		refreshInterval: clampRefreshInterval(configuration.get<number>('refreshInterval', 30)),
 		transcriptTimeout: clampTranscriptTimeout(configuration.get<number>('transcriptTimeout', 60)),
 		lifecycleActionTimeout: clampLifecycleTimeout(configuration.get<number>('lifecycleActionTimeout', 60)),
+		cliDoctorTimeout: clampCliDoctorTimeout(configuration.get<number>('cliDoctorTimeout', 30)),
 		importTimeout: clampImportTimeout(configuration.get<number>('importTimeout', 300)),
 		resumeWatchTimeout: clampResumeWatch(configuration.get<number>('resumeWatchTimeout', 60)),
 		searchDebounce: clampSearchDebounce(configuration.get<number>('searchDebounce', 400)),

@@ -13,6 +13,7 @@ import {
 	inspectCheckpointDestination,
 	type CheckpointDestinationReport,
 } from '../services/checkpointDestination';
+import type { CliDoctorSource } from '../services/cliDoctor';
 import { readExtensionSettings } from '../services/configuration';
 import { renderDoctorReport, type DoctorFacts } from '../services/doctorReport';
 import { isGitRepository } from '../services/repository';
@@ -45,6 +46,8 @@ export interface DoctorDependencies {
 	readonly accounts: AccountContextService;
 	/** What the CLI has been asked to do so far. */
 	readonly recorder: CliInvocationRecorder;
+	/** The CLI's own diagnostics of the capture pipeline. */
+	readonly cliDoctor?: CliDoctorSource;
 	/** The folder the workspace is in. */
 	readonly workspaceRoot: () => string | undefined;
 	/** Where the report is written. */
@@ -116,6 +119,8 @@ async function collectFacts(deps: DoctorDependencies): Promise<DoctorFacts> {
 		);
 	}
 
+	const cliDoctor = deps.cliDoctor ? await deps.cliDoctor.read() : undefined;
+
 	return {
 		generatedAt: new Date(),
 		extensionVersion: extensionVersion(),
@@ -135,6 +140,7 @@ async function collectFacts(deps: DoctorDependencies): Promise<DoctorFacts> {
 		checkpointDestination,
 		accountContext,
 		contextMechanism: CONTEXT_MECHANISM,
+		cliDoctor,
 	};
 }
 

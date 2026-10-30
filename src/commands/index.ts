@@ -1,11 +1,13 @@
 import * as vscode from 'vscode';
 import { signIn, signOut } from './authentication';
+import { showCliDoctorOutput } from './cliDoctorOutput';
 import { doctor } from './doctor';
 import { dumpCliOutput } from './dumpCliOutput';
 import { openCheckpointFile } from './openCheckpoint';
 import { repairTerminalPath } from './terminalPath';
 import { blameFile, clearBlame } from './blameFile';
 import { readExtensionSettings } from '../services/configuration';
+import type { CliDoctorSource } from '../services/cliDoctor';
 import { explainCheckpoint, whyThisLine } from './whyThisLine';
 import { clearCheckpointSearch, searchCheckpoints } from './checkpointSearch';
 import { checkpointDestination } from './checkpointDestination';
@@ -76,6 +78,8 @@ export interface CommandDependencies {
 	readonly checkpointDetail: (id: string) => Promise<CheckpointDetail | undefined>;
 	/** What the CLI has been asked to do so far. */
 	readonly recorder: CliInvocationRecorder;
+	/** The CLI's own diagnostics, for the doctor report. */
+	readonly cliDoctor: CliDoctorSource;
 	/** Where the extension's one log is written. */
 	readonly output: vscode.OutputChannel;
 }
@@ -287,9 +291,16 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 				runner: deps.runner,
 				accounts: deps.accounts,
 				recorder: deps.recorder,
+				cliDoctor: deps.cliDoctor,
 				workspaceRoot: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
 				output: deps.output,
 			});
+		}),
+
+		// What `entire doctor` printed on the last report, in full. The
+		// report keeps only the findings, so the rest is asked for here.
+		vscode.commands.registerCommand('entirely.showCliDoctorOutput', async () => {
+			await showCliDoctorOutput({ cliDoctor: deps.cliDoctor, output: deps.output });
 		}),
 
 		// The full output of the last CLI invocation. It is behind an
