@@ -88,9 +88,9 @@ Choose **Save the whole output…** in the notification to write all of it to a 
 
 3. Entirely checks the path, and asks before replacing a file ("Replace /path/file.zip?"). If the path is inside the workspace, the question adds that git may offer to commit the archive.
 
-4. The CLI runs once, as the acting login, with the path you chose. The chosen path is kept out of the output channel.
+4. The path is checked again, then the CLI runs once, as the acting login. It writes to a hidden temporary file ending in `.zip` in the same folder, not to your file. Neither path is shown in the output channel.
 
-5. Entirely reads the file back. A regular, non-empty file that starts like a zip archive is reported as written, with its size, and offered with **Reveal in File Explorer** and **Copy Path**. A bundle that is missing or is not a zip archive is reported as unconfirmed, and a CLI refusal (for example a redaction rule that could not be loaded) as not written, with the CLI's reason.
+5. Entirely reads the temporary file back (a regular, non-empty file that starts like a zip archive). Only then is it moved to your path: renamed over the file if you agreed to replace it, or linked into place otherwise, which refuses to overwrite. It is reported as written, with its size, and offered with **Reveal in File Explorer** and **Copy Path**. A bundle that is missing or is not a zip archive is reported as unconfirmed, a CLI refusal (for example a redaction rule that could not be loaded) as not written with the CLI's reason, and a file that appeared at your path meanwhile is left alone and the new bundle discarded. In every failure, cancel or timeout the temporary file is removed, and your path is not changed.
 
 </Steps>
 
@@ -118,13 +118,13 @@ A path is refused, with the reason, and the CLI is not run, when it:
 
 1. The dry run opens first, in a read-only document headed "Dry run: nothing was written". Entirely shows the CLI's report as it is and does not parse it.
 
-2. Choose **Migrate…** to go on, or **Close**. The CLI documents the migration as idempotent: checkpoints already converted are skipped.
+2. Choose **Migrate…** to go on, or **Close**. The CLI documents the migration as idempotent: checkpoints already converted are skipped. The dry run ran as the same login the next question names.
 
 3. A modal names the repository, the acting login and the refs it will create, and says the branch and the configured checkpoint store are not changed and nothing is pushed. There is no undo in the CLI; removing the refs afterwards needs git.
 
 4. The CLI runs once, as that login, with no flag at all, so Entirely never names a remote and, with no terminal to answer its question, the CLI never pushes. It is not retried.
 
-5. Entirely counts the `refs/entire/checkpoints/` refs again and says what changed: "Created N refs" (queued for push, which goes out on your next push), "No new refs were created", a failure with the CLI's reason, or "unconfirmed" when git could not be asked. A cancelled run says some refs may already exist and that running it again is safe. **Show the CLI's output** opens what the CLI printed.
+5. Entirely counts the `refs/entire/checkpoints/` refs once after you confirm and again after the run (so refs made by another process meanwhile are not counted as ours) and says what changed: "Created N refs" (queued for push, which goes out on your next push), "No new refs were created", a failure with the CLI's reason, or "unconfirmed" when git could not be asked. A cancelled run says some refs may already exist and that running it again is safe. **Show the CLI's output** opens what the CLI printed.
 
 </Steps>
 

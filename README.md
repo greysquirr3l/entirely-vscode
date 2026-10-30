@@ -419,7 +419,12 @@ the command line and the size.
   path. The path must be absolute, in an existing folder, not a link, and not
   inside `.git` or `.entire`; replacing a file is confirmed by name. The file is
   read back to check it is a zip archive, and offered with Reveal and Copy Path.
-  It is never opened in the editor. **Entirely: Doctor: Write an Unredacted
+  The CLI first writes to a hidden temporary `.zip` beside your file; only a
+  finished, checked archive is moved into place (a rename when you agreed to
+  replace a file, a link that refuses to overwrite otherwise), and the temporary
+  file is removed on every failure or cancel, so a failed run never changes your
+  file. The path is checked again just before the write. The archive is never
+  opened in the editor. **Entirely: Doctor: Write an Unredacted
   Diagnostic Bundle** is a separate command behind its own strict confirmation.
 - **Entirely: Doctor: Migrate Checkpoints to Git Refs** opens the CLI's dry run
   first. Only then does it offer the migration, which names the repository and

@@ -22,15 +22,21 @@ All notable changes to the Entirely extension are documented in this file. The f
 - **A diagnostic bundle to a file you choose.** **Entirely: Doctor: Write a Diagnostic
   Bundle** says what `entire doctor bundle` puts in the archive, asks for an absolute `.zip`
   path in an existing folder (not a link, not inside `.git` or `.entire`), confirms before
-  replacing a file, runs the CLI with its secret redaction on, reads the file back to check
-  it is a zip archive, and offers Reveal and Copy Path. It never opens the archive.
+  replacing a file, runs the CLI with its secret redaction on, and offers Reveal and Copy Path.
+  The CLI writes to a hidden temporary `.zip` in the same folder, the archive is read back
+  (a regular, non-empty file with a zip signature, opened once without following links), and
+  only then moved into place: renamed over the file when you agreed to replace it, linked
+  (which refuses to overwrite) otherwise. The temporary file is removed on every failure or
+  cancel, and the path is checked again just before the write. It never opens the archive.
   **Write an Unredacted Diagnostic Bundle** is a separate command with its own strict
   confirmation, offered only when the CLI's help describes the raw flag.
 - **Migrate checkpoints to git refs.** **Entirely: Doctor: Migrate Checkpoints to Git
   Refs** opens the dry run of `entire doctor migrate-checkpoints` first, then asks to
   apply it in a modal that names the repository, the acting login and the local refs it
   creates. It runs once as that login, never retries, never names a remote so nothing is
-  pushed, and checks the result by counting `refs/entire/checkpoints/` before and after.
+  pushed, and checks the result by counting `refs/entire/checkpoints/` before and after (the
+  count is taken again after you confirm). The dry run runs as the same login the question
+  names.
 - Six settings: `entirely.doctorLogLines`, `doctorTraceCount`, `doctorOutputMaxKilobytes`,
   `doctorReadTimeout`, `doctorBundleTimeout` and `migrateCheckpointsTimeout`.
 - A CLI without one of these subcommands is named, with its version and an update link,
