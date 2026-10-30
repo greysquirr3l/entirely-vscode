@@ -107,3 +107,6 @@ nohup.out
 site/node_modules/
 site/dist/
 site/.astro/
+
+# Test Things
+test-workspace/
