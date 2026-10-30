@@ -62,7 +62,7 @@ Inherited flags:
 `,
 };
 
-export type BundleMode = 'zip' | 'empty-zip' | 'none' | 'junk' | 'empty-file' | 'junk-fail' | 'zip-then-sleep';
+export type BundleMode = 'zip' | 'empty-zip' | 'none' | 'junk' | 'empty-file' | 'junk-fail' | 'zip-then-sleep' | 'link-at-out';
 
 export interface FakeDoctorOptions {
 	/** Help texts to replace or add, by `doctor_<sub>`. A null value means the CLI has no such subcommand. */
@@ -187,6 +187,7 @@ export function fakeDoctorCli(options: FakeDoctorOptions = {}): FakeDoctorCli {
 		'\t\tcase "$mode" in',
 		'\t\t\tzip) printf \'PK\\003\\004fake archive\' > "$out"; echo "$out"',
 		'\t\t\t\tpp=$(cat "$S/out/plantpath"); if [ -n "$pp" ]; then if [ "$(cat "$S/out/plantkind")" = link ]; then ln -sf "$S/out/plantpath" "$pp"; else echo planted > "$pp"; fi; fi ;;',
+		'\t\t\tlink-at-out) rm -f "$out"; ln -s "$S/out/plantpath" "$out"; echo "$out" ;;',
 		'\t\t\tjunk-fail) printf \'junk\' > "$out"; echo "boom: could not finish" >&2; exit 1 ;;',
 		'\t\t\tzip-then-sleep) printf \'PK\\003\\004fake archive\' > "$out"; sleep 5 ;;',
 		'\t\t\tempty-zip) printf \'PK\\005\\006\' > "$out"; echo "$out" ;;',

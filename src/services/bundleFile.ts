@@ -81,12 +81,17 @@ export type MoveResult = { readonly ok: true } | { readonly ok: false; readonly 
  * a hard link is made, which fails with EEXIST rather than replace anything,
  * and the temporary name is removed afterwards.
  */
-export async function moveIntoPlace(temporary: string, target: string, overwrite: boolean): Promise<MoveResult> {
+export async function moveIntoPlace(
+	temporary: string,
+	target: string,
+	overwrite: boolean,
+	link: (existing: string, created: string) => Promise<void> = fs.link,
+): Promise<MoveResult> {
 	try {
 		if (overwrite) {
 			await fs.rename(temporary, target);
 		} else {
-			await fs.link(temporary, target);
+			await link(temporary, target);
 			await fs.rm(temporary, { force: true });
 		}
 		return { ok: true };
@@ -95,7 +100,9 @@ export async function moveIntoPlace(temporary: string, target: string, overwrite
 		if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
 			return { ok: false, detail: `a file appeared at ${target} while the bundle was being written, so it was not replaced; the new bundle was discarded` };
 		}
-		return { ok: false, detail: error instanceof Error ? error.message : String(error) };
+		const code = (error as NodeJS.ErrnoException).code;
+		const why = error instanceof Error ? error.message : String(error);
+		return { ok: false, detail: code === 'EPERM' || code === 'ENOTSUP' ? `the file could not be placed at ${target} (${why}); the new bundle was discarded` : why };
 	}
 }
 

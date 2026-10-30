@@ -15,6 +15,7 @@ import {
 } from '../lib/entire';
 import { writeDiagnosticBundle, type BundleDependencies } from '../commands/doctorBundle';
 import { inspectSaveTarget, verifyBundle } from '../services/bundleFile';
+import { DoctorDepthService } from '../services/doctorDepth';
 import { ALICE } from './support/activityCli';
 import { fakeDoctorCli, type FakeDoctorCli, type FakeDoctorOptions } from './support/doctorCli';
 import { harness, type HarnessOptions } from './support/depthHarness';
@@ -451,4 +452,43 @@ suite('Doctor bundle: the chosen path is only touched by a finished archive', ()
 		assert.strictEqual(bundleCalls(cli).length, 0);
 		assert.match(built2.ui.notices.at(-1)?.message ?? '', /path changed while you were deciding/);
 	});
+});
+
+suite('Doctor bundle: the temporary file and the move', () => {
+	test('a link at the temporary name is not a file: nothing is placed, the link is removed, the target is untouched', async () => {
+		const folder = makeTempDir('entire-bundle-');
+		const target = path.join(folder, 'diag.zip');
+		fs.writeFileSync(target, 'precious');
+		const cli = fakeDoctorCli({ bundle: 'link-at-out' });
+		const decoy = path.join(cli.dir, 'state', 'out', 'plantpath');
+		const built = harness(cli, { paths: [target], confirms: [true, true] });
+		const deps: BundleDependencies = { service: built.service, files: built.files, ui: built.ui, acting: () => Promise.resolve(ALICE) };
+		assert.strictEqual(await writeDiagnosticBundle(deps, { raw: false }), 'unconfirmed');
+		assert.match(built.ui.notices.at(-1)?.message ?? '', /not a regular file/);
+		assert.strictEqual(fs.readFileSync(target, 'utf8'), 'precious');
+		assert.deepStrictEqual(fs.readdirSync(folder), ['diag.zip']);
+		assert.ok(fs.existsSync(decoy), 'what the link pointed at is still there');
+	});
+
+	for (const code of ['EPERM', 'ENOTSUP']) {
+		test(`a link that fails with ${code} discards the temporary file, leaves the target, and says so`, async () => {
+			const folder = makeTempDir('entire-bundle-');
+			const target = path.join(folder, 'diag.zip');
+			const cli = fakeDoctorCli();
+			const built = harness(cli, { paths: [target] });
+			const service = new DoctorDepthService({
+				runner: cli.runner,
+				workspaceRoot: () => cli.repo,
+				logLines: () => 200,
+				readTimeoutSeconds: () => 20,
+				bundleTimeoutSeconds: () => 20,
+				link: () => Promise.reject(Object.assign(new Error(`${code}: operation not supported`), { code })),
+			});
+			const deps: BundleDependencies = { service, files: built.files, ui: built.ui, acting: () => Promise.resolve(ALICE) };
+			assert.strictEqual(await writeDiagnosticBundle(deps, { raw: false }), 'failed');
+			assert.match(built.ui.notices.at(-1)?.message ?? '', new RegExp(`could not be placed at .*diag\\.zip \\(${code}`));
+			assert.deepStrictEqual(fs.readdirSync(folder), []);
+			assert.deepStrictEqual(built.ui.notices.at(-1)?.actions, []);
+		});
+	}
 });

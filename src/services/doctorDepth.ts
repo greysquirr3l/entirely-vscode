@@ -33,6 +33,8 @@ export interface DoctorDepthOptions {
 	readonly readTimeoutSeconds: () => number;
 	/** How long, in seconds, the bundle may take. */
 	readonly bundleTimeoutSeconds: () => number;
+	/** How a new file is linked into place when replacing was not confirmed. Only tests change it. */
+	readonly link?: (existing: string, created: string) => Promise<void>;
 }
 
 /** What a read of the log or the traces came to. The text is the CLI's own, unbounded. */
@@ -186,7 +188,7 @@ export class DoctorDepthService {
 			if (outcome.kind !== 'written') {
 				return outcome;
 			}
-			const moved = await moveIntoPlace(temporary, file, overwrite);
+			const moved = await moveIntoPlace(temporary, file, overwrite, this.options.link);
 			return moved.ok ? outcome : { kind: 'failed', detail: moved.detail };
 		} finally {
 			await fs.rm(temporary, { force: true }).catch(() => undefined);
