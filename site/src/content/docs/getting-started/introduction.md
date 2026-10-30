@@ -22,7 +22,7 @@ The CLI is a terminal tool. Everything it knows is invisible from the editor unl
 Entirely puts that history in the editor:
 
 - A **status bar** item that says whether the current workspace is tracked and whether an agent session is live.
-- A **Sessions** view, and a **Session** view with the details and transcript of the one you select.
+- A **Sessions** view, and a **Session** view with the details and transcript of the one you select. Any session, trail change or Activity entry you select opens in a detail panel beside your code.
 - **Checkpoint history** that opens straight into the diff editor.
 - **Why Does This Line Exist?** and file blame, which name the agent edit behind a line.
 - **Trail review**: approve, comment, merge, check out, link and unlink.

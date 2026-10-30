@@ -1,4 +1,4 @@
-import type { TrailApproval, TrailComment, TrailMergePlan, TrailSelector } from './trail';
+import { branchLabel, type TrailApproval, type TrailComment, type TrailMergePlan, type TrailSelector } from './trail';
 
 /**
  * The rules a review action follows.
@@ -233,7 +233,7 @@ export function describeChange(change: {
 }): string {
 	const title = change.title ? ` — ${change.title}` : '';
 
-	return `${change.branch} (${change.repository}/${change.number})${title}`;
+	return `${branchLabel(change)} (${change.repository}/${change.number})${title}`;
 }
 
 /**

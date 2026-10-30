@@ -51,7 +51,11 @@ See [Accounts and contexts](/entirely/concepts/accounts-and-contexts/).
 | Palette title | Id | Where | Changes | What it does |
 | --- | --- | --- | --- | --- |
 | Entirely: Show Sessions | `entirely.showSessions` | palette | Read | Reveals the Sessions view. |
-| Entirely: Show Session Details | `entirely.selectSession` | session row click; hidden | Read | Fills the Session view with the selected session: agent, model, tokens, files touched, tool calls. |
+| Entirely: Show Session Details | `entirely.selectSession` | hidden | Read | Selects a session, as clicking its row does: the Session view and the detail panel show it. Kept so keybindings and other commands can call it. |
+| Entirely: Show Details in the Detail Panel | `entirely.selectItem` | row click; hidden | Read | Opens the selected session, trail, change or Activity row in the detail panel. Takes a selection and its view; anything else becomes a line in the panel. |
+| Entirely: Refresh the Detail Panel | `entirely.retryDetail` | panel Refresh and Retry links; editor title bar while the panel is active; palette while something is selected | Read | Reads the selected item again, skipping the cache for it alone. |
+| Entirely: Open the Detail Panel as Text | `entirely.openDetailInEditor` | panel link; editor title bar while the panel is active; palette while something is selected | Read | Opens the detail shown as a read-only `entirely-generated` document. |
+| Entirely: Copy Commit Hash | `entirely.copyCommitHash` | panel link on an Activity commit; hidden | Read | Copies the short hash of the commit the panel shows. Takes the panel's row id and ignores anything that is not the item on show. |
 | Entirely: Open Session Transcript | `entirely.openTranscript` | Sessions inline icon (session and imported-session rows) | Read | Opens the transcript in a read-only editor. Transcript text is never written to the output channel. |
 | Entirely: Show Only This Workspace's Session | `entirely.showOwnSession` | Sessions view title (when showing all) | Read | Filters the tree to the session of this workspace (`entire session current`). |
 | Entirely: Show All Sessions | `entirely.showAllSessions` | Sessions view title (when filtered) | Read | Removes the filter. |
@@ -86,12 +90,12 @@ Merge, check out, link and unlink confirm in a modal prompt that names what they
 
 | Palette title | Id | Where | Changes | What it does |
 | --- | --- | --- | --- | --- |
-| Entirely: Approve a Change on a Trail | `entirely.trailApprove` | palette | Asks for input, no confirmation | `entire trail approve`, run as soon as you pick the change. No message is sent. |
-| Entirely: Comment on a Change on a Trail | `entirely.trailComment` | palette | Asks for input, no confirmation | Posts a comment (`trail comment add`) as soon as you enter the text. If the CLI refuses a comment from an agent session, the note is posted as a finding (`trail finding add`) instead and you are told. Comment bodies are redacted from the logged command line. |
-| Entirely: Merge a Change on a Trail | `entirely.trailMerge` | palette | Confirms | `entire trail merge`, after a dry run that names what will be merged. |
-| Entirely: Check Out a Change on a Trail | `entirely.trailCheckout` | palette | Confirms | `entire trail checkout`. Warns about unsaved files because the checkout moves the working tree. |
-| Entirely: Link a Branch to a Trail | `entirely.trailLink` | palette | Confirms | `entire trail link`. |
-| Entirely: Unlink a Branch from a Trail | `entirely.trailUnlink` | palette | Confirms | `entire trail unlink`. |
+| Entirely: Approve a Change on a Trail | `entirely.trailApprove` | palette; detail panel link | Palette: asks for input, no confirmation. Panel or Trails row: modal naming the change and acting login | `entire trail approve`, run as soon as you pick the change in the palette, or confirm it from the panel or row. No message is sent. |
+| Entirely: Comment on a Change on a Trail | `entirely.trailComment` | palette; detail panel link | Asks for input, no confirmation | Posts a comment (`trail comment add`) as soon as you enter the text. If the CLI refuses a comment from an agent session, the note is posted as a finding (`trail finding add`) instead and you are told. Comment bodies are redacted from the logged command line. |
+| Entirely: Merge a Change on a Trail | `entirely.trailMerge` | palette; detail panel link | Confirms | `entire trail merge`, after a dry run that names what will be merged. |
+| Entirely: Check Out a Change on a Trail | `entirely.trailCheckout` | palette; detail panel link | Confirms | `entire trail checkout`. Warns about unsaved files because the checkout moves the working tree. |
+| Entirely: Link a Branch to a Trail | `entirely.trailLink` | palette; detail panel link | Confirms | `entire trail link`. |
+| Entirely: Unlink a Branch from a Trail | `entirely.trailUnlink` | palette; detail panel link | Confirms | `entire trail unlink`. |
 
 See [Trails and review](/entirely/guides/trails-and-review/).
 

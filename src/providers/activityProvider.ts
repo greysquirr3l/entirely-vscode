@@ -3,16 +3,19 @@ import * as vscode from 'vscode';
 import {
 	countEntries,
 	oneLine,
+	selectionKey,
 	type ActivityEntry,
 	type ActivityListing,
 	type ActivityOverview,
+	type Selection,
 } from '../lib/entire';
 import type { ActivityOutcome, ActivitySource } from '../services/activity';
+import { rowUri } from './selectedMark';
 
 export type ActivityNode =
 	| { readonly kind: 'scope'; readonly text: string; readonly summary: string }
 	| { readonly kind: 'group'; readonly label: string; readonly icon: string; readonly items: readonly ActivityNode[] }
-	| { readonly kind: 'line'; readonly label: string; readonly description?: string; readonly tooltip?: string; readonly icon: string };
+	| { readonly kind: 'line'; readonly label: string; readonly description?: string; readonly tooltip?: string; readonly icon: string; readonly selection?: Selection };
 
 function entryNode(entry: ActivityEntry, listing: ActivityListing): ActivityNode {
 	if (entry.id) {
@@ -22,20 +25,28 @@ function entryNode(entry: ActivityEntry, listing: ActivityListing): ActivityNode
 			description: [entry.id, entry.repo, entry.detail].filter(Boolean).join(' · '),
 			tooltip: entry.text,
 			icon: 'git-commit',
+			selection: { kind: 'commit', entry },
 		};
 	}
-	return { kind: 'line', label: entry.text, tooltip: entry.text, icon: listing === 'commits' ? 'git-commit' : 'comment-discussion' };
+	return {
+		kind: 'line',
+		label: entry.text,
+		tooltip: entry.text,
+		icon: listing === 'commits' ? 'git-commit' : 'comment-discussion',
+		selection: { kind: 'activity-session', entry },
+	};
 }
 
 /** Lays an overview out as a scope line, the headline figures, the repositories and the recent list. */
 export function buildActivityNodes(overview: ActivityOverview, login: string | undefined): ActivityNode[] {
 	const nodes: ActivityNode[] = [];
 	const what = overview.listing === 'commits' ? 'recent commits' : 'recent sessions';
-	nodes.push({
+	const scope = {
 		kind: 'scope',
 		text: login ? `Activity for ${login}` : 'Activity for the active Entire login',
 		summary: `${what}${overview.contributions ? `, ${overview.contributions}` : ''}`,
-	});
+	} as const;
+	nodes.push(scope);
 
 	if (overview.stats.length > 0) {
 		nodes.push({
@@ -62,6 +73,12 @@ export function buildActivityNodes(overview: ActivityOverview, login: string | u
 				label: repository.name,
 				description: repository.count === undefined ? undefined : String(repository.count),
 				icon: 'repo',
+				selection: {
+					kind: 'repository',
+					repository,
+					scope: `${scope.text}: ${scope.summary}`,
+					stats: overview.stats,
+				},
 			})),
 		});
 	}
@@ -105,6 +122,7 @@ export class ActivityProvider implements vscode.TreeDataProvider<ActivityNode> {
 	private started = false;
 	private generation = 0;
 	private current: ActivityListing = 'sessions';
+	private built: { readonly outcome: ActivityOutcome; readonly nodes: ActivityNode[] } | undefined;
 
 	readonly onDidChangeTreeData: vscode.Event<ActivityNode | undefined> = this.changed.event;
 
@@ -147,6 +165,47 @@ export class ActivityProvider implements vscode.TreeDataProvider<ActivityNode> {
 		}
 	}
 
+	/**
+	 * Whether a row with this key is listed, or `undefined` while the list
+	 * is being read, when no row can be said to be missing.
+	 */
+	contains(key: string): boolean | undefined {
+		if (this.loading || this.outcome === undefined) {
+			return undefined;
+		}
+		return this.findLine(key) !== undefined;
+	}
+
+	private findLine(key: string): ActivityNode | undefined {
+		const search = (nodes: readonly ActivityNode[]): ActivityNode | undefined => {
+			for (const node of nodes) {
+				if (node.kind === 'line' && node.selection && selectionKey(node.selection) === key) {
+					return node;
+				}
+				if (node.kind === 'group') {
+					const found = search(node.items);
+					if (found) {
+						return found;
+					}
+				}
+			}
+			return undefined;
+		};
+		return search(this.nodesNow());
+	}
+
+	/** The nodes for the current outcome, built once so the tree can refresh one of them. */
+	private nodesNow(): ActivityNode[] {
+		const outcome = this.outcome;
+		if (outcome?.kind !== 'found') {
+			return [];
+		}
+		if (this.built?.outcome !== outcome) {
+			this.built = { outcome, nodes: buildActivityNodes(outcome.overview, this.login()) };
+		}
+		return this.built.nodes;
+	}
+
 	/** The line shown in place of a list when there is none. */
 	get viewMessage(): string | undefined {
 		if (this.loading) {
@@ -182,6 +241,14 @@ export class ActivityProvider implements vscode.TreeDataProvider<ActivityNode> {
 				item.description = node.description;
 				item.tooltip = node.tooltip;
 				item.iconPath = new vscode.ThemeIcon(node.icon);
+				if (node.selection) {
+					item.resourceUri = rowUri(selectionKey(node.selection));
+					item.command = {
+						command: 'entirely.selectItem',
+						title: 'Show Details',
+						arguments: [node.selection, 'activity'],
+					};
+				}
 				return item;
 			}
 		}
@@ -195,7 +262,7 @@ export class ActivityProvider implements vscode.TreeDataProvider<ActivityNode> {
 			void this.refresh();
 			return [];
 		}
-		return this.outcome?.kind === 'found' ? buildActivityNodes(this.outcome.overview, this.login()) : [];
+		return this.nodesNow();
 	}
 
 	dispose(): void {

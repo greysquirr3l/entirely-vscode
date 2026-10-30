@@ -17,7 +17,8 @@ import {
 } from '../lib/entire';
 import { MAX_DOCUMENT_CHARACTERS, MAX_MESSAGE_CHARACTERS } from '../lib/entire/transcriptView';
 import { makeTempDir } from './support/tempDir';
-import { openTranscript, selectSession } from '../commands/sessionDetail';
+import { openTranscript } from '../commands/sessionDetail';
+import { selectSessionInto as selectSession } from './support/legacySelect';
 import { SessionDetailProvider } from '../providers/sessionDetailProvider';
 import { SessionsProvider } from '../providers/sessionsProvider';
 import { TRANSCRIPT_SCHEME, TranscriptContentProvider } from '../providers/transcriptDocument';

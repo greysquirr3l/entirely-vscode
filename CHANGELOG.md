@@ -7,6 +7,34 @@ All notable changes to the Entirely extension are documented in this file. The f
 
 ### Added
 
+- **Clicking a row opens its detail in a panel beside the editor.** Selecting a session, a
+  trail, a trail change or an Activity commit, session line or repository, by click or
+  with the arrow keys, opens its detail in one panel in the editor area, next to the file
+  you are in. The panel does not take focus, is reused by every later selection (no tab
+  per row), is titled with the item's name, and opens again if you close it. It is text
+  and links only: no script runs, every word from the CLI is escaped, and the colours
+  follow your theme, including high contrast. Its links are the existing commands, with
+  their own confirmations: Approve (which asks "Approve *change* as *login*?" first, since there is no picker), Comment, Merge, Check out, Link branch and Unlink
+  branch on a change, Copy hash on a commit, the transcript and checkpoint links on a
+  session, plus **Refresh** and **Open as text**.
+- Each selection makes at most one read, a repeat selection reads nothing, and a slow
+  read for an earlier row never replaces a later one. A failed read is a message in the
+  panel with Retry, not a popup. A merged or deleted trail says it is no longer
+  available, and a CLI without `trail show` leaves the listing's fields with a line that
+  says why.
+- **`entirely.selectionCacheSeconds`** (default `30`, `0` turns it off). Reselecting a row
+  shows the cached detail at once with an "as of" time; after the time it is read again
+  in the background. Ended sessions and Activity rows are kept ten times as long. The
+  refresh commands clear the cache, and so do approving, merging, linking and unlinking.
+- **`entirely.trailBadgeLimit`** (default `10`, `0` shows no count): how many open trails
+  are read, when you refresh Trails or after an action, to count the changes awaiting an
+  approval.
+- The selected row is marked with a blue dot and label colour, and the mark leaves the
+  other views when you select elsewhere. The editor's own row highlight in those views
+  cannot be cleared by an extension and stays.
+- Activity session lines still cannot link to the Session view: the CLI's line carries no
+  session id, and Entirely does not guess one. Activity commits have no open-checkpoint
+  link for the same reason.
 - **The CLI's log and hook traces, from the editor.** **Entirely: Doctor: Show the CLI
   Log** and **Show Hook Traces** open the output of `entire doctor logs` and
   `entire doctor trace` in a read-only document with a Copy action, never in the output
@@ -46,6 +74,26 @@ All notable changes to the Entirely extension are documented in this file. The f
 These flows were tested only against a fake CLI. The real CLI's output formats for
 `doctor logs`, `trace`, `bundle` and `migrate-checkpoints` were not observed, and the
 bundle and migration were not run against it.
+
+### Fixed
+
+- Clicking the row that is already shown brings a hidden panel back, without reading again. The panel and this behaviour were tested against stand-ins only; check them in a real window.
+- Review commands and the transcript link ignore an argument that is not a row, instead of throwing. Selections with a fractional, negative or huge trail number are refused.
+- The palette's change picker reads open trails only, with a cancellable progress notification, independent of `entirely.trailBadgeLimit`.
+
+- **Trails showed "0 changes" for every trail and a badge that was always zero.** Against
+  the real CLI, `entire trail list` carries no changes; only `entire trail show` does.
+  The Trails view now says "changes not loaded" until a trail is expanded or selected,
+  then reads `trail show` once and shows the change rows with their merge gates. The
+  badge counts the changes awaiting approval among the trails that were read, and its
+  tooltip says how many of the open trails that is.
+- **Approve, Comment, Merge, Check out and the other review commands found no change to
+  choose** when run from the palette, for the same reason. They now read the changes of
+  the listed trails first.
+- A change with an empty branch (the CLI sends one for a change whose branch is gone) no
+  longer breaks the row or the review prompts; it reads "no branch". A merged change says
+  "merged" and has its merge check skipped.
+- Moving to a session row with the arrow keys now loads it, as clicking always did.
 
 ## [0.2.0] - 2026-10-30
 

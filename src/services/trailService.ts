@@ -21,7 +21,7 @@ import {
 	type TrailMergePlan,
 	type TrailSelector,
 } from '../lib/entire';
-import type { CliRunner, RunOptions } from './cli';
+import type { CliFailureReason, CliRunner, RunOptions } from './cli';
 
 /**
  * The outcome of a trail command.
@@ -147,7 +147,33 @@ export class TrailUsage {
 
 		return form;
 	}
+
+	/**
+	 * Whether the CLI answers for a command at all.
+	 *
+	 * A success is kept, as `form` keeps it, so asking again costs nothing
+	 * and the read that follows does not look the usage up twice. A failure
+	 * is never kept: a CLI installed a moment later should be found.
+	 */
+	async probe(command: string): Promise<TrailCapability> {
+		if (this.cache.has(command)) {
+			return { kind: 'available' };
+		}
+
+		const result = await this.runner.usage(command);
+		if (!result.ok) {
+			return { kind: 'unavailable', reason: result.reason, detail: result.detail };
+		}
+
+		this.cache.set(command, hasTrailFlag(result.value.raw) ? 'flag' : 'positional');
+		return { kind: 'available' };
+	}
 }
+
+/** Whether the CLI can run a trail command, from its own usage. */
+export type TrailCapability =
+	| { readonly kind: 'available' }
+	| { readonly kind: 'unavailable'; readonly reason: CliFailureReason; readonly detail: string };
 
 /**
  * The project and repository the workspace is on.
@@ -255,6 +281,11 @@ export class TrailService {
 		return { kind: 'failed', detail: describeTrailFailure(result.detail, result.stderr) };
 	}
 
+	/** Whether this CLI has `trail show`, which the detail panel needs. */
+	showCapability(): Promise<TrailCapability> {
+		return this.usage.probe('trail show');
+	}
+
 	/** Reads one trail and the project it belongs to. */
 	async show(selector: TrailSelector): Promise<TrailResult<TrailDetail>> {
 		const args = await this.selectorArgs('trail show', selector, ['--json']);
@@ -262,7 +293,11 @@ export class TrailService {
 		const result = await this.options.runner.runJson(
 			args,
 			value => unwrap(decodeTrailDetail(value)),
-			{ cwd: this.options.workspaceRoot(), withholdBodies: true },
+			{
+				cwd: this.options.workspaceRoot(),
+				timeoutMs: this.options.actionTimeoutMs?.() ?? DEFAULT_ACTION_TIMEOUT_MS,
+				withholdBodies: true,
+			},
 		);
 
 		if (!result.ok) {

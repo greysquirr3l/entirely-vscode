@@ -6,10 +6,12 @@ import {
 	isImportedSession,
 	pluralise,
 	truncatePrompt,
+	type Selection,
 	type Session,
 	type SessionSource,
 } from '../lib/entire';
 import { Tooltip } from './markdown';
+import { rowUri } from './selectedMark';
 
 /** A group of sessions that share a status. */
 export interface SessionGroupNode {
@@ -27,6 +29,11 @@ export interface SessionItemNode {
 
 /** A node in the sessions tree. */
 export type SessionNode = SessionGroupNode | SessionItemNode;
+
+/** What selecting a session row means. */
+export function selectionOfSession(node: SessionItemNode): Selection {
+	return { kind: 'session', session: node.session };
+}
 
 /**
  * The statuses that come first, in this order.
@@ -218,10 +225,11 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionNode> {
 		item.iconPath = new vscode.ThemeIcon(
 			imported ? 'lock' : session.status === 'active' ? 'pulse' : 'history',
 		);
+		item.resourceUri = rowUri(`session:${session.id}`);
 		item.command = {
-			command: 'entirely.selectSession',
-			title: 'Show Session',
-			arguments: [element],
+			command: 'entirely.selectItem',
+			title: 'Show Details',
+			arguments: [selectionOfSession(element), 'sessions'],
 		};
 
 		return item;
@@ -248,6 +256,21 @@ export class SessionsProvider implements vscode.TreeDataProvider<SessionNode> {
 	select(element: SessionItemNode | undefined): void {
 		this.selected = element;
 		this.onDidChangeSelection.fire(element);
+	}
+
+	/** Whether a session with this id is listed. */
+	contains(id: string): boolean {
+		return this.findItem(id) !== undefined;
+	}
+
+	private findItem(id: string): SessionItemNode | undefined {
+		for (const group of this.groups) {
+			const found = group.items.find(item => item.session.id === id);
+			if (found) {
+				return found;
+			}
+		}
+		return undefined;
 	}
 
 	/**

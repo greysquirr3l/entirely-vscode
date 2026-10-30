@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 
 import {
+	asChangePick,
+	asTrailPick,
 	attributeApproval,
 	attributeComment,
 	changePicks,
@@ -22,6 +24,13 @@ export interface TrailReviewDependencies {
 	readonly trails: TrailService;
 	/** The forge handle of the login the extension is acting as. */
 	readonly actingHandle: () => string | undefined;
+	/** Called after the CLI has changed a trail or one of its changes, so what is shown about it can be read again. */
+	readonly changed?: (pick: TrailPick) => void;
+	/**
+	 * Fills in the changes of the listed trails. The CLI's list carries none,
+	 * so a change can only be chosen once they have been read.
+	 */
+	readonly withChanges?: (trails: readonly Trail[]) => Promise<readonly Trail[]>;
 }
 
 /**
@@ -85,6 +94,54 @@ async function choose(
 }
 
 /**
+ * The change an action is about: the one it was given, or the one the
+ * reviewer picks.
+ */
+async function changeToActOn(
+	deps: TrailReviewDependencies,
+	given: TrailPick | undefined,
+	title: string,
+	placeHolder: string,
+): Promise<TrailPick | undefined> {
+	const known = asChangePick(given);
+	if (known) {
+		return known;
+	}
+
+	const listed = await listTrails(deps);
+	if (!listed) {
+		return undefined;
+	}
+
+	const trails = deps.withChanges ? await deps.withChanges(listed.trails) : listed.trails;
+	const pick = await choose(changePicks(trails), title, placeHolder);
+	return pick?.kind === 'change' ? pick : undefined;
+}
+
+/**
+ * The trail an action is about: the one it was given, the parent of the
+ * change it was given, or the one the reviewer picks.
+ */
+async function trailToActOn(
+	deps: TrailReviewDependencies,
+	given: TrailPick | undefined,
+	title: string,
+	placeHolder: string,
+): Promise<TrailPick | undefined> {
+	if (given) {
+		return asTrailPick(given);
+	}
+
+	const listed = await listTrails(deps);
+	if (!listed) {
+		return undefined;
+	}
+
+	const pick = await choose(trailPicks(listed.trails), title, placeHolder);
+	return pick?.kind === 'trail' ? pick : undefined;
+}
+
+/**
  * The files the editor holds open with unsaved changes.
  *
  * The editor is the only thing that knows about a buffer that was
@@ -122,21 +179,32 @@ function unsavedFiles(): { readonly path: string; readonly name?: string }[] {
  */
 export async function approveChange(
 	deps: TrailReviewDependencies,
+	target?: TrailPick,
 ): Promise<void> {
-	const listed = await listTrails(deps);
-
-	if (!listed) {
-		return;
-	}
-
-	const pick = await choose(
-		changePicks(listed.trails),
+	const pick = await changeToActOn(
+		deps,
+		target,
 		'Which change do you want to approve?',
 		'Entirely approves as the login it is acting as',
 	);
 
 	if (!pick || pick.kind !== 'change') {
 		return;
+	}
+
+	// Choosing the change in the picker was the confirmation. A change that
+	// arrived with the command, from a row or a link in the detail panel,
+	// was not chosen here, so one click must not approve it on its own.
+	if (asChangePick(target)) {
+		const as = deps.actingHandle() ?? 'the login the extension is acting as';
+		const confirmed = await vscode.window.showWarningMessage(
+			`Approve ${describeChange(pick.change)} as ${as}?`,
+			{ modal: true },
+			'Approve',
+		);
+		if (confirmed !== 'Approve') {
+			return;
+		}
 	}
 
 	const result = await deps.trails.approve(pick.selector, undefined);
@@ -148,6 +216,7 @@ export async function approveChange(
 		return;
 	}
 
+	deps.changed?.(pick);
 	const attribution = attributeApproval(result.value, deps.actingHandle());
 
 	switch (attribution.kind) {
@@ -182,15 +251,11 @@ export async function approveChange(
  */
 export async function commentOnChange(
 	deps: TrailReviewDependencies,
+	target?: TrailPick,
 ): Promise<void> {
-	const listed = await listTrails(deps);
-
-	if (!listed) {
-		return;
-	}
-
-	const pick = await choose(
-		changePicks(listed.trails),
+	const pick = await changeToActOn(
+		deps,
+		target,
 		'Which change do you want to comment on?',
 		'Entirely comments as the login it is acting as',
 	);
@@ -252,15 +317,10 @@ export async function commentOnChange(
  * and the answer is what the confirmation says: the branch, where it
  * would go and the commit at its head.
  */
-export async function mergeChange(deps: TrailReviewDependencies): Promise<void> {
-	const listed = await listTrails(deps);
-
-	if (!listed) {
-		return;
-	}
-
-	const pick = await choose(
-		changePicks(listed.trails),
+export async function mergeChange(deps: TrailReviewDependencies, target?: TrailPick): Promise<void> {
+	const pick = await changeToActOn(
+		deps,
+		target,
 		'Which change do you want to merge?',
 		'Each change of a trail is merged on its own',
 	);
@@ -302,6 +362,7 @@ export async function mergeChange(deps: TrailReviewDependencies): Promise<void> 
 		return;
 	}
 
+	deps.changed?.(pick);
 	await vscode.window.showInformationMessage(
 		`Entirely merged ${describeChange(pick.change)}.`,
 	);
@@ -314,15 +375,10 @@ export async function mergeChange(deps: TrailReviewDependencies): Promise<void> 
  * whether it holds unsaved work. Work that was never written to disk
  * would be lost, and the extension refuses rather than losing it.
  */
-export async function checkoutChange(deps: TrailReviewDependencies): Promise<void> {
-	const listed = await listTrails(deps);
-
-	if (!listed) {
-		return;
-	}
-
-	const pick = await choose(
-		changePicks(listed.trails),
+export async function checkoutChange(deps: TrailReviewDependencies, target?: TrailPick): Promise<void> {
+	const pick = await changeToActOn(
+		deps,
+		target,
 		'Which change do you want to check out?',
 		'Checking out moves the working tree to that branch',
 	);
@@ -368,15 +424,10 @@ export async function checkoutChange(deps: TrailReviewDependencies): Promise<voi
  * Linking is about the trail rather than about one of its changes: a
  * branch belongs to a trail, and the CLI takes the trail.
  */
-export async function linkBranch(deps: TrailReviewDependencies): Promise<void> {
-	const listed = await listTrails(deps);
-
-	if (!listed) {
-		return;
-	}
-
-	const pick = await choose(
-		trailPicks(listed.trails),
+export async function linkBranch(deps: TrailReviewDependencies, target?: TrailPick): Promise<void> {
+	const pick = await trailToActOn(
+		deps,
+		target,
 		'Which trail do you want to link this branch to?',
 		'Linking ties the current branch to the trail',
 	);
@@ -415,6 +466,7 @@ export async function linkBranch(deps: TrailReviewDependencies): Promise<void> {
 		return;
 	}
 
+	deps.changed?.(pick);
 	await vscode.window.showInformationMessage(
 		`Entirely linked ${branch.trim()} to trail #${pick.trail.number}.`,
 	);
@@ -426,15 +478,10 @@ export async function linkBranch(deps: TrailReviewDependencies): Promise<void> {
  * The CLI keeps the branch and everything on it, but the trail stops
  * tracking the work, so the reviewer is asked first.
  */
-export async function unlinkBranch(deps: TrailReviewDependencies): Promise<void> {
-	const listed = await listTrails(deps);
-
-	if (!listed) {
-		return;
-	}
-
-	const pick = await choose(
-		trailPicks(listed.trails),
+export async function unlinkBranch(deps: TrailReviewDependencies, target?: TrailPick): Promise<void> {
+	const pick = await trailToActOn(
+		deps,
+		target,
 		'Which trail do you want to unlink a branch from?',
 		'The branch and its code are kept; the trail stops tracking it',
 	);
@@ -473,6 +520,7 @@ export async function unlinkBranch(deps: TrailReviewDependencies): Promise<void>
 		return;
 	}
 
+	deps.changed?.(pick);
 	await vscode.window.showInformationMessage(
 		`Entirely unlinked ${branch.trim()} from trail #${pick.trail.number}.`,
 	);

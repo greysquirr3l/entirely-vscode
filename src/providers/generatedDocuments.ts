@@ -4,9 +4,9 @@ import * as vscode from 'vscode';
 export const GENERATED_SCHEME = 'entirely-generated';
 
 /** What kind of document was generated. It decides the file extension, so the editor picks the language. */
-export type GeneratedKind = 'dispatch' | 'recap' | 'plugin' | 'doctor';
+export type GeneratedKind = 'dispatch' | 'recap' | 'plugin' | 'detail' | 'doctor';
 
-const EXTENSIONS: Record<GeneratedKind, string> = { dispatch: 'md', recap: 'txt', plugin: 'txt', doctor: 'txt' };
+const EXTENSIONS: Record<GeneratedKind, string> = { dispatch: 'md', recap: 'txt', plugin: 'txt', detail: 'txt', doctor: 'txt' };
 
 /** How many documents are kept in memory at once. */
 const MAX_DOCUMENTS = 5;
@@ -25,12 +25,19 @@ export class GeneratedDocuments implements vscode.TextDocumentContentProvider {
 
 	readonly onDidChange: vscode.Event<vscode.Uri> = this.changed.event;
 
-	/** Stores the text and returns where to open it. Each call gets an address of its own. */
-	set(kind: GeneratedKind, text: string): vscode.Uri {
+	/**
+	 * Stores the text and returns where to open it. Each call gets an address of its own.
+	 *
+	 * A `name` becomes the tab's title, with the counter kept in the query so two
+	 * documents with the same name stay apart.
+	 */
+	set(kind: GeneratedKind, text: string, name?: string): vscode.Uri {
 		this.counter += 1;
+		const label = name?.replace(/[\u0000-\u001f/\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
 		const uri = vscode.Uri.from({
 			scheme: GENERATED_SCHEME,
-			path: `/${kind}-${this.counter}.${EXTENSIONS[kind]}`,
+			path: label ? `/${label}.${EXTENSIONS[kind]}` : `/${kind}-${this.counter}.${EXTENSIONS[kind]}`,
+			query: label ? String(this.counter) : '',
 		});
 		this.documents.set(uri.toString(), { kind, text });
 		while (this.documents.size > MAX_DOCUMENTS) {
