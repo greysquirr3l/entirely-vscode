@@ -1,7 +1,7 @@
 import type { ActivityEntry, ActivityRepository, ActivityStat } from './activityOutput';
 import { sessionRows, type DetailRow, type SessionSnapshot } from './sessionDetailRows';
 import { describeGate, type GatedChange, type GatedTrail } from './trailGate';
-import type { Trail, TrailChange, TrailGate } from './trail';
+import { branchLabel, type Trail, type TrailChange, type TrailGate } from './trail';
 import type { TrailPick } from './trailPick';
 import { pluralise, truncatePrompt } from './text';
 import type { Session } from './types';
@@ -10,7 +10,7 @@ import type { Session } from './types';
 export type SelectionSource = 'sessions' | 'trails' | 'activity' | 'command';
 
 /**
- * Something the user can select and see in the Details viewer.
+ * Something the user can select and see in the detail panel.
  *
  * A selection is plain data, so it can be the argument of a tree item's
  * command, and it carries everything the row knew when it was drawn.
@@ -151,6 +151,14 @@ export function describeViewerNote(state: ViewerState): string | undefined {
 	}
 }
 
+/** The title of the detail panel's tab: the item's name. */
+export function describeViewerTitle(state: ViewerState): string {
+	if (state.kind === 'empty' || state.kind === 'notice') {
+		return 'Details';
+	}
+	return state.model.title;
+}
+
 /** The words for an item the CLI says is gone. */
 export function describeGone(title: string): string {
 	return `${title} is no longer available. It may have been merged or deleted.`;
@@ -241,6 +249,11 @@ export function isSelection(value: unknown): value is Selection {
 	}
 }
 
+/** Whether text is a commit hash, short or full. */
+export function isCommitHash(value: string): boolean {
+	return /^[0-9a-f]{4,64}$/i.test(value);
+}
+
 /** Whether a source name is one the service knows. */
 export function isSelectionSource(value: unknown): value is SelectionSource {
 	return value === 'sessions' || value === 'trails' || value === 'activity' || value === 'command';
@@ -307,7 +320,7 @@ export function buildChangeDetail(
 
 	const rows: DetailRow[] = [
 		{ label: 'Change', value: `${change.repository}/${change.number}` },
-		{ label: 'Branch', value: change.branch },
+		{ label: 'Branch', value: branchLabel(change) },
 	];
 	if (change.status) {
 		rows.push({ label: 'Change status', value: change.status });
@@ -326,7 +339,7 @@ export function buildChangeDetail(
 		rows.push({
 			label: 'Other changes',
 			value: pluralise(siblings.length, 'change'),
-			lines: siblings.map(other => `${other.repository}/${other.number} · ${other.branch}${other.status ? ` · ${other.status}` : ''}`),
+			lines: siblings.map(other => `${other.repository}/${other.number} · ${branchLabel(other)}${other.status ? ` · ${other.status}` : ''}`),
 		});
 	}
 
@@ -334,7 +347,7 @@ export function buildChangeDetail(
 		key: selectionKey(selection),
 		kind: 'change',
 		title: detailTitle(selection),
-		heading: change.title ?? change.branch,
+		heading: change.title ?? (change.branch.length > 0 ? change.branch : `${change.repository}/${change.number}`),
 		rows,
 		body: trail.body,
 		pick: changePick(trail, change),
@@ -349,14 +362,21 @@ export function buildTrailDetail(
 	const trail = shown?.trail ?? selection.entry.trail;
 	const rows: DetailRow[] = [{ label: 'Trail', value: `#${trail.number}` }, ...trailRows(trail).slice(1)];
 
-	if (selection.entry.changes.length > 0) {
+	// The listing carries no changes, so they are those `trail show` returned,
+	// with the gate where the Trails view has already read it.
+	const gates = new Map(selection.entry.changes.map(({ change, gate }) => [change.id, gate]));
+	const changes = shown ? shown.trail.changes : selection.entry.changes.map(({ change }) => change);
+	if (changes.length > 0) {
 		rows.push({
 			label: 'Changes',
-			value: pluralise(selection.entry.changes.length, 'change'),
-			lines: selection.entry.changes.map(
-				({ change, gate }) => `${change.repository}/${change.number} · ${change.branch} · ${describeGate(gate)}`,
-			),
+			value: pluralise(changes.length, 'change'),
+			lines: changes.map(change => {
+				const gate = gates.get(change.id);
+				return `${change.repository}/${change.number} · ${branchLabel(change)} · ${gate ? describeGate(gate) : (change.status ?? 'gate not read')}`;
+			}),
 		});
+	} else {
+		rows.push({ label: 'Changes', value: shown ? 'None' : 'Not loaded yet' });
 	}
 
 	return {

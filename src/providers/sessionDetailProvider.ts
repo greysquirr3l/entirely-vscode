@@ -1,18 +1,8 @@
 import * as vscode from 'vscode';
 
-import {
-	buildSessionDetail,
-	describeViewerNote,
-	pluralise,
-	type DetailModel,
-	type DetailRow,
-	type Selection,
-	type Session,
-	type TrailPick,
-	type ViewerState,
-} from '../lib/entire';
+import { buildSessionDetail, pluralise, type DetailRow, type Selection, type Session, type ViewerState } from '../lib/entire';
 
-/** One field of the selected item. */
+/** One field of the selected session. */
 export interface DetailFieldNode {
 	readonly kind: 'field';
 	readonly label: string;
@@ -38,39 +28,8 @@ export interface DetailLineNode {
 	readonly text: string;
 }
 
-/** The row that names the selected item. Review actions on a trail change attach here. */
-export interface DetailHeaderNode {
-	readonly kind: 'header';
-	readonly label: string;
-	readonly description: string;
-	readonly icon: string;
-	readonly pick?: TrailPick;
-}
-
-/** Says what is happening to the item: loading, failed, gone, or not refreshed. */
-export interface DetailStatusNode {
-	readonly kind: 'status';
-	readonly label: string;
-	readonly icon: string;
-	readonly role: 'loading' | 'failed' | 'gone' | 'refresh-failed' | 'notice';
-}
-
-/** A node in the Details tree. */
-export type DetailNode =
-	| DetailFieldNode
-	| DetailTextNode
-	| DetailLineNode
-	| DetailHeaderNode
-	| DetailStatusNode;
-
-const KIND_WORDS: Record<DetailModel['kind'], { readonly word: string; readonly icon: string }> = {
-	session: { word: 'Session', icon: 'pulse' },
-	trail: { word: 'Trail', icon: 'git-pull-request' },
-	change: { word: 'Change', icon: 'git-pull-request-draft' },
-	commit: { word: 'Commit', icon: 'git-commit' },
-	'activity-session': { word: 'Session line', icon: 'comment-discussion' },
-	repository: { word: 'Repository', icon: 'repo' },
-};
+/** A node in the session detail tree. */
+export type DetailNode = DetailFieldNode | DetailTextNode | DetailLineNode;
 
 function rowNode(row: DetailRow): DetailNode {
 	if (row.lines) {
@@ -90,82 +49,40 @@ function rowNode(row: DetailRow): DetailNode {
 	return { kind: 'field', label: row.label, value: row.value, tooltip: row.tooltip, command };
 }
 
-function statusNodes(state: ViewerState): DetailStatusNode[] {
-	const note = describeViewerNote(state);
-	switch (state.kind) {
-		case 'loading':
-			return [{ kind: 'status', label: note ?? '', icon: 'loading~spin', role: 'loading' }];
-		case 'failed':
-			return [{ kind: 'status', label: note ?? '', icon: 'error', role: 'failed' }];
-		case 'gone':
-			return [{ kind: 'status', label: note ?? '', icon: 'info', role: 'gone' }];
-		case 'ready':
-			return state.refreshFailure
-				? [{ kind: 'status', label: note ?? '', icon: 'warning', role: 'refresh-failed' }]
-				: [];
-		case 'empty':
-		case 'notice':
-			return [];
-	}
-}
-
-/** The nodes that show a state. A session's rows are the rows it always had. */
-export function buildDetailNodes(state: ViewerState): DetailNode[] {
-	if (state.kind === 'empty') {
-		return [];
-	}
-	if (state.kind === 'notice') {
-		return [{ kind: 'status', label: state.message, icon: 'info', role: 'notice' }];
-	}
-	const nodes: DetailNode[] = [];
-	const { model } = state;
-	if (model.heading) {
-		const kind = KIND_WORDS[model.kind];
-		nodes.push({
-			kind: 'header',
-			label: model.heading,
-			description: kind.word,
-			icon: kind.icon,
-			pick: model.pick,
-		});
-	}
-	nodes.push(...statusNodes(state), ...model.rows.map(rowNode));
-	return nodes;
-}
-
 /**
- * The details of the item the user has selected.
+ * The rows of the session the user has selected.
  *
- * The detail is a tree rather than a panel so the Entire view stays a
- * single place, and so a long prompt can be expanded rather than cut off.
- * The tree shows whatever the selection service last published and keeps
- * its nodes between reads, because the editor can only reveal a node it
- * has been given before.
+ * This is the Session view: it shows a session and nothing else. What it
+ * shows comes from the selection service, so the session is read once for
+ * this view and the detail panel together. Selecting a trail change or an
+ * Activity entry leaves it as it was; those open in the detail panel.
  */
 export class SessionDetailProvider implements vscode.TreeDataProvider<DetailNode> {
 	private readonly changed = new vscode.EventEmitter<DetailNode | undefined>();
-	private shown: ViewerState = { kind: 'empty' };
+	private session: Session | undefined;
 	private roots: DetailNode[] = [];
 	private readonly parents = new Map<DetailLineNode, DetailTextNode>();
 
 	readonly onDidChangeTreeData: vscode.Event<DetailNode | undefined> = this.changed.event;
 
-	/** Shows what the selection service published. */
+	/** Shows what the selection service published, when it is a session. */
 	render(state: ViewerState): void {
-		this.shown = state;
-		this.roots = buildDetailNodes(state);
-		this.parents.clear();
-		for (const node of this.roots) {
-			if (node.kind === 'text') {
-				for (const line of node.children) {
-					this.parents.set(line, node);
-				}
-			}
+		if (state.kind === 'empty') {
+			this.set(undefined, []);
+			return;
 		}
-		this.changed.fire(undefined);
+		if (state.kind === 'notice' || state.model.kind !== 'session') {
+			return;
+		}
+
+		const rows = state.model.rows.map(rowNode);
+		if (state.kind === 'failed' || state.kind === 'gone') {
+			rows.push({ kind: 'field', label: 'Detail', value: 'Not available', tooltip: state.reason });
+		}
+		this.set(state.model.session?.session ?? (state.selection.kind === 'session' ? state.selection.session : undefined), rows);
 	}
 
-	/** Shows a session as listed, with nothing read yet. Used when only the list row is known. */
+	/** Shows a session as listed, with nothing read yet. */
 	show(session: Session | undefined): void {
 		if (!session) {
 			this.render({ kind: 'empty' });
@@ -175,74 +92,53 @@ export class SessionDetailProvider implements vscode.TreeDataProvider<DetailNode
 		this.render({ kind: 'ready', selection, model: buildSessionDetail(selection) });
 	}
 
-	/** The state on show. */
-	get state(): ViewerState {
-		return this.shown;
+	private set(session: Session | undefined, nodes: DetailNode[]): void {
+		this.session = session;
+		this.roots = nodes;
+		this.parents.clear();
+		for (const node of nodes) {
+			if (node.kind === 'text') {
+				for (const line of node.children) {
+					this.parents.set(line, node);
+				}
+			}
+		}
+		this.changed.fire(undefined);
 	}
 
-	/** The session currently on show, if a session is. */
+	/** The session currently on show. */
 	get current(): Session | undefined {
-		return this.shown.kind === 'empty' || this.shown.kind === 'notice' ? undefined : this.shown.model.session?.session;
-	}
-
-	/** The first row, which is what the viewer reveals. */
-	get firstNode(): DetailNode | undefined {
-		return this.roots[0];
+		return this.session;
 	}
 
 	getTreeItem(element: DetailNode): vscode.TreeItem {
-		switch (element.kind) {
-			case 'field': {
-				const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.None);
-				item.description = element.value;
-				if (element.tooltip) {
-					item.tooltip = element.tooltip;
-				}
-				item.contextValue = 'entirely.detailField';
-				if (element.command) {
-					item.command = {
-						command: element.command.command,
-						title: element.label,
-						arguments: [...element.command.arguments],
-					};
-				}
-				return item;
+		if (element.kind === 'field') {
+			const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.None);
+			item.description = element.value;
+			if (element.tooltip) {
+				item.tooltip = element.tooltip;
 			}
-			case 'text': {
-				const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.Collapsed);
-				item.description = element.summary ?? pluralise(element.lines.length, 'line');
-				item.contextValue = 'entirely.detailText';
-				return item;
+			item.contextValue = 'entirely.detailField';
+			if (element.command) {
+				item.command = {
+					command: element.command.command,
+					title: element.label,
+					arguments: [...element.command.arguments],
+				};
 			}
-			case 'header': {
-				const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.None);
-				item.description = element.description;
-				item.iconPath = new vscode.ThemeIcon(element.icon);
-				item.contextValue =
-					element.pick?.kind === 'change'
-						? 'entirely.detail.change'
-						: element.pick?.kind === 'trail'
-							? 'entirely.detail.trail'
-							: 'entirely.detail.header';
-				return item;
-			}
-			case 'status': {
-				const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.None);
-				item.iconPath = new vscode.ThemeIcon(element.icon);
-				item.contextValue = `entirely.detail.${element.role}`;
-				item.tooltip = element.label;
-				if (element.role === 'gone') {
-					item.description = 'Refresh';
-					item.command = { command: 'entirely.refresh', title: 'Refresh' };
-				}
-				return item;
-			}
-			case 'line': {
-				const item = new vscode.TreeItem(element.text, vscode.TreeItemCollapsibleState.None);
-				item.contextValue = 'entirely.detailLine';
-				return item;
-			}
+			return item;
 		}
+
+		if (element.kind === 'text') {
+			const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.Collapsed);
+			item.description = element.summary ?? pluralise(element.lines.length, 'line');
+			item.contextValue = 'entirely.detailText';
+			return item;
+		}
+
+		const item = new vscode.TreeItem(element.text, vscode.TreeItemCollapsibleState.None);
+		item.contextValue = 'entirely.detailLine';
+		return item;
 	}
 
 	getChildren(element?: DetailNode): DetailNode[] {

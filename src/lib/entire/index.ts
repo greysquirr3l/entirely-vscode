@@ -395,6 +395,8 @@ export {
 	decodeTrailList,
 	decodeTrailMergePlan,
 	decodeTrailProject,
+	NO_BRANCH,
+	branchLabel,
 	formatTrailSelector,
 } from './trail';
 export type {
@@ -453,7 +455,7 @@ export {
 	trailPicks,
 } from './trailPick';
 export type { TrailPick } from './trailPick';
-export { describeGate, pendingApprovals, readTrailGate, scopeToProject } from './trailGate';
+export { CLOSED_DETAIL, MERGED_DETAIL, describeGate, pendingApprovals, readTrailGate, scopeToProject } from './trailGate';
 export type { GatedChange, GatedTrail, TrailListing } from './trailGate';
 export { sessionRows } from './sessionDetailRows';
 export type { DetailRow, SessionSnapshot, ToolCallState, UsageState } from './sessionDetailRows';
@@ -466,9 +468,11 @@ export {
 	buildTrailDetail,
 	describeGone,
 	describeViewerNote,
+	describeViewerTitle,
 	detailTitle,
 	formatClock,
 	initialDetail,
+	isCommitHash,
 	isFresh,
 	isGoneFailure,
 	isSelection,
@@ -481,4 +485,8 @@ export {
 } from './selection';
 export type { DetailModel, Selection, SelectionSource, ShownTrail, ViewerState } from './selection';
 export { renderDetailDocument } from './detailDocument';
-export { asChangePick, asTrailPick, pickFromTarget, touchedKeys } from './trailTarget';
+export { escapeHtml } from './htmlEscape';
+export { DETAIL_COMMANDS, detailActions, isDetailCommand, linkFor, rowLink } from './detailActions';
+export type { DetailAction } from './detailActions';
+export { renderDetailHtml, DETAIL_CSP } from './detailHtml';
+export { asChangePick, asTrailPick, pickFromTarget, pickFromTargetOrShown, touchedKeys } from './trailTarget';

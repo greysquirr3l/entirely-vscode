@@ -14,7 +14,7 @@ export interface SelectSessionDependencies {
 }
 
 /**
- * Shows a session in the Details viewer.
+ * Shows a session in the Session view and the detail panel.
  *
  * The reads are the ones the view has always made: the record from
  * `session info`, the token usage, and the tool calls from the transcript,

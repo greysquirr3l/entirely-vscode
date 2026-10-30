@@ -4,20 +4,20 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 
 import { approveChange, linkBranch, type TrailReviewDependencies } from '../commands/trailReview';
-import { openDetailInEditor, selectItem, wireSelection, type SelectionWiring } from '../commands/selection';
-import {
-	buildDetailNodes,
-	SessionDetailProvider,
-	type DetailNode,
-} from '../providers/sessionDetailProvider';
-import { DetailViewer, VIEWER_TITLE, describeViewer, type ViewerSurface } from '../providers/detailViewer';
+import { copyCommitHash, openDetailInEditor, selectItem, wireSelection, type SelectionWiring } from '../commands/selection';
+import { SessionDetailProvider } from '../providers/sessionDetailProvider';
+import { DetailPanel } from '../providers/detailPanel';
 import { GENERATED_SCHEME, GeneratedDocuments } from '../providers/generatedDocuments';
 import { ActivityProvider, buildActivityNodes } from '../providers/activityProvider';
 import { SessionsProvider, buildGroups } from '../providers/sessionsProvider';
 import { SelectedRows, rowUri } from '../providers/selectedMark';
-import { TrailsProvider, buildTrailNodes } from '../providers/trailsProvider';
+import { TrailsProvider, buildTrailNodes, type TrailsNode } from '../providers/trailsProvider';
 import {
+	DETAIL_COMMANDS,
+	decodeTrail,
+	describeViewerTitle,
 	parseActivity,
+	renderDetailHtml,
 	selectionKey,
 	touchedKeys,
 	type Selection,
@@ -30,9 +30,11 @@ import { createLogger } from '../services/logger';
 import { SelectionService } from '../services/selection';
 import { createSelectionLoader, type TrailReader } from '../services/selectionLoader';
 import { createTrailListingSource } from '../services/trailListing';
+import { TrailChangesService } from '../services/trailChanges';
 import { TrailService } from '../services/trailService';
 import type { ActivityOutcome } from '../services/activity';
 import { COMMITS_OUTPUT, SESSIONS_OUTPUT } from './support/activityCli';
+import { fakePanels } from './support/fakePanel';
 import { TRAIL_SHOW, fakeTrailCli, invocations, type TrailCliAnswers } from './support/trailCli';
 
 const NOT_USED = {
@@ -49,20 +51,33 @@ async function trailSetup(answers: TrailCliAnswers = {}, ttl = 30) {
 	const cli = fakeTrailCli(answers);
 	const trails = new TrailService({ runner: cli.runner, workspaceRoot: () => undefined, actingHandle: () => undefined });
 	const listing = await createTrailListingSource(trails)();
-	const nodes = buildTrailNodes(listing.trails);
+	// The list carries no changes, so the rows a click starts from are built
+	// from the answer a `trail show` gives, with the gate the Trails view
+	// would have read, and without asking the CLI.
+	const decoded = decodeTrail(JSON.parse(JSON.stringify(TRAIL_SHOW)), 'trail');
+	assert.ok(decoded.ok);
+	const entry = { trail: decoded.value, changes: decoded.value.changes.map(change => ({ change, gate: { kind: 'open' as const, approvals: 0 } })) };
+	const nodes = buildTrailNodes(listing.trails, number => (number === entry.trail.number ? entry : undefined));
 	const listed = invocations(cli.log).length;
+	const changes = new TrailChangesService({ trails, ttlSeconds: () => ttl });
 	const service = new SelectionService({
-		loader: createSelectionLoader({ detail: NOT_USED, usage: NO_USAGE, trails }),
+		loader: createSelectionLoader({
+			detail: NOT_USED,
+			usage: NO_USAGE,
+			trails: { showCapability: () => trails.showCapability(), read: number => changes.read(number) },
+		}),
 		ttlSeconds: () => ttl,
 	});
 	const states: ViewerState[] = [];
 	service.onDidChange(state => states.push(state));
-	const changeNode = nodes[0].changes[0];
+	const changeNode = nodes[0].changes?.[0];
+	assert.ok(changeNode, 'the fixture trail has a change');
 	const change: Selection = { kind: 'change', trail: changeNode.trail, entry: changeNode.entry };
 	const trail: Selection = { kind: 'trail', entry: nodes[0].entry };
 	return {
 		cli,
 		trails,
+		changes,
 		service,
 		states,
 		change,
@@ -110,15 +125,15 @@ function foundActivity(output: string, listing: 'commits' | 'sessions'): Activit
 	return { kind: 'found', overview: reading.overview };
 }
 
-suite('Entire Details viewer: trails', function () {
+suite('Entire detail panel: trails', function () {
 	this.timeout(30_000);
 
-	test('select-each-kind: a change is shown with the one trail show and no other trail command', async () => {
+	test('select-each-kind: a change is shown with the one trail show of its trail and no other trail command', async () => {
 		const setup = await trailSetup();
 		try {
 			await setup.service.select(setup.change, 'trails');
 
-			assert.deepStrictEqual(setup.asked().filter(line => line.startsWith('trail ')), ['trail show entirely-vscode/17 --json']);
+			assert.deepStrictEqual(setup.asked().filter(line => line.startsWith('trail ')), ['trail show 40 --json']);
 			const last = setup.states[setup.states.length - 1];
 			assert.strictEqual(last.kind, 'ready');
 			assert.strictEqual(last.kind === 'ready' ? last.model.title : '', 'entirely-vscode/17');
@@ -170,7 +185,7 @@ suite('Entire Details viewer: trails', function () {
 		try {
 			await setup.service.select(setup.change, 'trails');
 			const commands = setup.asked().filter(line => !line.startsWith('agent-help'));
-			assert.deepStrictEqual(commands, ['trail show entirely-vscode/17 --json']);
+			assert.deepStrictEqual(commands, ['trail show 40 --json']);
 		} finally {
 			setup.service.dispose();
 		}
@@ -188,12 +203,10 @@ suite('Entire Details viewer: trails', function () {
 			assert.strictEqual(last.kind, 'failed');
 			assert.match(last.kind === 'failed' ? last.reason : '', /network is not allowed/);
 
-			const nodes = buildDetailNodes(last);
-			const status = nodes.find(node => node.kind === 'status');
-			assert.ok(status && status.kind === 'status');
-			assert.strictEqual(status.role, 'failed');
-			assert.match(status.label, /Could not load entirely-vscode\/17: .*network is not allowed/);
-			assert.ok(nodes.some(node => node.kind === 'header'), 'the item\'s header row is still there');
+			const html = renderDetailHtml(last);
+			assert.match(html, /role="alert"[^>]*>.*Could not load entirely-vscode\/17: .*network is not allowed/s);
+			assert.match(html, /href="command:entirely\.retryDetail"[^>]*>Retry</, 'the retry link is there');
+			assert.match(html, /<h1>Shape the thing<\/h1>/, 'the item\'s heading is still there');
 		} finally {
 			setup.service.dispose();
 		}
@@ -206,13 +219,9 @@ suite('Entire Details viewer: trails', function () {
 			const last = setup.states[setup.states.length - 1];
 			assert.strictEqual(last.kind, 'gone');
 
-			const provider = new SessionDetailProvider();
-			provider.render(last);
-			const status = provider.getChildren().find(node => node.kind === 'status');
-			assert.ok(status && status.kind === 'status');
-			assert.match(status.label, /entirely-vscode\/17 is no longer available\. It may have been merged or deleted\./);
-			assert.strictEqual(provider.getTreeItem(status).command?.command, 'entirely.refresh');
-			provider.dispose();
+			const html = renderDetailHtml(last);
+			assert.match(html, /entirely-vscode\/17 is no longer available\. It may have been merged or deleted\./);
+			assert.match(html, /href="command:entirely\.refresh"[^>]*>Refresh</);
 		} finally {
 			setup.service.dispose();
 		}
@@ -268,7 +277,7 @@ suite('Entire Details viewer: trails', function () {
 	test('cli-missing-or-lacks-trail-show: with no CLI at all, sessions and activity still load', async () => {
 		const trails: TrailReader = {
 			showCapability: async () => ({ kind: 'unavailable', reason: 'absent', detail: 'the Entire CLI is not installed' }),
-			show: async () => ({ kind: 'failed', detail: 'unreachable' }),
+			read: async () => ({ kind: 'failed', detail: 'unreachable' }),
 		};
 		const service = new SelectionService({
 			loader: createSelectionLoader({ detail: NOT_USED, usage: NO_USAGE, trails }),
@@ -326,14 +335,7 @@ suite('Entire Details viewer: trails', function () {
 			});
 			assert.ok(opened);
 			assert.ok(documents.textOf(opened)?.includes(String(TRAIL_SHOW.body)));
-			const provider = new SessionDetailProvider();
-			provider.render(setup.service.state);
-			const shown = provider.getChildren().map(node => {
-				const item = provider.getTreeItem(node);
-				return [item.label, item.description, item.tooltip].map(part => String(part ?? '')).join(' ');
-			});
-			assert.ok(!shown.join('\n').includes(String(TRAIL_SHOW.body)), 'the body is in a row');
-			provider.dispose();
+			assert.ok(!renderDetailHtml(setup.service.state).includes(String(TRAIL_SHOW.body)), 'the body is in the panel');
 			documents.dispose();
 		} finally {
 			setup.service.dispose();
@@ -341,22 +343,16 @@ suite('Entire Details viewer: trails', function () {
 	});
 });
 
-suite('Entire Details viewer: actions', function () {
+suite('Entire detail panel: actions', function () {
 	this.timeout(30_000);
 
 	test('the viewer\'s actions reuse the review commands: the change given is acted on without asking which one', async () => {
 		const setup = await trailSetup();
 		try {
 			await setup.service.select(setup.change, 'trails');
-			const header = buildDetailNodes(setup.service.state).find(node => node.kind === 'header');
-			assert.ok(header && header.kind === 'header');
-			assert.ok(header.pick && header.pick.kind === 'change');
-
-			const provider = new SessionDetailProvider();
-			provider.render(setup.service.state);
-			const item = provider.getTreeItem(provider.getChildren()[0]);
-			assert.strictEqual(item.contextValue, 'entirely.detail.change');
-			provider.dispose();
+			const shown = setup.service.state;
+			assert.ok(shown.kind === 'ready' && shown.model.pick && shown.model.pick.kind === 'change');
+			const pick = shown.model.pick;
 
 			const changed: string[] = [];
 			const deps: TrailReviewDependencies = {
@@ -373,7 +369,7 @@ suite('Entire Details viewer: actions', function () {
 			};
 			try {
 				await withoutPopups(async () => {
-					await approveChange(deps, header.pick);
+					await approveChange(deps, pick);
 				});
 			} finally {
 				window.showQuickPick = original;
@@ -391,8 +387,9 @@ suite('Entire Details viewer: actions', function () {
 		const setup = await trailSetup();
 		try {
 			await setup.service.select(setup.change, 'trails');
-			const header = buildDetailNodes(setup.service.state).find(node => node.kind === 'header');
-			assert.ok(header && header.kind === 'header' && header.pick);
+			const shown = setup.service.state;
+			assert.ok(shown.kind === 'ready' && shown.model.pick);
+			const pick = shown.model.pick;
 
 			const window = vscode.window as unknown as Record<string, unknown>;
 			const inputBox = window.showInputBox;
@@ -406,7 +403,7 @@ suite('Entire Details viewer: actions', function () {
 			const information = window.showInformationMessage;
 			window.showInformationMessage = async () => undefined;
 			try {
-				await linkBranch({ trails: setup.trails, actingHandle: () => undefined }, header.pick);
+				await linkBranch({ trails: setup.trails, actingHandle: () => undefined }, pick);
 			} finally {
 				window.showInputBox = inputBox;
 				window.showWarningMessage = warning;
@@ -420,16 +417,16 @@ suite('Entire Details viewer: actions', function () {
 	});
 
 	test('the selection service and the loader never call a mutating trail method', () => {
-		for (const file of ['services/selection.ts', 'services/selectionLoader.ts', 'providers/detailViewer.ts', 'commands/selection.ts']) {
+		for (const file of ['services/selection.ts', 'services/selectionLoader.ts', 'providers/detailPanel.ts', 'commands/selection.ts']) {
 			const source = fs.readFileSync(path.join(__dirname, '..', '..', 'src', file), 'utf8');
 			assert.doesNotMatch(source, /\.(approve|merge|mergePlan|link|unlink|comment|checkout|finding)\(/, `${file} calls a trail action`);
 		}
-		const reader: (keyof TrailReader)[] = ['showCapability', 'show'];
-		assert.deepStrictEqual(reader.sort(), ['show', 'showCapability']);
+		const reader: (keyof TrailReader)[] = ['showCapability', 'read'];
+		assert.deepStrictEqual(reader.sort(), ['read', 'showCapability']);
 	});
 });
 
-suite('Entire Details viewer: rows in the views', function () {
+suite('Entire detail panel: rows in the views', function () {
 	this.timeout(30_000);
 
 	test('rows in Sessions, in every group, carry the select command; groups carry none', () => {
@@ -454,11 +451,11 @@ suite('Entire Details viewer: rows in the views', function () {
 
 	test('rows in Trails carry the command for a trail and for a change', async () => {
 		const setup = await trailSetup();
-		const provider = new TrailsProvider(createTrailListingSource(setup.trails), () => 0);
+		const provider = new TrailsProvider(createTrailListingSource(setup.trails), () => 0, { changes: setup.changes, badgeLimit: () => 10 });
 		try {
 			await provider.refresh();
-			const [trail] = provider.getChildren();
-			const [change] = provider.getChildren(trail);
+			const [trail] = provider.getChildren() as TrailsNode[];
+			const [change] = await provider.getChildren(trail);
 			for (const [node, key] of [
 				[trail, 'trail:40'],
 				[change, 'change:entirely-vscode/17'],
@@ -537,131 +534,7 @@ suite('Entire Details viewer: rows in the views', function () {
 type ActivityNodeLike = ReturnType<typeof buildActivityNodes>[number];
 type ActivityLine = Extract<ActivityNodeLike, { kind: 'line' }>;
 
-suite('Entire Details viewer: the view', function () {
-	this.timeout(30_000);
-
-	function surface(): ViewerSurface & { reveals: { options?: { focus?: boolean; select?: boolean } }[]; failReveal: boolean } {
-		const recorded = {
-			title: undefined as string | undefined,
-			description: undefined as string | undefined,
-			reveals: [] as { options?: { focus?: boolean; select?: boolean } }[],
-			failReveal: false,
-			reveal(_element: DetailNode, options?: { focus?: boolean; select?: boolean }): Thenable<void> {
-				recorded.reveals.push({ options });
-				return recorded.failReveal ? Promise.reject(new Error('the view is not visible')) : Promise.resolve();
-			},
-		};
-		return recorded;
-	}
-
-	const commitSelection = (id: string): Selection => ({
-		kind: 'commit',
-		entry: { text: `${id} title  acme/app`, id, title: `title ${id}`, repo: 'acme/app' },
-	});
-
-	test('collapsed-viewer-revealed: reveals without focus once per content change, and not on a cache hit', async () => {
-		const provider = new SessionDetailProvider();
-		const view = surface();
-		const viewer = new DetailViewer(provider, view);
-		const service = new SelectionService({
-			loader: createSelectionLoader({ detail: NOT_USED, usage: NO_USAGE, trails: { showCapability: async () => ({ kind: 'available' }), show: async () => ({ kind: 'failed', detail: 'x' }) } }),
-			ttlSeconds: () => 30,
-		});
-		service.onDidChange(state => viewer.apply(state));
-		try {
-			const a = commitSelection('aaaaaaa');
-			const b = commitSelection('bbbbbbb');
-
-			await service.select(a, 'activity');
-			assert.strictEqual(view.reveals.length, 1);
-			assert.deepStrictEqual(view.reveals[0].options, { focus: false, select: false });
-
-			await service.select(a, 'activity');
-			assert.strictEqual(view.reveals.length, 1, 'a cache hit with the same key revealed again');
-
-			await service.select(b, 'activity');
-			assert.strictEqual(view.reveals.length, 2);
-			await service.select(a, 'activity');
-			assert.strictEqual(view.reveals.length, 3, 'a different item revealed the viewer');
-
-			service.clear();
-			await service.select(a, 'activity');
-			assert.strictEqual(view.reveals.length, 4, 'after the viewer was emptied');
-		} finally {
-			service.dispose();
-			viewer.dispose();
-			provider.dispose();
-		}
-	});
-
-	test('a reveal the editor refuses does not escape', async () => {
-		const provider = new SessionDetailProvider();
-		const view = surface();
-		view.failReveal = true;
-		const viewer = new DetailViewer(provider, view);
-		try {
-			const selection = commitSelection('ccccccc');
-			viewer.apply({ kind: 'ready', selection, model: { key: selectionKey(selection), kind: 'commit', title: 't', rows: [], heading: 'h' } });
-			await new Promise(resolve => setImmediate(resolve));
-			assert.strictEqual(view.reveals.length, 1);
-		} finally {
-			viewer.dispose();
-			provider.dispose();
-		}
-	});
-
-	test('names the selected item in the title and description, and clears them when nothing is selected', () => {
-		const provider = new SessionDetailProvider();
-		const view = surface();
-		const viewer = new DetailViewer(provider, view);
-		try {
-			assert.strictEqual(view.title, VIEWER_TITLE);
-			assert.strictEqual(VIEWER_TITLE, 'Details');
-
-			const selection = commitSelection('ddddddd');
-			const model = { key: selectionKey(selection), kind: 'commit' as const, title: 'ddddddd title ddddddd', rows: [], heading: 'h' };
-			viewer.apply({ kind: 'ready', selection, model });
-			assert.strictEqual(view.description, 'ddddddd title ddddddd');
-			viewer.apply({ kind: 'ready', selection, model, asOf: new Date(2026, 9, 30, 10, 42, 3).getTime() });
-			assert.strictEqual(view.description, 'ddddddd title ddddddd · as of 10:42:03');
-			assert.strictEqual(describeViewer({ kind: 'empty' }), undefined);
-			viewer.apply({ kind: 'empty' });
-			assert.strictEqual(view.description, undefined);
-			assert.deepStrictEqual(provider.getChildren(), [], 'the welcome text shows when the tree is empty');
-		} finally {
-			viewer.dispose();
-			provider.dispose();
-		}
-	});
-
-	test('keeps the same nodes between reads of one state, so the editor can reveal one', () => {
-		const provider = new SessionDetailProvider();
-		try {
-			const selection = commitSelection('eeeeeee');
-			provider.render({ kind: 'ready', selection, model: { key: 'k', kind: 'commit', title: 't', rows: [{ label: 'a', value: 'b' }], heading: 'h' } });
-			assert.strictEqual(provider.getChildren()[0], provider.getChildren()[0]);
-			assert.strictEqual(provider.firstNode, provider.getChildren()[0]);
-		} finally {
-			provider.dispose();
-		}
-	});
-
-	test('a note that the refresh failed sits under the item and keeps the old rows', () => {
-		const selection = commitSelection('fffffff');
-		const nodes = buildDetailNodes({
-			kind: 'ready',
-			selection,
-			model: { key: 'k', kind: 'commit', title: 't', rows: [{ label: 'a', value: 'b' }], heading: 'h' },
-			refreshFailure: 'network down',
-		});
-		assert.deepStrictEqual(nodes.map(node => node.kind), ['header', 'status', 'field']);
-		const status = nodes[1];
-		assert.ok(status.kind === 'status');
-		assert.strictEqual(status.label, 'Could not refresh: network down');
-	});
-});
-
-suite('Entire Details viewer: moving between views', function () {
+suite('Entire detail panel: moving between views', function () {
 	this.timeout(30_000);
 
 	function fakeView<T>() {
@@ -678,19 +551,21 @@ suite('Entire Details viewer: moving between views', function () {
 	test('selection-moves-between-views: a Trails row after a Sessions row moves the mark and the viewer', async () => {
 		const setup = await trailSetup();
 		const sessions = new SessionsProvider(async () => ({ sessions: SESSIONS }), () => 0);
-		const trails = new TrailsProvider(createTrailListingSource(setup.trails), () => 0);
+		const trails = new TrailsProvider(createTrailListingSource(setup.trails), () => 0, { changes: setup.changes, badgeLimit: () => 10 });
 		const activity = new ActivityProvider({ read: async () => foundActivity(COMMITS_OUTPUT, 'commits') }, () => 'alice');
 		const provider = new SessionDetailProvider();
-		const viewer = new DetailViewer(provider, { reveal: async () => undefined });
+		const fake = fakePanels();
+		const viewer = new DetailPanel({ create: fake.create });
 		const subscriptions: vscode.Disposable[] = [];
 		const sessionsView = fakeView<ReturnType<SessionsProvider['getChildren']>[number]>();
 		const explorerView = fakeView<ReturnType<SessionsProvider['getChildren']>[number]>();
-		const trailsView = fakeView<ReturnType<TrailsProvider['getChildren']>[number]>();
+		const trailsView = fakeView<TrailsNode>();
 		const activityView = fakeView<ReturnType<ActivityProvider['getChildren']>[number]>();
 		const selected = new SelectedRows();
 		const wiring: SelectionWiring = {
 			selection: setup.service,
-			viewer,
+			panel: viewer,
+			sessionView: provider,
 			selected,
 			sessions,
 			trails,
@@ -711,8 +586,8 @@ suite('Entire Details viewer: moving between views', function () {
 			const sessionKey = first.kind === 'session' ? `session:${first.session.id}` : '';
 			assert.ok(markedBy(sessionKey), 'the session row is marked');
 
-			const [trail] = trails.getChildren();
-			const [change] = trails.getChildren(trail);
+			const [trail] = trails.getChildren() as TrailsNode[];
+			const [change] = await trails.getChildren(trail);
 			trailsView.choose([change]);
 			// Joins the read the selection started; it does not start another.
 			await setup.service.select(setup.change, 'trails');
@@ -759,7 +634,8 @@ suite('Entire Details viewer: moving between views', function () {
 		const trails = new TrailsProvider(async () => ({ trails: [] }), () => 0);
 		const activity = new ActivityProvider({ read: async () => ({ kind: 'empty' }) }, () => undefined);
 		const provider = new SessionDetailProvider();
-		const viewer = new DetailViewer(provider, { reveal: async () => undefined });
+		const fake = fakePanels();
+		const viewer = new DetailPanel({ create: fake.create });
 		const sessionsView = fakeView<ReturnType<SessionsProvider['getChildren']>[number]>();
 		const subscriptions: vscode.Disposable[] = [];
 		try {
@@ -768,7 +644,8 @@ suite('Entire Details viewer: moving between views', function () {
 				{ subscriptions },
 				{
 					selection: service,
-					viewer,
+					panel: viewer,
+					sessionView: provider,
 					selected: new SelectedRows(),
 					sessions,
 					trails,
@@ -812,7 +689,8 @@ suite('Entire Details viewer: moving between views', function () {
 		const trails = new TrailsProvider(async () => ({ trails: [] }), () => 0);
 		const activity = new ActivityProvider({ read: async () => ({ kind: 'empty' }) }, () => undefined);
 		const provider = new SessionDetailProvider();
-		const viewer = new DetailViewer(provider, { reveal: async () => undefined });
+		const fake = fakePanels();
+		const viewer = new DetailPanel({ create: fake.create });
 		const subscriptions: vscode.Disposable[] = [];
 		const sessionsView = fakeView<ReturnType<SessionsProvider['getChildren']>[number]>();
 		try {
@@ -821,7 +699,8 @@ suite('Entire Details viewer: moving between views', function () {
 				{ subscriptions },
 				{
 					selection: service,
-					viewer,
+					panel: viewer,
+					sessionView: provider,
 					selected: new SelectedRows(),
 					sessions,
 					trails,
@@ -866,7 +745,8 @@ suite('Entire Details viewer: moving between views', function () {
 		const sessions = new SessionsProvider(async () => ({ sessions: [] }), () => 0);
 		const trails = new TrailsProvider(async () => ({ trails: [] }), () => 0);
 		const provider = new SessionDetailProvider();
-		const viewer = new DetailViewer(provider, { reveal: async () => undefined });
+		const fake = fakePanels();
+		const viewer = new DetailPanel({ create: fake.create });
 		const subscriptions: vscode.Disposable[] = [];
 		try {
 			await activity.refresh();
@@ -874,7 +754,8 @@ suite('Entire Details viewer: moving between views', function () {
 				{ subscriptions },
 				{
 					selection: service,
-					viewer,
+					panel: viewer,
+					sessionView: provider,
 					selected: new SelectedRows(),
 					sessions,
 					trails,
@@ -906,7 +787,7 @@ suite('Entire Details viewer: moving between views', function () {
 	});
 });
 
-suite('Entire Details viewer: the extension', function () {
+suite('Entire detail panel: the extension', function () {
 	this.timeout(30_000);
 
 	async function activated(): Promise<void> {
@@ -918,7 +799,7 @@ suite('Entire Details viewer: the extension', function () {
 	test('registers the viewer commands and ignores an argument that is not a selection', async () => {
 		await activated();
 		const commands = await vscode.commands.getCommands(true);
-		for (const command of ['entirely.selectItem', 'entirely.retryDetail', 'entirely.openDetailInEditor', 'entirely.selectSession']) {
+		for (const command of ['entirely.selectItem', 'entirely.retryDetail', 'entirely.openDetailInEditor', 'entirely.copyCommitHash', 'entirely.selectSession']) {
 			assert.ok(commands.includes(command), `${command} is not registered`);
 		}
 		await vscode.commands.executeCommand('entirely.selectItem', 'not a selection');
@@ -959,7 +840,7 @@ suite('Entire Details viewer: the extension', function () {
 		}
 	});
 
-	test('declares the Details view, its welcome text and the cache setting', async () => {
+	test('keeps the Session view as it was, and declares the cache and badge settings', async () => {
 		await activated();
 		const extension = vscode.extensions.getExtension('greysquirr3l.entirely');
 		assert.ok(extension);
@@ -971,15 +852,18 @@ suite('Entire Details viewer: the extension', function () {
 			};
 		};
 		const view = manifest.contributes.views.entirely.find(candidate => candidate.id === 'entirely.sessionDetail');
-		assert.strictEqual(view?.name, 'Details', 'the id stays and the name changes');
+		assert.strictEqual(view?.name, 'Session', 'there is no Details view in the sidebar');
+		assert.ok(!manifest.contributes.views.entirely.some(candidate => /details/i.test(candidate.name)));
 		const welcome = manifest.contributes.viewsWelcome.find(candidate => candidate.view === 'entirely.sessionDetail');
-		assert.strictEqual(welcome?.contents, 'Select a session, a trail change or an Activity entry to see it here.');
+		assert.strictEqual(welcome?.contents, 'Select a session to see its details.');
 		const setting = manifest.contributes.configuration.properties['entirely.selectionCacheSeconds'];
 		assert.deepStrictEqual([setting.default, setting.minimum, setting.maximum], [30, 0, 600]);
+		const badge = manifest.contributes.configuration.properties['entirely.trailBadgeLimit'];
+		assert.deepStrictEqual([badge.default, badge.minimum, badge.maximum], [10, 0, 50]);
 	});
 });
 
-suite('Entire Details viewer: clicking a row', function () {
+suite('Entire detail panel: clicking a row', function () {
 	this.timeout(30_000);
 
 	const sourceRoot = path.join(__dirname, '..', '..', 'src');
@@ -1007,10 +891,11 @@ suite('Entire Details viewer: clicking a row', function () {
 	test('selecting a row redraws none of the three views, so the click\'s own command is still there to run', async () => {
 		const setup = await trailSetup();
 		const sessions = new SessionsProvider(async () => ({ sessions: SESSIONS }), () => 0);
-		const trails = new TrailsProvider(createTrailListingSource(setup.trails), () => 0);
+		const trails = new TrailsProvider(createTrailListingSource(setup.trails), () => 0, { changes: setup.changes, badgeLimit: () => 10 });
 		const activity = new ActivityProvider({ read: async () => foundActivity(COMMITS_OUTPUT, 'commits') }, () => 'alice');
 		const provider = new SessionDetailProvider();
-		const viewer = new DetailViewer(provider, { reveal: async () => undefined });
+		const fake = fakePanels();
+		const viewer = new DetailPanel({ create: fake.create });
 		const selected = new SelectedRows();
 		const redrawn: string[] = [];
 		const decorated: string[] = [];
@@ -1030,7 +915,8 @@ suite('Entire Details viewer: clicking a row', function () {
 				{ subscriptions },
 				{
 					selection: setup.service,
-					viewer,
+					panel: viewer,
+					sessionView: provider,
 					selected,
 					sessions,
 					trails,
@@ -1041,8 +927,8 @@ suite('Entire Details viewer: clicking a row', function () {
 			);
 
 			const sessionNode = sessions.getChildren().flatMap(group => sessions.getChildren(group))[0];
-			const [trailNode] = trails.getChildren();
-			const [changeNode] = trails.getChildren(trailNode);
+			const [trailNode] = trails.getChildren() as TrailsNode[];
+			const [changeNode] = await trails.getChildren(trailNode);
 			// The selection event arrives first, then the row's own command.
 			const sessionCommand = sessions.getTreeItem(sessionNode).command;
 			view.sessions.choose([sessionNode]);
@@ -1069,8 +955,12 @@ suite('Entire Details viewer: clicking a row', function () {
 
 	test('every command a row can run is registered by the commands directory, and by the running extension', async () => {
 		const referenced = referencedCommands(providerAndRowFiles());
-		for (const expected of ['entirely.selectItem', 'entirely.openTranscript', 'entirely.explainCheckpoint', 'entirely.refresh', 'entirely.setUp']) {
+		for (const expected of ['entirely.selectItem', 'entirely.openTranscript', 'entirely.explainCheckpoint', 'entirely.setUp']) {
 			assert.ok(referenced.has(expected), `${expected} is no longer referenced, so this test no longer covers it`);
+		}
+		// The panel's links run commands by id too, and each one must exist.
+		for (const id of DETAIL_COMMANDS) {
+			referenced.set(id, [...(referenced.get(id) ?? []), 'lib/entire/detailActions.ts']);
 		}
 
 		const commandsDirectory = path.join(sourceRoot, 'commands');
@@ -1124,15 +1014,17 @@ suite('Entire Details viewer: clicking a row', function () {
 			assert.deepStrictEqual(popups, []);
 			assert.deepStrictEqual(loads, [], 'nothing was read for a value that is not a row');
 
-			const provider = new SessionDetailProvider();
-			provider.render(states[states.length - 1]);
-			const [row] = provider.getChildren();
-			assert.ok(row && row.kind === 'status');
-			assert.match(row.label, /Could not show that row/);
-			assert.ok(!row.label.includes('/78'), 'the value that arrived is not echoed');
-			assert.strictEqual(provider.getTreeItem(row).contextValue, 'entirely.detail.notice');
-			assert.strictEqual(describeViewer(states[states.length - 1]), 'Nothing to show');
-			provider.dispose();
+			const last = states[states.length - 1];
+			const html = renderDetailHtml(last);
+			assert.match(html, /Could not show that row/);
+			assert.ok(!html.includes('/78'), 'the value that arrived is not echoed');
+			assert.strictEqual(describeViewerTitle(last), 'Details');
+
+			// The Session view shows sessions only, so a notice leaves it alone.
+			const sessionView = new SessionDetailProvider();
+			sessionView.render(last);
+			assert.deepStrictEqual(sessionView.getChildren(), []);
+			sessionView.dispose();
 
 			// A real row afterwards loads as usual.
 			await selectItem(service, { kind: 'commit', entry: { text: 'a1b2c3d t  acme/app', id: 'a1b2c3d', title: 't', repo: 'acme/app' } }, 'activity');
@@ -1172,7 +1064,7 @@ function fakeViewOf() {
 	};
 	const sessions = make<ReturnType<SessionsProvider['getChildren']>[number]>();
 	const explorer = make<ReturnType<SessionsProvider['getChildren']>[number]>();
-	const trails = make<ReturnType<TrailsProvider['getChildren']>[number]>();
+	const trails = make<TrailsNode>();
 	const activity = make<ReturnType<ActivityProvider['getChildren']>[number]>();
 	return {
 		sessions,
@@ -1186,3 +1078,174 @@ function fakeViewOf() {
 		},
 	};
 }
+
+suite('Entire detail panel: closing, copying and the Session view', function () {
+	this.timeout(30_000);
+
+	const commitSelection: Extract<Selection, { kind: 'commit' }> = {
+		kind: 'commit',
+		entry: { text: 'a1b2c3d fix  acme/app', id: 'a1b2c3d', title: 'fix', repo: 'acme/app' },
+	};
+
+	function idleService(): SelectionService {
+		return new SelectionService({
+			loader: async selection => ({
+				kind: 'ready',
+				model: { key: selectionKey(selection), kind: selection.kind, title: 't', rows: [], heading: 'h' },
+			}),
+			ttlSeconds: () => 30,
+		});
+	}
+
+	test('copyCommitHash copies the hash of the commit on show, and ignores any other argument', async () => {
+		const service = idleService();
+		const copied: string[] = [];
+		const said: string[] = [];
+		const deps = { selection: service, copy: async (text: string) => void copied.push(text), say: (message: string) => void said.push(message) };
+		try {
+			await copyCommitHash(deps, 'commit:a1b2c3d@acme/app');
+			assert.deepStrictEqual(copied, [], 'nothing is on show yet');
+
+			await service.select(commitSelection, 'activity');
+			for (const other of ['commit:ffffff@acme/app', 'a1b2c3d', '', 4, null, undefined, {}, ['commit:a1b2c3d@acme/app'], '--version']) {
+				await copyCommitHash(deps, other);
+			}
+			assert.deepStrictEqual(copied, [], 'something other than the row id of the commit on show was copied');
+
+			await copyCommitHash(deps, 'commit:a1b2c3d@acme/app');
+			assert.deepStrictEqual(copied, ['a1b2c3d']);
+			assert.deepStrictEqual(said, ['Copied a1b2c3d']);
+
+			// An id that does not look like a hash is not put on the clipboard.
+			const odd: Extract<Selection, { kind: 'commit' }> = { kind: 'commit', entry: { text: 'x', id: 'not a hash!' } };
+			await service.select(odd, 'activity');
+			await copyCommitHash(deps, selectionKey(odd));
+			assert.strictEqual(copied.length, 1);
+		} finally {
+			service.dispose();
+		}
+	});
+
+	test('closed-panel-reopens: closing the panel clears the mark, and choosing the same row opens it again without a read', async () => {
+		let reads = 0;
+		const service = new SelectionService({
+			loader: async selection => {
+				reads += 1;
+				return { kind: 'ready', model: { key: selectionKey(selection), kind: 'session', title: 't', rows: [{ label: 'a', value: 'b' }] } };
+			},
+			ttlSeconds: () => 30,
+		});
+		const sessions = new SessionsProvider(async () => ({ sessions: SESSIONS }), () => 0);
+		const trails = new TrailsProvider(async () => ({ trails: [] }), () => 0);
+		const activity = new ActivityProvider({ read: async () => ({ kind: 'empty' }) }, () => undefined);
+		const sessionView = new SessionDetailProvider();
+		const fake = fakePanels();
+		const panel = new DetailPanel({ create: fake.create });
+		const selected = new SelectedRows();
+		const mark = (): string | undefined => selected.key;
+		const views = fakeViewOf();
+		const subscriptions: vscode.Disposable[] = [];
+		try {
+			await sessions.refresh();
+			wireSelection(
+				{ subscriptions },
+				{
+					selection: service,
+					panel,
+					sessionView,
+					selected,
+					sessions,
+					trails,
+					activity,
+					documents: new GeneratedDocuments(),
+					views: { sessions: views.sessions.view, explorerSessions: views.explorer.view, trails: views.trails.view, activity: views.activity.view },
+				},
+			);
+			const node = sessions.getChildren().flatMap(group => sessions.getChildren(group))[0];
+
+			views.sessions.choose([node]);
+			await new Promise(resolve => setImmediate(resolve));
+			assert.strictEqual(fake.made.length, 1);
+			assert.ok(mark()?.startsWith('session:'));
+
+			fake.made[0].dispose();
+			assert.strictEqual(mark(), undefined, 'nothing is shown, so nothing is marked');
+			assert.strictEqual(service.state.kind, 'empty');
+
+			views.sessions.choose([node]);
+			await new Promise(resolve => setImmediate(resolve));
+			assert.strictEqual(fake.made.length, 2, 'the panel did not open again');
+			assert.strictEqual(reads, 1, 'the second choice read again instead of using what it had');
+			assert.ok(mark()?.startsWith('session:'));
+		} finally {
+			subscriptions.forEach(subscription => subscription.dispose());
+			views.dispose();
+			panel.dispose();
+			selected.dispose();
+			sessionView.dispose();
+			service.dispose();
+			sessions.dispose();
+			trails.dispose();
+			activity.dispose();
+		}
+	});
+
+	test('the Session view shows a session and leaves everything else to the panel', () => {
+		const provider = new SessionDetailProvider();
+		try {
+			const session: Selection = { kind: 'session', session: SESSIONS[0] };
+			const model = { key: 'session:sess-active', kind: 'session' as const, title: 'claude-code — fix the parser', rows: [{ label: 'Agent', value: 'claude-code' }, { label: 'Last prompt', value: '', lines: ['a', 'b'] }] };
+			provider.render({ kind: 'ready', selection: session, model });
+			assert.deepStrictEqual(provider.getChildren().map(node => (node.kind === 'line' ? node.text : node.label)), ['Agent', 'Last prompt']);
+			assert.strictEqual(provider.current?.id, 'sess-active');
+
+			// A commit, a trail change, a notice and a loading step of another item leave it alone.
+			provider.render({ kind: 'ready', selection: commitSelection, model: { key: 'commit:x', kind: 'commit', title: 'c', rows: [{ label: 'Commit', value: 'x' }] } });
+			provider.render({ kind: 'notice', message: 'nope' });
+			assert.deepStrictEqual(provider.getChildren().map(node => (node.kind === 'line' ? node.text : node.label)), ['Agent', 'Last prompt']);
+			assert.strictEqual(provider.current?.id, 'sess-active');
+
+			// A session that could not be read still shows what the list knew, and says so.
+			provider.render({ kind: 'gone', selection: session, model, reason: 'gone' });
+			const last = provider.getChildren().at(-1);
+			assert.ok(last && last.kind === 'field');
+			assert.strictEqual(last.label, 'Detail');
+			assert.strictEqual(last.tooltip, 'gone');
+
+			provider.render({ kind: 'empty' });
+			assert.deepStrictEqual(provider.getChildren(), []);
+			assert.strictEqual(provider.current, undefined);
+			assert.deepStrictEqual(provider.getChildren(), [], 'the welcome text shows when the tree is empty');
+		} finally {
+			provider.dispose();
+		}
+	});
+
+	test('the Trails view cannot tell a change of an unread trail from a gone one, so the panel stays', async () => {
+		const setup = await trailSetup();
+		const trails = new TrailsProvider(createTrailListingSource(setup.trails), () => 0, { changes: setup.changes, badgeLimit: () => 0 });
+		try {
+			await trails.refresh();
+			assert.strictEqual(trails.has('trail:40'), true);
+			assert.strictEqual(trails.has('change:entirely-vscode/17'), undefined, 'the trail has not been read');
+			assert.strictEqual(trails.has('trail:99'), false);
+
+			const [node] = trails.getChildren() as TrailsNode[];
+			await trails.getChildren(node);
+			assert.strictEqual(trails.has('change:entirely-vscode/17'), true);
+			assert.strictEqual(trails.has('change:entirely-vscode/99'), false, 'with every trail read, a missing change is gone');
+
+			// After an action, a listing that cannot find the change yet re-reads the one on show.
+			await setup.service.select(setup.change, 'trails');
+			const reads = setup.asked().filter(line => line.startsWith('trail show')).length;
+			await trails.refresh();
+			setup.service.reloadFrom(trails);
+			await new Promise(resolve => setImmediate(resolve));
+			assert.notStrictEqual(setup.service.state.kind, 'empty', 'the viewer was emptied by a listing that had not read the trail');
+			assert.ok(setup.asked().filter(line => line.startsWith('trail show')).length >= reads);
+		} finally {
+			trails.dispose();
+			setup.service.dispose();
+		}
+	});
+});

@@ -2,13 +2,16 @@ import * as vscode from 'vscode';
 
 import {
 	describeViewerNote,
+	isCommitHash,
 	isSelection,
 	isSelectionSource,
 	renderDetailDocument,
+	selectionKey,
 	type Selection,
 	type SelectionSource,
 } from '../lib/entire';
-import type { DetailViewer } from '../providers/detailViewer';
+import type { DetailPanel } from '../providers/detailPanel';
+import type { SessionDetailProvider } from '../providers/sessionDetailProvider';
 import type { SelectedRows } from '../providers/selectedMark';
 import type { GeneratedDocuments } from '../providers/generatedDocuments';
 import type { ActivityProvider } from '../providers/activityProvider';
@@ -23,12 +26,19 @@ import type { ActivityNode } from '../providers/activityProvider';
 export type SelectableView<T> = Pick<vscode.TreeView<T>, 'onDidChangeSelection'>;
 
 /** What the viewer's commands need. They are registered before any view exists, so a row can never be clicked before they are there. */
-export type SelectionCommandDependencies = Pick<SelectionWiring, 'selection' | 'documents' | 'show' | 'inform'>;
+export type SelectionCommandDependencies = Pick<SelectionWiring, 'selection' | 'documents' | 'show' | 'inform'> & {
+	/** Puts text on the clipboard. Defaults to the editor's. */
+	readonly copy?: (text: string) => Thenable<void>;
+	/** Says something briefly in the status bar. Defaults to the editor's. */
+	readonly say?: (message: string) => void;
+};
 
 /** What the selection wiring is built from. */
 export interface SelectionWiring {
 	readonly selection: SelectionService;
-	readonly viewer: DetailViewer;
+	readonly panel: Pick<DetailPanel, 'apply' | 'onDidChangeOpen'>;
+	/** The Session view, which shows the rows of a selected session. */
+	readonly sessionView: Pick<SessionDetailProvider, 'render'>;
 	/** Marks the row the viewer is about. One row at a time, so the mark leaves the other views. */
 	readonly selected: Pick<SelectedRows, 'mark'>;
 	readonly sessions: SessionsProvider;
@@ -87,6 +97,29 @@ export async function openDetailInEditor(wiring: SelectionCommandDependencies): 
 	await (wiring.show ?? showReadOnly)(uri);
 }
 
+/**
+ * Copies the hash of the Activity commit the panel shows.
+ *
+ * The panel's link gives the row id, and anything else, including a hash
+ * typed into a command link, is ignored: only the item on show can be
+ * copied, and only what looks like a commit hash.
+ */
+export async function copyCommitHash(
+	deps: Pick<SelectionCommandDependencies, 'selection' | 'copy' | 'say'>,
+	rowId: unknown,
+): Promise<void> {
+	const shown = deps.selection.currentSelection;
+	if (typeof rowId !== 'string' || shown?.kind !== 'commit' || selectionKey(shown) !== rowId) {
+		return;
+	}
+	const hash = shown.entry.id;
+	if (!hash || !isCommitHash(hash)) {
+		return;
+	}
+	await (deps.copy ?? ((text: string) => vscode.env.clipboard.writeText(text)))(hash);
+	(deps.say ?? ((message: string) => void vscode.window.setStatusBarMessage(message, 3000)))(`Copied ${hash}`);
+}
+
 /** Sends a keyboard or mouse selection in a tree to the service. A selection of several rows, or of a group, is ignored. */
 function listen<T>(
 	view: SelectableView<T>,
@@ -108,7 +141,7 @@ function listen<T>(
 	});
 }
 
-/** Registers the commands the Details viewer is driven by. */
+/** Registers the commands the detail panel is driven by. */
 export function registerSelectionCommands(context: { readonly subscriptions: vscode.Disposable[] }, wiring: SelectionCommandDependencies): void {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('entirely.selectItem', async (chosen?: unknown, source?: unknown) => {
@@ -122,11 +155,15 @@ export function registerSelectionCommands(context: { readonly subscriptions: vsc
 		vscode.commands.registerCommand('entirely.openDetailInEditor', async () => {
 			await openDetailInEditor(wiring);
 		}),
+
+		vscode.commands.registerCommand('entirely.copyCommitHash', async (rowId?: unknown) => {
+			await copyCommitHash(wiring, rowId);
+		}),
 	);
 }
 
 /**
- * Wires the Sessions, Trails and Activity views to the Details viewer.
+ * Wires the Sessions, Trails and Activity views to the detail panel.
  *
  * A row is selected by clicking it (its command) and by moving to it with
  * the keyboard (the view's selection event); both reach one service that
@@ -139,13 +176,19 @@ export function wireSelection(context: { readonly subscriptions: vscode.Disposab
 
 	context.subscriptions.push(
 		selection.onDidChange(state => {
-			wiring.viewer.apply(state);
-			void vscode.commands.executeCommand(
-				'setContext',
-				'entirely.detailShown',
-				state.kind !== 'empty' && state.kind !== 'notice',
-			);
+			wiring.sessionView.render(state);
+			wiring.panel.apply(state);
 			if (state.kind === 'empty' || state.kind === 'notice') {
+				wiring.selected.mark(undefined);
+			}
+		}),
+
+		// Closing the panel leaves nothing shown, so nothing is marked, and
+		// the same row chosen again opens it again.
+		wiring.panel.onDidChangeOpen(open => {
+			void vscode.commands.executeCommand('setContext', 'entirely.detailShown', open);
+			if (!open) {
+				selection.release();
 				wiring.selected.mark(undefined);
 			}
 		}),
@@ -177,7 +220,7 @@ export function wireSelection(context: { readonly subscriptions: vscode.Disposab
 		}),
 		trails.onDidChangeTreeData(element => {
 			if (element === undefined) {
-				selection.reconcile('trails', key => trails.find(key) !== undefined);
+				selection.reconcile('trails', key => trails.has(key));
 			}
 		}),
 		activity.onDidChangeTreeData(element => {

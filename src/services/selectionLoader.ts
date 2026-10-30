@@ -11,7 +11,6 @@ import {
 	type DetailModel,
 	type Selection,
 	type SessionSnapshot,
-	type TrailSelector,
 } from '../lib/entire';
 import type { LoadOutcome, SelectionLoader } from './selection';
 import type { SessionDetailSource } from './sessionDetail';
@@ -21,7 +20,8 @@ import type { TrailCapability, TrailDetail, TrailResult } from './trailService';
 /** The trail reads the viewer needs. */
 export interface TrailReader {
 	showCapability(): Promise<TrailCapability>;
-	show(selector: TrailSelector): Promise<TrailResult<TrailDetail>>;
+	/** One `trail show` of a trail, shared with the Trails view so a trail read for one is not read again for the other. */
+	read(number: number): Promise<TrailResult<TrailDetail>>;
 }
 
 export interface SelectionLoaderDependencies {
@@ -106,7 +106,7 @@ function describeUnavailable(capability: Extract<TrailCapability, { kind: 'unava
 }
 
 /**
- * Reads a trail or a change with the one `trail show`.
+ * Reads a trail or a change with one `trail show`, shared with the Trails view.
  *
  * The row paints from the listing, so a CLI that cannot show a trail still
  * leaves the listing's fields and one row saying why the rest is missing.
@@ -132,12 +132,10 @@ async function loadTrail(
 		};
 	}
 
-	const selector: TrailSelector =
-		selection.kind === 'change'
-			? { kind: 'change', repository: selection.entry.change.repository, number: selection.entry.change.number }
-			: { kind: 'trail', number: selection.entry.trail.number };
-
-	const shown = await trails.show(selector);
+	// A change is read through its parent trail: the answer names every
+	// change on it, which is what proves this one still exists.
+	const number = selection.kind === 'change' ? selection.trail.number : selection.entry.trail.number;
+	const shown = await trails.read(number);
 	if (shown.kind === 'failed') {
 		return isGoneFailure(shown.detail)
 			? { kind: 'gone', reason: describeGone(listed.title) }
@@ -161,7 +159,7 @@ async function loadTrail(
 }
 
 /**
- * The reader behind the Details viewer.
+ * The reader behind the detail panel.
  *
  * A session is read in its three steps, a trail or a change with one
  * `trail show`, and an Activity row from the text already in memory: it

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import { parseRequestedLine, type CheckpointDetail } from '../lib/entire';
+import { isCheckpointId, parseRequestedLine, type CheckpointDetail } from '../lib/entire';
 import { WhyPanel } from '../providers/whyPanel';
 import type { WhyService } from '../services/whyService';
 
@@ -60,9 +60,11 @@ export async function whyThisLine(deps: WhyCommandDependencies, requestedLine?: 
  */
 export async function explainCheckpoint(
 	deps: WhyCommandDependencies,
-	id: string,
+	id: unknown,
 ): Promise<void> {
-	if (!id) {
+	// A link in the detail panel can run this with any text, so only a
+	// checkpoint id is followed.
+	if (typeof id !== 'string' || !isCheckpointId(id)) {
 		return;
 	}
 

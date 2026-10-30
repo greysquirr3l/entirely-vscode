@@ -74,7 +74,7 @@
         },
         {
           "id": "entirely.sessionDetail",
-          "name": "Details",
+          "name": "Session",
           "visibility": "visible"
         },
         {
@@ -147,7 +147,7 @@
       },
       {
         "view": "entirely.sessionDetail",
-        "contents": "Select a session, a trail change or an Activity entry to see it here."
+        "contents": "Select a session to see its details."
       },
       {
         "view": "entirely.checkpoints",
@@ -200,20 +200,25 @@
       },
       {
         "command": "entirely.selectItem",
-        "title": "Show Details",
+        "title": "Show Details in the Detail Panel",
         "category": "Entirely"
       },
       {
         "command": "entirely.retryDetail",
-        "title": "Refresh Details",
+        "title": "Refresh the Detail Panel",
         "category": "Entirely",
         "icon": "$(refresh)"
       },
       {
         "command": "entirely.openDetailInEditor",
-        "title": "Open Details in Editor",
+        "title": "Open the Detail Panel as Text",
         "category": "Entirely",
         "icon": "$(go-to-file)"
+      },
+      {
+        "command": "entirely.copyCommitHash",
+        "title": "Copy Commit Hash",
+        "category": "Entirely"
       },
       {
         "command": "entirely.openTranscript",
@@ -291,8 +296,7 @@
       {
         "command": "entirely.trailApprove",
         "title": "Approve a Change on a Trail",
-        "category": "Entirely",
-        "icon": "$(check)"
+        "category": "Entirely"
       },
       {
         "command": "entirely.trailComment",
@@ -558,7 +562,14 @@
           "default": 30,
           "minimum": 0,
           "maximum": 600,
-          "markdownDescription": "How long, in seconds, the **Details** view keeps what it loaded for a session, a trail change or an Activity entry, so choosing the same row again reads nothing. After that time the old content is still shown at once while it is read again. Ended sessions and Activity entries, which cannot change, are kept ten times as long. Set to `0` to read every time."
+          "markdownDescription": "How long, in seconds, Entirely keeps what it loaded for a session, a trail, a trail change or an Activity entry, so choosing the same row again, or expanding the same trail again, reads nothing. After that time the old content is still shown at once in the detail panel while it is read again. Ended sessions and Activity entries, which cannot change, are kept ten times as long. Set to `0` to read every time."
+        },
+        "entirely.trailBadgeLimit": {
+          "type": "number",
+          "default": 10,
+          "minimum": 0,
+          "maximum": 50,
+          "markdownDescription": "How many open trails Entirely reads, each time the **Trails** view is refreshed by you or by an action, to count the changes that wait for an approval. The count on the view's badge covers only those trails, and its tooltip says so; expanding a trail reads the rest of that trail. The background refresh never reads them. Set to `0` to show no count."
         },
         "entirely.showSessionsInExplorer": {
           "type": "boolean",
@@ -798,16 +809,6 @@
           "command": "entirely.refreshControlPlane",
           "when": "view == entirely.controlPlane",
           "group": "navigation@3"
-        },
-        {
-          "command": "entirely.retryDetail",
-          "when": "view == entirely.sessionDetail && entirely.detailShown",
-          "group": "navigation@1"
-        },
-        {
-          "command": "entirely.openDetailInEditor",
-          "when": "view == entirely.sessionDetail && entirely.detailShown",
-          "group": "navigation@2"
         }
       ],
       "commandPalette": [
@@ -866,6 +867,10 @@
         {
           "command": "entirely.openDetailInEditor",
           "when": "entirely.detailShown"
+        },
+        {
+          "command": "entirely.copyCommitHash",
+          "when": "false"
         }
       ],
       "editor/title": [
@@ -873,6 +878,16 @@
           "command": "entirely.copyDispatch",
           "when": "resourceScheme == entirely-generated && resourceExtname == .md",
           "group": "navigation"
+        },
+        {
+          "command": "entirely.retryDetail",
+          "when": "activeWebviewPanelId == entirely.detail",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.openDetailInEditor",
+          "when": "activeWebviewPanelId == entirely.detail",
+          "group": "navigation@2"
         }
       ],
       "editor/context": [
@@ -977,46 +992,6 @@
           "command": "entirely.revokeAccess",
           "when": "view == entirely.controlPlane && viewItem == entirely.cpGrant",
           "group": "3_destructive@1"
-        },
-        {
-          "command": "entirely.retryDetail",
-          "when": "view == entirely.sessionDetail && viewItem =~ /^entirely\\.detail\\.(failed|refresh-failed)$/",
-          "group": "inline"
-        },
-        {
-          "command": "entirely.trailApprove",
-          "when": "view == entirely.sessionDetail && viewItem == entirely.detail.change",
-          "group": "inline"
-        },
-        {
-          "command": "entirely.trailApprove",
-          "when": "view == entirely.sessionDetail && viewItem == entirely.detail.change",
-          "group": "1_review@1"
-        },
-        {
-          "command": "entirely.trailComment",
-          "when": "view == entirely.sessionDetail && viewItem == entirely.detail.change",
-          "group": "1_review@2"
-        },
-        {
-          "command": "entirely.trailMerge",
-          "when": "view == entirely.sessionDetail && viewItem == entirely.detail.change",
-          "group": "1_review@3"
-        },
-        {
-          "command": "entirely.trailCheckout",
-          "when": "view == entirely.sessionDetail && viewItem == entirely.detail.change",
-          "group": "1_review@4"
-        },
-        {
-          "command": "entirely.trailLink",
-          "when": "view == entirely.sessionDetail && viewItem =~ /^entirely\\.detail\\.(change|trail)$/",
-          "group": "2_branch@1"
-        },
-        {
-          "command": "entirely.trailUnlink",
-          "when": "view == entirely.sessionDetail && viewItem =~ /^entirely\\.detail\\.(change|trail)$/",
-          "group": "2_branch@2"
         }
       ]
     },

@@ -6,7 +6,7 @@ import { dumpCliOutput } from './dumpCliOutput';
 import { openCheckpointFile } from './openCheckpoint';
 import { repairTerminalPath } from './terminalPath';
 import { blameFile, clearBlame } from './blameFile';
-import { readExtensionSettings } from '../services/configuration';
+import { MAX_TRAIL_BADGE_LIMIT, readExtensionSettings } from '../services/configuration';
 import type { CliDoctorSource } from '../services/cliDoctor';
 import { explainCheckpoint, whyThisLine } from './whyThisLine';
 import { clearCheckpointSearch, searchCheckpoints } from './checkpointSearch';
@@ -32,7 +32,7 @@ import {
 	unlinkBranch,
 	type TrailReviewDependencies,
 } from './trailReview';
-import { pickFromTarget, touchedKeys } from '../lib/entire';
+import { pickFromTargetOrShown, touchedKeys, type DetailModel } from '../lib/entire';
 import type { CheckpointFileNode, CheckpointsProvider } from '../providers/checkpointsProvider';
 import type { SessionDetailProvider } from '../providers/sessionDetailProvider';
 import type { TranscriptContentProvider } from '../providers/transcriptDocument';
@@ -41,6 +41,7 @@ import type { SessionDetailSource } from '../services/sessionDetail';
 import type { SessionItemNode, SessionsProvider } from '../providers/sessionsProvider';
 import type { CheckpointFilter } from '../services/checkpointFilter';
 import type { TrailsProvider } from '../providers/trailsProvider';
+import type { TrailChangesService } from '../services/trailChanges';
 import type { CheckpointDetail } from '../lib/entire';
 import type { GitService } from '../services/gitService';
 import type { StatusController } from '../services/statusController';
@@ -65,7 +66,7 @@ export interface CommandDependencies {
 	readonly search: SearchProvider;
 	/** Reads one session in full. */
 	readonly sessionDetailSource: SessionDetailSource;
-	/** Loads the selected row in the Details viewer. */
+	/** Loads the selected row in the detail panel. */
 	readonly selection: SelectionService;
 	/** Serves transcripts as read-only documents. */
 	readonly transcripts: TranscriptContentProvider;
@@ -91,6 +92,8 @@ export interface CommandDependencies {
 	readonly trails: TrailService;
 	/** The trails section of the view. */
 	readonly trailsProvider: TrailsProvider;
+	/** Reads a trail's changes, which the CLI's list does not carry. */
+	readonly trailChanges: Pick<TrailChangesService, 'withChanges'>;
 	/** The CLI the extension talks to. */
 	readonly runner: CliRunner;
 	/** Which login the CLI is acting as. */
@@ -116,11 +119,18 @@ const EXTENSION_ID = 'greysquirr3l.entirely';
  */
 export function registerCommands(context: vscode.ExtensionContext, deps: CommandDependencies): void {
 	// The review commands act on the row they are given, from the Trails view
-	// or the Details viewer, and ask which change only when given none. When
-	// one changes a trail, what the viewer holds about it is dropped.
+	// or the detail panel, and ask which change only when given none. A link
+	// in the panel gives the row id of the item on show, so what the panel
+	// shows is what a link can act on and nothing else. When a command
+	// changes a trail, what the panel holds about it is dropped.
+	const shownModel = (): DetailModel | undefined => {
+		const state = deps.selection.state;
+		return state.kind === 'empty' || state.kind === 'notice' ? undefined : state.model;
+	};
 	const trailReview: TrailReviewDependencies = {
 		trails: deps.trails,
 		actingHandle: () => deps.accounts.current.acting?.handle,
+		withChanges: trails => deps.trailChanges.withChanges(trails, MAX_TRAIL_BADGE_LIMIT),
 		changed: pick => {
 			deps.selection.invalidate(touchedKeys(pick));
 			void deps.trailsProvider.refresh().then(() => deps.selection.reloadFrom(deps.trailsProvider));
@@ -305,32 +315,32 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 		// choose what they are acting on and then confirms what they
 		// are about to do.
 		vscode.commands.registerCommand('entirely.trailApprove', async (target?: unknown) => {
-			await approveChange(trailReview, pickFromTarget(target));
+			await approveChange(trailReview, pickFromTargetOrShown(target, shownModel()));
 		}),
 
 		vscode.commands.registerCommand('entirely.trailComment', async (target?: unknown) => {
-			await commentOnChange(trailReview, pickFromTarget(target));
+			await commentOnChange(trailReview, pickFromTargetOrShown(target, shownModel()));
 		}),
 
 		vscode.commands.registerCommand('entirely.trailMerge', async (target?: unknown) => {
-			await mergeChange(trailReview, pickFromTarget(target));
+			await mergeChange(trailReview, pickFromTargetOrShown(target, shownModel()));
 		}),
 
 		vscode.commands.registerCommand('entirely.trailCheckout', async (target?: unknown) => {
-			await checkoutChange(trailReview, pickFromTarget(target));
+			await checkoutChange(trailReview, pickFromTargetOrShown(target, shownModel()));
 		}),
 
 		vscode.commands.registerCommand('entirely.trailLink', async (target?: unknown) => {
-			await linkBranch(trailReview, pickFromTarget(target));
+			await linkBranch(trailReview, pickFromTargetOrShown(target, shownModel()));
 		}),
 
 		vscode.commands.registerCommand('entirely.trailUnlink', async (target?: unknown) => {
-			await unlinkBranch(trailReview, pickFromTarget(target));
+			await unlinkBranch(trailReview, pickFromTargetOrShown(target, shownModel()));
 		}),
 
 		// The drill-down from a line that a checkpoint owns. It is reached
 		// from the panel, so it is not in the palette.
-		vscode.commands.registerCommand('entirely.explainCheckpoint', async (id: string) => {
+		vscode.commands.registerCommand('entirely.explainCheckpoint', async (id?: unknown) => {
 			await explainCheckpoint(
 				{
 					why: deps.why,

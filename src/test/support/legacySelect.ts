@@ -28,7 +28,7 @@ export async function selectSessionInto(
 			usage: deps.usage,
 			trails: {
 				showCapability: async () => ({ kind: 'unavailable', reason: 'absent', detail: 'no trail reads in this test' }),
-				show: async () => ({ kind: 'failed', detail: 'no trail reads in this test' }),
+				read: async () => ({ kind: 'failed', detail: 'no trail reads in this test' }),
 			},
 		}),
 		ttlSeconds: () => 0,

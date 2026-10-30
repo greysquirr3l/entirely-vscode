@@ -69,7 +69,8 @@ import { PluginService } from './services/plugins';
 import { RecapService } from './services/recap';
 import { registerActivityCommands } from './commands/activityCommands';
 import { registerSelectionCommands, wireSelection } from './commands/selection';
-import { DetailViewer } from './providers/detailViewer';
+import { DetailPanel } from './providers/detailPanel';
+import { TrailChangesService } from './services/trailChanges';
 import { SelectionService } from './services/selection';
 import { SelectedRows } from './providers/selectedMark';
 import { createSelectionLoader } from './services/selectionLoader';
@@ -191,11 +192,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	});
 
 	// What is selected in Sessions, Trails or Activity is read once and shown
-	// in the Details viewer. Rows drawn from text already held read nothing.
+	// in the detail panel. Rows drawn from text already held read nothing.
 	// The commands a row runs when it is clicked are registered here, before
 	// any tree view exists, so no row can be clicked ahead of them.
+	const trailChanges = new TrailChangesService({
+		trails,
+		ttlSeconds: () => readExtensionSettings().selectionCacheSeconds,
+	});
 	const selection = new SelectionService({
-		loader: createSelectionLoader({ detail: sessionDetailSource, usage: tokenUsage, trails }),
+		loader: createSelectionLoader({
+			detail: sessionDetailSource,
+			usage: tokenUsage,
+			trails: { showCapability: () => trails.showCapability(), read: number => trailChanges.read(number) },
+		}),
 		ttlSeconds: () => readExtensionSettings().selectionCacheSeconds,
 	});
 	const selected = new SelectedRows();
@@ -482,8 +491,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		log: { warn: line => log.warn(line) },
 	});
 
-	const trailsProvider = new TrailsProvider(createTrailListingSource(trails), () =>
-		readExtensionSettings().refreshInterval,
+	const trailsProvider = new TrailsProvider(
+		createTrailListingSource(trails),
+		() => readExtensionSettings().refreshInterval,
+		{ changes: trailChanges, badgeLimit: () => readExtensionSettings().trailBadgeLimit },
 	);
 	context.subscriptions.push(trailsProvider);
 
@@ -496,16 +507,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	context.subscriptions.push(
 		trailsProvider.onDidChangeTreeData(() => {
 			trailsView.message = trailsProvider.emptyReason;
-			const waiting = trailsProvider.pendingCount;
-			trailsView.badge =
-				waiting > 0
-					? { value: waiting, tooltip: `${waiting} not yet approved` }
-					: undefined;
+			trailsView.badge = trailsProvider.badge;
 		}),
 	);
 
-	const viewer = new DetailViewer(sessionDetail, detailView);
-	context.subscriptions.push(viewer);
+	// The detail of the selected row opens in one panel beside the code.
+	const panel = new DetailPanel({ iconPath: vscode.Uri.joinPath(context.extensionUri, 'images', 'entirely-view.svg') });
+	context.subscriptions.push(panel);
 
 	registerCommands(context, {
 		search,
@@ -552,6 +560,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		blameDecorations,
 		trails,
 		trailsProvider,
+		trailChanges,
 		runner,
 		accounts,
 		checkpointDetail: createCheckpointDetailSource(runner, workspaceRoot),
@@ -561,7 +570,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 	wireSelection(context, {
 		selection,
-		viewer,
+		panel,
+		sessionView: sessionDetail,
 		selected,
 		sessions,
 		trails: trailsProvider,

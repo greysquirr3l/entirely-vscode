@@ -1,3 +1,4 @@
+import type { DetailModel } from './selection';
 import type { Trail, TrailChange } from './trail';
 import type { TrailPick } from './trailPick';
 
@@ -35,27 +36,13 @@ function changePickOf(trail: Trail, change: TrailChange): TrailPick {
  * What a review command was pointed at, when it was pointed at something.
  *
  * The commands run from the palette take no argument and ask the reviewer
- * to choose. From a row in the Trails view or the Details viewer they get
- * that row, and act on it without asking again which one is meant. An
- * argument that is not a row of either kind is ignored, so the command
- * falls back to asking.
+ * to choose. From a row in the Trails view they get that row, and act on it
+ * without asking again which one is meant. An argument that is not a row
+ * is ignored, so the command falls back to asking.
  */
 export function pickFromTarget(target: unknown): TrailPick | undefined {
 	if (!isRecord(target)) {
 		return undefined;
-	}
-
-	// A row of the Details viewer carries the pick it was built from.
-	const carried = target.pick;
-	if (isRecord(carried)) {
-		const trail = carried.trail;
-		const change = carried.change;
-		if (isTrail(trail) && carried.kind === 'change' && isChange(change)) {
-			return changePickOf(trail, change);
-		}
-		if (isTrail(trail) && carried.kind === 'trail') {
-			return trailPickOf(trail);
-		}
 	}
 
 	// A change row of the Trails view.
@@ -100,4 +87,19 @@ export function touchedKeys(pick: TrailPick): string[] {
 		keys.push(...pick.trail.changes.map(change => `change:${change.repository}/${change.number}`));
 	}
 	return keys;
+}
+
+/**
+ * What a review command was pointed at, from a tree row or from the detail
+ * panel's link.
+ *
+ * A link in the panel carries the row id of the item as text. It is trusted
+ * for nothing but naming the item on show: an id that is not the shown
+ * item's gives nothing, so the command asks which item is meant.
+ */
+export function pickFromTargetOrShown(target: unknown, shown: DetailModel | undefined): TrailPick | undefined {
+	if (typeof target === 'string') {
+		return shown !== undefined && shown.key === target ? shown.pick : undefined;
+	}
+	return pickFromTarget(target);
 }

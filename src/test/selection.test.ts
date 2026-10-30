@@ -18,6 +18,7 @@ import {
 	isSelection,
 	lifetimeSeconds,
 	pickFromTarget,
+	pickFromTargetOrShown,
 	renderDetailDocument,
 	selectionKey,
 	touchedKeys,
@@ -334,12 +335,26 @@ suite('Entire review targets', () => {
 		assert.deepStrictEqual(trail?.selector, { kind: 'trail', number: 12 });
 	});
 
-	test('reads the pick a Details row carries, and ignores anything else', () => {
+	test('ignores a target that is not a row, and an object that only claims to carry a pick', () => {
 		const model = buildChangeDetail({ kind: 'change', trail: TRAIL, entry: AWAITING });
-		assert.strictEqual(pickFromTarget({ kind: 'header', pick: model.pick })?.kind, 'change');
+		assert.strictEqual(pickFromTarget({ kind: 'header', pick: model.pick }), undefined);
 		for (const other of [undefined, null, 'x', 4, [], {}, { kind: 'session', session: {} }, { kind: 'change', entry: {} }]) {
 			assert.strictEqual(pickFromTarget(other), undefined);
 		}
+	});
+
+	test('panel-actions-validate-arguments: a link\'s row id names the item on show and nothing else', () => {
+		const model = buildChangeDetail({ kind: 'change', trail: TRAIL, entry: AWAITING });
+		assert.strictEqual(pickFromTargetOrShown(model.key, model)?.kind, 'change');
+		for (const other of ['change:widgets/99', '', 'trail:12', model.key + ' ', 4, null, undefined, {}, [model.key], { pick: model.pick }]) {
+			assert.strictEqual(pickFromTargetOrShown(other, model), undefined, String(JSON.stringify(other)));
+		}
+		assert.strictEqual(pickFromTargetOrShown(model.key, undefined), undefined, 'nothing is on show');
+		assert.strictEqual(
+			pickFromTargetOrShown({ kind: 'change', trail: TRAIL, entry: AWAITING }, undefined)?.kind,
+			'change',
+			'a Trails row is still taken as a row',
+		);
 	});
 
 	test('a change pick can act on its trail, and a trail pick cannot act on a change', () => {

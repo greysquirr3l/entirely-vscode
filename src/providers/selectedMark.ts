@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-/** The colour that marks the row the Details viewer is about. */
+/** The colour that marks the row the detail panel is about. */
 export const SELECTED_COLOUR = 'charts.blue';
 
 /** The address scheme a row's decoration is looked up under. */
@@ -12,7 +12,7 @@ export function rowUri(key: string): vscode.Uri {
 }
 
 /**
- * Marks the one row the Details viewer is about, across Sessions, Trails and
+ * Marks the one row the detail panel is about, across Sessions, Trails and
  * Activity.
  *
  * The editor keeps its own highlight on the row last chosen in each tree
@@ -51,7 +51,7 @@ export class SelectedRows implements vscode.FileDecorationProvider, vscode.Dispo
 		if (uri.scheme !== SELECTED_SCHEME || this.marked === undefined || uri.toString() !== rowUri(this.marked).toString()) {
 			return undefined;
 		}
-		const decoration = new vscode.FileDecoration('●', 'Shown in Details', new vscode.ThemeColor(SELECTED_COLOUR));
+		const decoration = new vscode.FileDecoration('●', 'Shown in the detail panel', new vscode.ThemeColor(SELECTED_COLOUR));
 		decoration.propagate = false;
 		return decoration;
 	}

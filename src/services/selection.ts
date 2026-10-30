@@ -63,7 +63,7 @@ interface Load {
 
 /**
  * The one channel between the views that can be selected in and the
- * Details viewer.
+ * detail panel.
  *
  * Selecting a row starts at most one read for that item. A click that is
  * also a selection change, or the same row twice, joins the read already
@@ -289,12 +289,15 @@ export class SelectionService implements vscode.Disposable {
 	 * refreshed, so the viewer shows the listing's current gate. The viewer
 	 * empties if the row is no longer listed.
 	 */
-	reloadFrom(listing: { find(key: string): Selection | undefined }): void {
+	reloadFrom(listing: { find(key: string): Selection | undefined; has?(key: string): boolean | undefined }): void {
 		const current = this.current;
 		if (!current || current.source !== 'trails') {
 			return;
 		}
-		const fresh = listing.find(current.key);
+		// A change of a trail whose changes have not been read yet cannot be
+		// found, and that is not the same as it having gone.
+		const unknown = listing.has !== undefined && listing.has(current.key) === undefined;
+		const fresh = listing.find(current.key) ?? (unknown ? current.selection : undefined);
 		if (fresh) {
 			void this.select(fresh, 'trails', { refresh: true });
 		} else {
@@ -314,6 +317,18 @@ export class SelectionService implements vscode.Disposable {
 		}
 		this.current = undefined;
 		this.emit({ kind: 'notice', message });
+	}
+
+	/**
+	 * Forgets which item is selected, without announcing anything.
+	 *
+	 * This is for the detail panel having been closed: there is nothing to
+	 * update, and choosing the same row again must open the panel again
+	 * instead of being taken for the item already shown.
+	 */
+	release(): void {
+		this.current = undefined;
+		this.shown = { kind: 'empty' };
 	}
 
 	/** Empties the viewer. */

@@ -1,4 +1,5 @@
 import {
+	escapeHtml,
 	lineState,
 	UNATTRIBUTED_LABEL,
 	UNSYNCED_LABEL,
@@ -7,20 +8,7 @@ import {
 	type WhySummary,
 } from '../lib/entire';
 
-/**
- * Escapes text for HTML.
- *
- * Every piece of text in the panel comes from a repository or from a
- * prompt, so none of it is trusted to be well formed.
- */
-export function escapeHtml(value: string): string {
-	return value
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#39;');
-}
+export { escapeHtml };
 
 /** The words used for each kind of attribution. */
 const ATTRIBUTION_WORDS: Record<WhyLine['attribution'], string> = {
