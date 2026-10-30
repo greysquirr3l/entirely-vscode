@@ -279,3 +279,31 @@ export {
 	scopeWord,
 } from './controlPlaneActions';
 export type { ControlAction, ControlConfirmation, ControlOutcome } from './controlPlaneActions';
+export {
+	ACTIVITY_WANTS,
+	DISPATCH_WANTS,
+	RECAP_WANTS,
+	STATIC_OUTPUT_ENV,
+	activityArguments,
+	describeHelpFailure,
+	isJurisdictionSlug,
+	isTimeWindow,
+	readCommandFlags,
+	readDefaultValue,
+	recapArguments,
+	recapPeriods,
+	staticEnvironment,
+	withSignInHint,
+} from './activityFlags';
+export type { ActivityListing, CommandFlags, DispatchFlags, RecapFlags, RecapPeriod } from './activityFlags';
+export { countEntries, parseActivity, stripTerminalCodes } from './activityOutput';
+export type {
+	ActivityEntry,
+	ActivityGroup,
+	ActivityOverview,
+	ActivityReading,
+	ActivityRepository,
+	ActivityStat,
+} from './activityOutput';
+export { confirmDispatch, describeDispatchFailure, dispatchArguments, invalidDispatchRequest } from './dispatchActions';
+export type { DispatchMode, DispatchOutcome, DispatchRequest } from './dispatchActions';

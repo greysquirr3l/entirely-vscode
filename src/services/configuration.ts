@@ -34,6 +34,10 @@ export interface ExtensionSettings {
 	readonly cliDoctorTimeout: number;
 	/** How long, in seconds, a control plane call (a listing, a change, an API call) may take. */
 	readonly controlPlaneTimeout: number;
+	/** How long, in seconds, `entire activity` and `entire recap` may take. */
+	readonly activityTimeout: number;
+	/** How long, in seconds, a dispatch may take to generate. */
+	readonly dispatchTimeout: number;
 	/** How long, in seconds, a history import (and its preview) may take. */
 	readonly importTimeout: number;
 	/** How long, in seconds, to watch for a resumed session to become active. */
@@ -148,6 +152,30 @@ export function clampControlPlaneTimeout(seconds: number): number {
 	return Math.min(MAX_CONTROL_PLANE_TIMEOUT_SECONDS, Math.max(MIN_CONTROL_PLANE_TIMEOUT_SECONDS, Math.floor(seconds)));
 }
 
+/** The bounds of the time the activity and recap reads may take, in seconds. */
+export const MIN_ACTIVITY_TIMEOUT_SECONDS = 5;
+export const MAX_ACTIVITY_TIMEOUT_SECONDS = 300;
+
+/** Puts the activity timeout inside the range the extension will wait for. */
+export function clampActivityTimeout(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return 30;
+	}
+	return Math.min(MAX_ACTIVITY_TIMEOUT_SECONDS, Math.max(MIN_ACTIVITY_TIMEOUT_SECONDS, Math.floor(seconds)));
+}
+
+/** The bounds of the time a dispatch may take, in seconds. A local agent writes it, which can be slow. */
+export const MIN_DISPATCH_TIMEOUT_SECONDS = 10;
+export const MAX_DISPATCH_TIMEOUT_SECONDS = 1800;
+
+/** Puts the dispatch timeout inside the range the extension will wait for. */
+export function clampDispatchTimeout(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return 180;
+	}
+	return Math.min(MAX_DISPATCH_TIMEOUT_SECONDS, Math.max(MIN_DISPATCH_TIMEOUT_SECONDS, Math.floor(seconds)));
+}
+
 /** The bounds of the time an import may take, in seconds. Imports read a month of transcripts. */
 export const MIN_IMPORT_TIMEOUT_SECONDS = 10;
 export const MAX_IMPORT_TIMEOUT_SECONDS = 3600;
@@ -251,6 +279,8 @@ export function readExtensionSettings(): ExtensionSettings {
 		lifecycleActionTimeout: clampLifecycleTimeout(configuration.get<number>('lifecycleActionTimeout', 60)),
 		cliDoctorTimeout: clampCliDoctorTimeout(configuration.get<number>('cliDoctorTimeout', 30)),
 		controlPlaneTimeout: clampControlPlaneTimeout(configuration.get<number>('controlPlaneTimeout', 60)),
+		activityTimeout: clampActivityTimeout(configuration.get<number>('activityTimeout', 30)),
+		dispatchTimeout: clampDispatchTimeout(configuration.get<number>('dispatchTimeout', 180)),
 		importTimeout: clampImportTimeout(configuration.get<number>('importTimeout', 300)),
 		resumeWatchTimeout: clampResumeWatch(configuration.get<number>('resumeWatchTimeout', 60)),
 		searchDebounce: clampSearchDebounce(configuration.get<number>('searchDebounce', 400)),

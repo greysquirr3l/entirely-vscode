@@ -75,6 +75,10 @@
           "name": "Search"
         },
         {
+          "id": "entirely.activity",
+          "name": "Activity"
+        },
+        {
           "id": "entirely.authentication",
           "name": "Account"
         },
@@ -92,6 +96,10 @@
       ]
     },
     "viewsWelcome": [
+      {
+        "view": "entirely.activity",
+        "contents": "See recent sessions and commits across your repositories on Entire.\n[Open Activity](command:entirely.refreshActivity)\n[Generate a Dispatch](command:entirely.generateDispatch)"
+      },
       {
         "view": "entirely.search",
         "contents": "Search past agent work, commits and code.\n[Search](command:entirely.searchWork)",
@@ -290,6 +298,46 @@
         "icon": "$(clear-all)"
       },
       {
+        "command": "entirely.openActivity",
+        "title": "Open Activity",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.refreshActivity",
+        "title": "Refresh Activity",
+        "category": "Entirely",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "entirely.showActivitySessions",
+        "title": "Show Recent Sessions in Activity",
+        "category": "Entirely",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "entirely.showActivityCommits",
+        "title": "Show Recent Commits in Activity",
+        "category": "Entirely",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "entirely.generateDispatch",
+        "title": "Generate Dispatch",
+        "category": "Entirely",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "entirely.copyDispatch",
+        "title": "Copy Dispatch",
+        "category": "Entirely",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "entirely.showRecap",
+        "title": "Show Recap",
+        "category": "Entirely"
+      },
+      {
         "command": "entirely.openControlPlane",
         "title": "Open Control Plane",
         "category": "Entirely"
@@ -435,6 +483,20 @@
           "maximum": 900,
           "markdownDescription": "How long, in seconds, to wait for each call the Control Plane view and its commands make to the Entire CLI: a listing, a change, or an API call. Deleting a repository together with its mirrors waits for the mirrors to go, so raise this for a large one. A change that times out is read back, and reported as done only if the CLI now lists it that way."
         },
+        "entirely.activityTimeout": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 300,
+          "markdownDescription": "How long, in seconds, the Activity view and **Entirely: Show Recap** wait for `entire activity` and `entire recap`. Both are read from Entire's servers in their static, non-interactive form."
+        },
+        "entirely.dispatchTimeout": {
+          "type": "number",
+          "default": 180,
+          "minimum": 10,
+          "maximum": 1800,
+          "markdownDescription": "How long, in seconds, **Entirely: Generate Dispatch** waits for the dispatch to be written. A dispatch written by a local agent can take a few minutes. It is never started again after a timeout."
+        },
         "entirely.importTimeout": {
           "type": "number",
           "default": 300,
@@ -480,6 +542,26 @@
     },
     "menus": {
       "view/title": [
+        {
+          "command": "entirely.showActivityCommits",
+          "when": "view == entirely.activity && entirely.activityListing != commits",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.showActivitySessions",
+          "when": "view == entirely.activity && entirely.activityListing == commits",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.generateDispatch",
+          "when": "view == entirely.activity",
+          "group": "navigation@2"
+        },
+        {
+          "command": "entirely.refreshActivity",
+          "when": "view == entirely.activity",
+          "group": "navigation@3"
+        },
         {
           "command": "entirely.signIn",
           "when": "view == entirely.authentication && !entirely.signedIn",
@@ -580,6 +662,13 @@
         {
           "command": "entirely.revokeAccess",
           "when": "false"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "entirely.copyDispatch",
+          "when": "resourceScheme == entirely-generated && resourceExtname == .md",
+          "group": "navigation"
         }
       ],
       "editor/context": [

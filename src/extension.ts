@@ -54,6 +54,13 @@ import { ControlPlaneProvider } from './providers/controlPlaneProvider';
 import { ControlApiService } from './services/controlApi';
 import { ControlPlaneService } from './services/controlPlane';
 import { registerControlPlaneCommands } from './commands/controlPlaneCommands';
+import { ActivityProvider } from './providers/activityProvider';
+import { GENERATED_SCHEME, GeneratedDocuments } from './providers/generatedDocuments';
+import { ActivityService } from './services/activity';
+import { DispatchService } from './services/dispatch';
+import { RecapService } from './services/recap';
+import { registerActivityCommands } from './commands/activityCommands';
+import { EditorGeneratedUi } from './commands/activityUi';
 import { EditorControlPlaneUi } from './commands/controlPlaneUi';
 
 /** The workspace folder the CLI is run in. */
@@ -365,6 +372,51 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		running: { active: false },
 	});
 
+	// Recent sessions and commits across repositories, read from the CLI's
+	// static output when the view opens and when asked, never on a timer.
+	const activity = new ActivityProvider(
+		new ActivityService({
+			runner,
+			workspaceRoot,
+			timeoutSeconds: () => readExtensionSettings().activityTimeout,
+		}),
+		() => accounts.context,
+	);
+	const activityView = vscode.window.createTreeView('entirely.activity', { treeDataProvider: activity });
+	const generated = new GeneratedDocuments();
+	const generatedUi = new EditorGeneratedUi(generated);
+	context.subscriptions.push(
+		activity,
+		activityView,
+		activity.onDidChangeTreeData(() => {
+			activityView.message = activity.viewMessage;
+		}),
+		generated,
+		vscode.workspace.registerTextDocumentContentProvider(GENERATED_SCHEME, generated),
+	);
+	registerActivityCommands(context, {
+		activity,
+		documents: generated,
+		dispatch: {
+			source: new DispatchService({
+				runner,
+				workspaceRoot,
+				timeoutSeconds: () => readExtensionSettings().dispatchTimeout,
+			}),
+			acting: async () => (await accounts.refresh(workspaceRoot())).acting,
+			ui: generatedUi,
+			running: { active: false },
+		},
+		recap: {
+			source: new RecapService({
+				runner,
+				workspaceRoot,
+				timeoutSeconds: () => readExtensionSettings().activityTimeout,
+			}),
+			ui: generatedUi,
+		},
+	});
+
 	registerCommands(context, {
 		search,
 		cliDoctor,
@@ -428,6 +480,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 				runner.setConfiguredPath(readExtensionSettings().cliPath);
 				checkpointSearch.reset();
 				controlPlaneProvider.refresh();
+				void activity.reloadIfRead();
 				void statusController.refresh();
 				void sessions.refresh();
 				void checkpoints.refresh();
@@ -439,6 +492,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 				// showing the previous account's work.
 				void statusController.refresh().then(() => {
 					controlPlaneProvider.refresh();
+					void activity.reloadIfRead();
 					void sessions.refresh();
 					void checkpoints.refresh();
 				});
