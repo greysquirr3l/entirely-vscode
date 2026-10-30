@@ -108,16 +108,6 @@ function problemLine(problem: string | undefined): string {
 }
 
 /**
- * The warning mark, when there is something to warn about.
- *
- * The mark goes after the state rather than in front of it, so that the
- * state can still be read without hovering.
- */
-function warningMark(problem: string | undefined): string {
-	return problem ? ' $(warning)' : '';
-}
-
-/**
  * The login the extension is acting as, as a line for the tooltip.
  *
  * The handle is used rather than the name the login is saved under,
@@ -141,6 +131,12 @@ function contextLine(context: string | undefined): string {
  */
 const PRIORITY = 100;
 
+/**
+ * Entire's logo, from the product icon font. It is Entire's official
+ * symbol, shown unmodified; every state is a codicon beside it.
+ */
+const LOGO = '$(entire-logo)';
+
 /** The command the item runs when it is clicked. */
 const CLICK_COMMAND = 'entirely.statusBar';
 
@@ -149,10 +145,11 @@ function render(display: StatusDisplay): Rendering {
 	switch (display.kind) {
 		case 'active-session':
 			return {
-				// The warning is added to the state rather than replacing
-				// it, so that a workspace with a problem can still be told
-				// apart from one without by looking at the bar.
-				text: `$(pulse) Entire${warningMark(display.checkpointProblem)}`,
+				// The logo is never altered: the state is a codicon beside it.
+				// A checkpoint problem adds a warning after the pulse, so a
+				// workspace with a problem can be told apart from one
+				// without by looking at the bar.
+				text: `${LOGO} Entire $(pulse)${display.checkpointProblem ? ' $(warning)' : ''}`,
 				tooltip:
 					(display.agent
 						? `Entire is tracking this workspace. ${display.agent} is running.`
@@ -164,7 +161,7 @@ function render(display: StatusDisplay): Rendering {
 			};
 		case 'tracked':
 			return {
-				text: `$(circle-filled) Entire${warningMark(display.checkpointProblem)}`,
+				text: `${LOGO} Entire${display.checkpointProblem ? ' $(warning)' : ''}`,
 				tooltip:
 					'Entire is tracking this workspace. No agent session is running.' +
 					problemLine(display.checkpointProblem) +
@@ -174,19 +171,19 @@ function render(display: StatusDisplay): Rendering {
 			};
 		case 'not-set-up':
 			return {
-				text: '$(circle-slash) Entire',
+				text: `${LOGO} Entire $(circle-slash)`,
 				tooltip:
 					'Entire is not set up for this workspace. Click to set it up.' +
 					settingsLine(display.settings),
 			};
 		case 'not-a-repository':
 			return {
-				text: '$(circle-outline) Entire',
+				text: `${LOGO} Entire $(circle-outline)`,
 				tooltip: 'This workspace is not a git repository, so Entire cannot track it.',
 			};
 		case 'invisible-to-context':
 			return {
-				text: '$(eye-closed) Entire',
+				text: `${LOGO} Entire $(eye-closed)`,
 				tooltip:
 					`Entire is tracking this workspace, but the login it is acting as ("${display.context}") cannot see ${
 						display.detail ?? 'where its checkpoints are'
@@ -197,12 +194,12 @@ function render(display: StatusDisplay): Rendering {
 			};
 		case 'context-error':
 			return {
-				text: '$(error) Entire',
+				text: `${LOGO} Entire $(error)`,
 				tooltip: `Entirely is set to use a login the Entire CLI does not have. ${display.detail}`,
 			};
 		case 'error':
 			return {
-				text: '$(warning) Entire',
+				text: `${LOGO} Entire $(warning)`,
 				tooltip: `Entirely could not read the Entire CLI: ${display.detail}`,
 			};
 	}

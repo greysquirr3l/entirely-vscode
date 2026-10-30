@@ -47,12 +47,21 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "icons": {
+      "entire-logo": {
+        "description": "Entire logo (Marvin), Entire's official symbol",
+        "default": {
+          "fontPath": "assets/entire-icons.woff",
+          "fontCharacter": "\\e001"
+        }
+      }
+    },
     "viewsContainers": {
       "activitybar": [
         {
           "id": "entirely",
           "title": "Entirely for Entire",
-          "icon": "$(robot)"
+          "icon": "images/entirely-view.svg"
         }
       ]
     },

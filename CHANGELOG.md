@@ -8,6 +8,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Changed
 
+- **Entire's official symbol, unmodified.** The activity bar icon and the status bar glyph
+  are Entire's own small-size symbol, as supplied in its brand kit, instead of a redraw.
+  Every status bar state shows the logo followed by a codicon for the state: `$(pulse)`
+  for a running session, `$(warning)` for a checkpoint problem or an unreadable CLI,
+  `$(circle-slash)` when not set up, `$(circle-outline)` for a folder that is not a
+  repository, `$(eye-closed)` when the login cannot see the workspace, and `$(error)` for
+  a login the CLI does not have. The icon font now holds only `entire-logo`.
 - **Entirely presents itself as an unofficial extension for Entire.** The activity bar
   title is now "Entirely for Entire", the marketplace description starts with
   "Unofficial extension for Entire", and the README says the extension is a community

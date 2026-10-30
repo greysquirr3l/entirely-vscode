@@ -38,3 +38,10 @@ plan.toml
 capabilities/**
 research/**
 tasks/**
+
+# Claude Code settings for working on this repository.
+.claude/**
+
+# The vendored brand symbol is only the generator's input; the VSIX carries
+# the built font and images/entirely-view.svg.
+assets/brand/**

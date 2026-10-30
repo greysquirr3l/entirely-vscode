@@ -25,7 +25,7 @@ Entirely (this extension)
 
 | Surface | What it shows |
 |---|---|
-| **Status bar** | Whether the workspace is tracked by Entire, and whether an agent session is live right now |
+| **Status bar** | Whether the workspace is tracked by Entire, and whether an agent session is live right now, shown as Entire's logo with a codicon beside it for each state (a pulse for a running session, a warning for a problem) |
 | **Entire view** | Every session Entire tracks for the repository — across all worktrees, not just the open folder |
 | **Session detail** | The selected session in full, ended ones included: agent, model, tokens, files touched and tool calls, with the transcript opening in a read-only editor |
 | **Session actions** | Stop, attach, adopt and resume a session from the palette or its context menu, each only when you ask |

@@ -2,6 +2,11 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
 
+interface ProductIconContribution {
+	description?: string;
+	default?: { fontPath?: string; fontCharacter?: string };
+}
+
 interface ExtensionManifest {
 	icon?: string;
 	license?: string;
@@ -10,8 +15,9 @@ interface ExtensionManifest {
 	extensionKind?: string[];
 	galleryBanner?: { color?: string; theme?: string };
 	contributes?: {
+		icons?: Record<string, ProductIconContribution>;
 		commands?: { command: string }[];
-		viewsContainers?: Record<string, { id: string }[]>;
+		viewsContainers?: Record<string, { id: string; icon?: string }[]>;
 		views?: Record<string, { id: string }[]>;
 		configuration?: {
 			properties?: Record<
@@ -100,6 +106,77 @@ suite('Entirely manifest', () => {
 		assert.ok(banner.color, 'the gallery banner has no color');
 		assert.match(banner.color, /^#[0-9a-fA-F]{6}$/, 'the gallery banner color is not a hex triplet');
 		assert.ok(banner.theme === 'dark' || banner.theme === 'light', 'the gallery banner theme is not dark or light');
+	});
+
+	test('declares and packages the single Entire logo glyph', () => {
+		const manifest = readManifest();
+		const icons = manifest.contributes?.icons;
+		assert.ok(icons, 'package.json declares no custom product icons');
+		assert.deepStrictEqual(Object.keys(icons), ['entire-logo'], 'the logo is the only product icon');
+
+		const fontPath = 'assets/entire-icons.woff';
+		const productIcon: ProductIconContribution | undefined = icons['entire-logo'];
+		assert.ok(productIcon?.description, 'the logo icon is not described');
+		assert.strictEqual(productIcon.default?.fontPath, fontPath);
+		assert.strictEqual(productIcon.default?.fontCharacter, '\\e001');
+
+		const font = path.join(ROOT, fontPath);
+		assert.ok(fs.existsSync(font), `the icon font '${fontPath}' is not on disk`);
+		assert.strictEqual(fs.readFileSync(font).subarray(0, 4).toString('ascii'), 'wOFF', 'the icon font is not a WOFF file');
+
+		const patterns = ignorePatterns(path.join(ROOT, '.vscodeignore'));
+		assert.ok(!isIgnored(fontPath, patterns), `the icon font '${fontPath}' is excluded by .vscodeignore`);
+	});
+
+	test('vendors Entire\'s official symbol the font is built from', () => {
+		const symbol = path.join(ROOT, 'assets', 'brand', 'entire-symbol-icon.svg');
+		assert.ok(fs.existsSync(symbol), 'assets/brand/entire-symbol-icon.svg is missing');
+		assert.match(fs.readFileSync(symbol, 'utf8'), /<svg[^>]*viewBox="0 0 32 32"/);
+		assert.ok(fs.existsSync(path.join(ROOT, 'assets', 'brand', 'README.md')), 'the symbol has no provenance note');
+	});
+
+	test('declares every Entire product icon the source uses', () => {
+		const declared = new Set(Object.keys(readManifest().contributes?.icons ?? {}));
+		const used = new Set<string>();
+
+		const scan = (directory: string): void => {
+			for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+				const entryPath = path.join(directory, entry.name);
+				if (entry.isDirectory()) {
+					if (entry.name !== 'test') {
+						scan(entryPath);
+					}
+				} else if (entry.name.endsWith('.ts')) {
+					for (const match of fs.readFileSync(entryPath, 'utf8').matchAll(/\$\((entire-[a-z-]+)\)/g)) {
+						used.add(match[1]);
+					}
+				}
+			}
+		};
+		scan(path.join(ROOT, 'src'));
+
+		assert.ok(used.size > 0, 'the source uses no Entire product icons');
+		for (const id of used) {
+			assert.ok(declared.has(id), `the source uses $(${id}), which contributes.icons does not declare`);
+		}
+	});
+
+	test('uses Entire\'s official symbol, unaltered, for the Activity Bar', () => {
+		const container = readManifest().contributes?.viewsContainers?.activitybar?.find(view => view.id === 'entirely');
+		assert.ok(container, 'the Entirely Activity Bar container is not declared');
+		assert.strictEqual(container.icon, 'images/entirely-view.svg', 'the Activity Bar does not use the symbol');
+
+		const icon = path.join(ROOT, container.icon);
+		assert.ok(fs.existsSync(icon), `the Activity Bar icon '${container.icon}' is not on disk`);
+		const svg = fs.readFileSync(icon, 'utf8');
+		const official = fs.readFileSync(path.join(ROOT, 'assets', 'brand', 'entire-symbol-icon.svg'), 'utf8');
+		// Only the rendered size may differ from the vendored official file.
+		const unsized = (source: string): string => source.replace(/ (width|height)="[^"]*"/g, '');
+		assert.strictEqual(unsized(svg), unsized(official), 'the Activity Bar icon differs from the official symbol');
+		assert.match(svg, /viewBox="0 0 32 32"/, 'the symbol viewBox was changed');
+
+		const patterns = ignorePatterns(path.join(ROOT, '.vscodeignore'));
+		assert.ok(!isIgnored(container.icon, patterns), `the Activity Bar icon '${container.icon}' is excluded by .vscodeignore`);
 	});
 
 	test('declares the marketplace metadata vsce requires', () => {
