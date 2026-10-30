@@ -307,3 +307,26 @@ export type {
 } from './activityOutput';
 export { confirmDispatch, describeDispatchFailure, dispatchArguments, invalidDispatchRequest } from './dispatchActions';
 export type { DispatchMode, DispatchOutcome, DispatchRequest } from './dispatchActions';
+export {
+	MAX_PLUGIN_ARGUMENTS,
+	PLUGIN_INSTALL_WANTS,
+	SUGGESTED_PLUGINS,
+	confirmPluginInstall,
+	confirmPluginRun,
+	describeMissingPlugin,
+	installCommandLine,
+	invalidPluginArguments,
+	isPluginName,
+	isUnknownCommand,
+	parseInstalledPlugins,
+	pickInstallFlags,
+	pluginArguments,
+	pluginInstallArguments,
+	readBuiltinCommands,
+	readPluginFlags,
+	readSubcommands,
+	splitWords,
+} from './plugins';
+export type { InstalledPlugin } from './plugins';
+export { MCP_PROVIDER_ID, MCP_SERVER_LABEL, describeMcpUnavailable, describesMcpServer, mcpClientConfig } from './mcp';
+export type { McpLaunch } from './mcp';

@@ -390,6 +390,26 @@
         "title": "Call the Entire API",
         "category": "Entirely",
         "icon": "$(terminal)"
+      },
+      {
+        "command": "entirely.runPluginCommand",
+        "title": "Run Plugin Command",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.installPlugin",
+        "title": "Install Plugin",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.startMcpServer",
+        "title": "Start MCP Server",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.copyMcpConfig",
+        "title": "Copy MCP Server Configuration",
+        "category": "Entirely"
       }
     ],
     "configuration": {
@@ -537,6 +557,18 @@
           "minimum": 100,
           "maximum": 3000,
           "markdownDescription": "How long, in milliseconds, to wait after you stop typing in the checkpoint search box before asking the Entire CLI to search. Raise this to send fewer searches while you type."
+        },
+        "entirely.pluginTimeout": {
+          "type": "number",
+          "default": 120,
+          "minimum": 10,
+          "maximum": 1800,
+          "markdownDescription": "How long, in seconds, **Entirely: Run Plugin Command** and **Entirely: Install Plugin** wait for the plugin or the download. A plugin runs as the login the extension acts as. It is never started again after a timeout."
+        },
+        "entirely.mcpServerEnabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Offer `entire mcp` to the editor as an MCP server, so the editor's agent can reach Entire. The editor starts and stops the process; Entirely writes no MCP configuration file. Start it with **Entirely: Start MCP Server**."
         }
       }
     },
@@ -760,7 +792,13 @@
           "group": "3_destructive@1"
         }
       ]
-    }
+    },
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "entirely.entireMcpServers",
+        "label": "Entire"
+      }
+    ]
   },
   "capabilities": {
     "untrustedWorkspaces": {

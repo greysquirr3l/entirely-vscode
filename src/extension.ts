@@ -58,6 +58,10 @@ import { ActivityProvider } from './providers/activityProvider';
 import { GENERATED_SCHEME, GeneratedDocuments } from './providers/generatedDocuments';
 import { ActivityService } from './services/activity';
 import { DispatchService } from './services/dispatch';
+import { registerPluginCommands } from './commands/pluginCommands';
+import { EntireMcpProvider, registerMcpProvider } from './services/mcpProvider';
+import { McpServerService } from './services/mcpServer';
+import { PluginService } from './services/plugins';
 import { RecapService } from './services/recap';
 import { registerActivityCommands } from './commands/activityCommands';
 import { EditorGeneratedUi } from './commands/activityUi';
@@ -417,6 +421,25 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		},
 	});
 
+	// Plugins run as the acting login, and the MCP server is offered to the
+	// editor's own agent. The editor owns the server process.
+	const mcpServer = new McpServerService({ runner, workspaceRoot });
+	const mcpProvider = new EntireMcpProvider(mcpServer, () => readExtensionSettings().mcpServerEnabled);
+	context.subscriptions.push(mcpProvider, registerMcpProvider(mcpProvider));
+	registerPluginCommands(context, {
+		plugins: {
+			source: new PluginService({
+				runner,
+				workspaceRoot,
+				timeoutSeconds: () => readExtensionSettings().pluginTimeout,
+			}),
+			acting: async () => (await accounts.refresh(workspaceRoot())).acting,
+			running: { active: false },
+		},
+		documents: generated,
+		mcp: { source: mcpServer, provider: mcpProvider, enabled: () => readExtensionSettings().mcpServerEnabled },
+	});
+
 	registerCommands(context, {
 		search,
 		cliDoctor,
@@ -474,6 +497,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 				sessions.reschedule();
 				checkpoints.reschedule();
 				authenticationProvider.reschedule();
+			}
+
+			if (event.affectsConfiguration('entirely.mcpServerEnabled') || event.affectsConfiguration('entirely.cliPath')) {
+				mcpProvider.refresh();
 			}
 
 			if (event.affectsConfiguration('entirely.cliPath')) {

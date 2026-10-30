@@ -38,6 +38,10 @@ export interface ExtensionSettings {
 	readonly activityTimeout: number;
 	/** How long, in seconds, a dispatch may take to generate. */
 	readonly dispatchTimeout: number;
+	/** How long, in seconds, a plugin command or a plugin install may take. */
+	readonly pluginTimeout: number;
+	/** Whether the Entire MCP server is offered to the editor's agent. */
+	readonly mcpServerEnabled: boolean;
 	/** How long, in seconds, a history import (and its preview) may take. */
 	readonly importTimeout: number;
 	/** How long, in seconds, to watch for a resumed session to become active. */
@@ -176,6 +180,18 @@ export function clampDispatchTimeout(seconds: number): number {
 	return Math.min(MAX_DISPATCH_TIMEOUT_SECONDS, Math.max(MIN_DISPATCH_TIMEOUT_SECONDS, Math.floor(seconds)));
 }
 
+/** The bounds of the time a plugin command may take, in seconds. A plugin can run an investigation. */
+export const MIN_PLUGIN_TIMEOUT_SECONDS = 10;
+export const MAX_PLUGIN_TIMEOUT_SECONDS = 1800;
+
+/** Puts the plugin timeout inside the range the extension will wait for. */
+export function clampPluginTimeout(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return 120;
+	}
+	return Math.min(MAX_PLUGIN_TIMEOUT_SECONDS, Math.max(MIN_PLUGIN_TIMEOUT_SECONDS, Math.floor(seconds)));
+}
+
 /** The bounds of the time an import may take, in seconds. Imports read a month of transcripts. */
 export const MIN_IMPORT_TIMEOUT_SECONDS = 10;
 export const MAX_IMPORT_TIMEOUT_SECONDS = 3600;
@@ -281,6 +297,8 @@ export function readExtensionSettings(): ExtensionSettings {
 		controlPlaneTimeout: clampControlPlaneTimeout(configuration.get<number>('controlPlaneTimeout', 60)),
 		activityTimeout: clampActivityTimeout(configuration.get<number>('activityTimeout', 30)),
 		dispatchTimeout: clampDispatchTimeout(configuration.get<number>('dispatchTimeout', 180)),
+		pluginTimeout: clampPluginTimeout(configuration.get<number>('pluginTimeout', 120)),
+		mcpServerEnabled: configuration.get<boolean>('mcpServerEnabled', true),
 		importTimeout: clampImportTimeout(configuration.get<number>('importTimeout', 300)),
 		resumeWatchTimeout: clampResumeWatch(configuration.get<number>('resumeWatchTimeout', 60)),
 		searchDebounce: clampSearchDebounce(configuration.get<number>('searchDebounce', 400)),
