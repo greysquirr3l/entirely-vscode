@@ -12,7 +12,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
   title is now "Entirely for Entire", the marketplace description starts with
   "Unofficial extension for Entire", and the README says the extension is a community
   project, not affiliated with or endorsed by Entire.
-- **Only Sessions, Session and Checkpoints open by default.** Activity, Search,
+- **Only Sessions, Session, Checkpoints and Trails open by default.** Activity, Search,
   Integrations, Control Plane and Account start collapsed, in that order. Commands that
   show one of them still expand it.
 
