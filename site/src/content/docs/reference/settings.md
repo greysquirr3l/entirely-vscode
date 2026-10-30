@@ -60,6 +60,8 @@ The extension never waits forever on the CLI. Each class of call has its own lim
 | `entirely.trailActionTimeout` | `60` | 5 to 600 | A trail review action: approve, comment, merge, check out, link, unlink. |
 | `entirely.lifecycleActionTimeout` | `60` | 5 to 600 | `session stop`, `attach` or `adopt`, and agent install and removal. |
 | `entirely.resumeWatchTimeout` | `60` | 5 to 600 | How long **Resume Session** watches for the session to become active. The resume keeps running in its terminal. |
+| `entirely.captureControlTimeout` | `60` | 5 to 600 | **Disable Capture**, **Remove Entire**, **Configure Entire Settings** and **Clean Session Data**, and the clean preview. A command is never started again after a timeout. |
+| `entirely.runnerSetupTimeout` | `300` | 10 to 1800 | **Set Up Trail Runners**. A tailoring calls the summary provider Entire is configured with, which can be slow. Never started again after a timeout. |
 | `entirely.importTimeout` | `300` | 10 to 3600 | `entire import` and its preview. A timed-out import can be rerun, since imported turns are skipped. |
 | `entirely.cliDoctorTimeout` | `30` | 5 to 300 | The CLI's own `entire doctor` inside the report. |
 | `entirely.controlPlaneTimeout` | `60` | 5 to 900 | Each Control Plane listing, change or API call. A change that times out is read back before it is reported. |

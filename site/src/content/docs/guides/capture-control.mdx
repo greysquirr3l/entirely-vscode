@@ -1,0 +1,128 @@
+---
+title: Stop, configure and clean capture
+description: Turn Entire off in a repository, remove it, edit its settings, clean up session data and set up trail runners from the editor, with a preview where the CLI offers one and a question before every change.
+sidebar:
+  order: 12
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Five commands change what Entire does in the open repository. They are in the Command Palette and none of them runs on its own.
+
+| Command | Id | What it runs |
+|---|---|---|
+| Entirely: Disable Capture | `entirely.disableCapture` | `entire disable` |
+| Entirely: Remove Entire from This Repository | `entirely.uninstallEntire` | `entire disable` in its removal mode |
+| Entirely: Configure Entire Settings | `entirely.configureEntire` | `entire configure` |
+| Entirely: Clean Session Data | `entirely.cleanSessionData` | `entire clean`, after its dry run |
+| Entirely: Set Up Trail Runners | `entirely.setUpRunners` | `entire runner setup` |
+
+<Aside type="caution" title="Tested only against a fake CLI">
+These flows were tested against a fake `entire` built from the 0.12.2 help text. The four commands were never run against the real CLI: only their help was read. Their real output, exit codes and the exact settings keys `configure` writes are unobserved. Each result is judged by a fresh read of the workspace, not by what the CLI printed, and says "unconfirmed" when the read does not agree.
+</Aside>
+
+## What every command does the same way
+
+- **A modal first.** It names the repository folder, the file or data that changes, the login the command will run as, and says the change is to this checkout on this machine only. Dismissing it runs nothing and writes nothing.
+- **Run once, as that login.** The command runs one time, with the login named in the modal passed to the CLI for that command alone. There is no retry: after a failure or a timeout the extension reads the workspace again and tells you what it sees, and you decide whether to start again.
+- **Flags from the help.** The extension reads the command's own help each time and picks each flag by what the help says it does. A flag the help does not describe is never passed, and the message names what is missing. A CLI that is missing, too old or without the command is named, with a way forward, and nothing runs.
+- **The skip-confirmation flag comes last.** The CLI's own prompt needs a terminal the extension does not have. The flag that skips it is passed only after you confirmed in the editor.
+- **A fresh read decides the result.** Afterwards the status bar, the Account view and the Sessions view are refreshed from a fresh reading. A change the reading does not confirm is reported as unconfirmed, never as done.
+- **The CLI's text stays out of the output channel.** Previews, diffs and prompts open in read-only documents held in memory.
+
+With several workspace folders, you are asked which one first. A folder that is not a git repository is refused with the same wording the status bar uses.
+
+## Turn capture off
+
+**Entirely: Disable Capture** runs `entire disable`. Hooks then exit silently and Entire commands report that it is disabled. Nothing is removed.
+
+<Steps>
+
+1. Run **Entirely: Disable Capture**.
+2. Pick the settings file: **This checkout only** (`.entire/settings.local.json`) or **Shared with the team** (`.entire/settings.json`, usually committed).
+3. Read the modal. It names the folder, the file, the login and any live session ("N sessions are live and will stop being recorded").
+4. Choose **Turn Off**.
+
+</Steps>
+
+A fresh `status --json` decides the result. If it says Entire is off, the message says capture is off and offers **Set Up Again** (the status bar's own set-up flow) and **Open** for the file. If it still says enabled, the result is unconfirmed: another settings layer may override the file you chose, and **Entirely: Doctor: Copy a Diagnostic Report** shows the layers. A repository that already reports Entire as off is left alone.
+
+## Remove Entire completely
+
+**Entirely: Remove Entire from This Repository** is a separate command, not an option on disable. The modal says that the CLI has no preview for this, so Entirely cannot show you the exact files before it runs. It lists what the CLI's help says is removed (read from the help, with a plain statement when the help lists nothing), the hook files Entirely found in the workspace, and the live sessions. It says Entire's own `.entire/` directory, with local settings and logs, is deleted and that Entirely cannot undo it.
+
+You must also type the folder's name before anything runs. A wrong name, or dismissing either step, runs nothing.
+
+Afterwards Entirely reads status, the `.entire` directory and the hook files. If all three show Entire gone, the result is done. If the CLI exits non-zero (it reports that Entire was not fully uninstalled), the failure is shown with what a fresh read says is left. Either way the remembered agent list is cleared and the views refresh.
+
+## Clean session data
+
+**Entirely: Clean Session Data** deletes session state files and legacy shadow branches in this checkout. It is also on a session's context menu in the Sessions view, which cleans that one session.
+
+<Steps>
+
+1. Pick the scope: **This HEAD** (the default), **All session data**, or **One session**.
+2. The CLI's own dry run runs first. It deletes nothing and asks nothing. Its text opens in a read-only editor, as the CLI wrote it.
+3. Read the modal. It names the folder, the scope, the login, what the CLI's help says the scope deletes, one line of the preview and any live session in scope.
+4. Choose **Delete**, or **Delete anyway** when a live session is in scope.
+
+</Steps>
+
+The skip-confirmation flag of `clean` also overrides the CLI's own live-session guard, so Entirely does not rely on that guard. The live sessions read just before the question are named in it, and the button says **Delete anyway** to show that you have read them. Cleaning all session data, or cleaning with a CLI whose help has no preview flag, also needs the folder name typed. A CLI without a preview is told so plainly: "this version of the CLI has no preview".
+
+A preview that fails stops the flow, and a preview that prints nothing means there is nothing to clean. The result is checked against a fresh session list: the sessions that went away are named, and a session you asked to clean that is still listed makes the result unconfirmed. The preview is the CLI's own text and the session lists are Entirely's reading of `session list`, so they are worded differently.
+
+## Edit the repository's settings
+
+**Entirely: Configure Entire Settings** runs `entire configure` with only what you choose.
+
+<Steps>
+
+1. Tick the settings to change. Each row shows the value now and the file it comes from, in the order the CLI layers settings (this checkout, then shared, then your own).
+2. Give a value for each. On or off for the boolean ones; the backend choices come from the help text; a checkpoint remote must have the form `provider:owner/repo` with a provider the help names; the summary provider is picked from `entire agent list`; the summary timeout is a whole number of seconds, where 0 clears it.
+3. Pick the settings file to write: this checkout or the shared one. A target is always passed explicitly.
+4. Read the modal, which lists each change as "telemetry: on -> off in .entire/settings.local.json" with the acting login. Moving the checkpoint backend says it migrates storage for the repository and is not offered as a one-click undo.
+
+</Steps>
+
+Only the roles the help describes are offered. User-level settings in `~/.config/entire/settings.json` are not written, because no `configure` flag documents them.
+
+The settings files are read back afterwards:
+
+| Setting | Result |
+|---|---|
+| Telemetry, absolute git hook path, checkpoint remote, checkpoint backend | Verified when the file you wrote holds the value and no higher-priority file overrides it. Missing, different or overridden values make the result unconfirmed, and the message names the file that wins. |
+| Skip pushing session logs, summary provider, summary model, summary timeout, git hook reinstall | Reported as written. The editor cannot read these back, so it does not claim a verified value. |
+
+A typed remote and a typed model name are hidden in the output channel's record of the command.
+
+## Set up trail runners
+
+**Entirely: Set Up Trail Runners** offers four actions. The CLI documents each as non-interactive, so none needs a terminal.
+
+| Action | Provider called? | What it does |
+|---|---|---|
+| Create default runners | No | Writes the generic runner files under `.entire/runners`. |
+| Show the tailoring prompt | No | Creates the default files if they are missing, then opens the prompt so you can give it to your own agent. |
+| Preview tailoring | **Yes** | Shows the tailoring as a diff and writes nothing. |
+| Tailor runners to this repository | **Yes** | Creates the defaults if missing and rewrites them in place. |
+
+A preview and a tailoring each send signals about the repository (its docs and structure, merged pull requests and issues, checkpoint hotspots and past trail findings) to the summary provider Entire is configured with. That is why each is its own question, and the question says so. They are never run from the default path. For these two you can choose the data sources (from the help), one runner by the name of an existing file under `.entire/runners`, and an agent for this run only (from `entire agent list`; nothing is saved). If no provider is configured the CLI fails, and the message suggests starting again with an agent picked.
+
+The files under `.entire/runners` are listed before and after, and the difference is shown. A preview that changes them is reported as unconfirmed. Review a tailoring with `git diff .entire/runners`. The debug-directory flag, which writes the assembled prompt to a directory, is never passed; use the terminal for that.
+
+## Settings
+
+| Setting | Default | Range | What it does |
+|---|---|---|---|
+| `entirely.captureControlTimeout` | `60` | 5 to 600 | How long disable, remove, configure and clean (and the clean preview) wait for the CLI. |
+| `entirely.runnerSetupTimeout` | `300` | 10 to 1800 | How long runner setup waits. Tailoring calls a summary provider and can be slow. |
+
+## Related
+
+- [Manage agent integrations](/entirely/guides/agent-integrations/)
+- [Sessions and checkpoints](/entirely/guides/sessions-and-checkpoints/)
+- [Diagnose problems](/entirely/guides/doctor-and-diagnostics/)
+- [Commands reference](/entirely/reference/commands/)
+- [Settings reference](/entirely/reference/settings/)
+- [CLI commands used](/entirely/reference/cli-commands-used/)

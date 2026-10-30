@@ -22,7 +22,7 @@ Four views are open by default and five start collapsed. A command that shows a 
 
 | Order | Name | Id | Default | Toolbar commands | Notes |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Sessions | `entirely.sessions` | Open | Show Only This Workspace's Session / Show All Sessions | Every session Entire tracks for the repository, across worktrees. Row menu: transcript, resume, attach, adopt, stop. |
+| 1 | Sessions | `entirely.sessions` | Open | Show Only This Workspace's Session / Show All Sessions | Every session Entire tracks for the repository, across worktrees. Row menu: transcript, resume, attach, adopt, stop, clean this session. |
 | 2 | Session | `entirely.sessionDetail` | Open | none | Detail for the session selected in Sessions. |
 | 3 | Checkpoints | `entirely.checkpoints` | Open | Search Checkpoints, Clear Checkpoint Search | Checkpoint history. A file row opens the native diff editor. |
 | 4 | Trails | `entirely.trails` | Open | none | Trails of the project the repository belongs to. **Has a badge.** |
