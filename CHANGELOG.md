@@ -120,6 +120,16 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Fixed
 
+- **An ignored plugin notification no longer delays the `.mcp.json` offer.** The two
+  one-time offers are shown together instead of one after the other.
+- **Install in the Integrations view runs in the folder you clicked.** In a multi-root
+  workspace the install used the first folder's working directory, so a per-folder
+  `PATH` or `ENTIRE_PLUGIN_DIR` was ignored.
+- **Turn On changes the setting that is keeping the server off.** `entirely.mcpServerEnabled`
+  can now be set per folder. When a folder or workspace value turns it off, that value is
+  changed instead of your user setting, and the question names which setting it will change.
+- **A suggested plugin that is also an Entire command is no longer "available on PATH".**
+  Names such as `mcp` or `completion` show as unknown, with the reason.
 - **The sign-in no longer says the machine has no display when Entirely runs on a remote
   host.** In a Remote-SSH, container, WSL, Codespaces or browser-based window the sign-in
   uses a code because the CLI cannot open your browser, says so, and opens the code page in

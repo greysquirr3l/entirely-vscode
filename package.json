@@ -668,6 +668,7 @@
         },
         "entirely.mcpServerEnabled": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "markdownDescription": "Offer `entire mcp` to the editor as an MCP server, so the editor's agent can reach Entire. The editor starts and stops the process; Entirely does not write the editor's own MCP configuration. Start it with **Entirely: Start MCP Server**. To add the server to a project's `.mcp.json` for other agents, use the Integrations view."
         },

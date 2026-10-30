@@ -265,7 +265,9 @@ workspace folders or those settings change. It never polls.
 
 - **Install** on a missing plugin runs the same install as **Entirely: Install
   Plugin**: a dialog names what is downloaded and the login it runs as.
-- **Turn On** on an MCP server that is off asks before it changes your user setting.
+- **Turn On** on an MCP server that is off asks before it changes a setting, and the
+  question names which one: the folder's or the workspace's own value when that is
+  what keeps the server off, otherwise your user setting.
 - **Add** on the MCP server's project row adds an `entire` entry to the project's
   `.mcp.json` after a dialog that names the file. The file is created if it is
   missing. Every other entry and key is kept as it is, in the same order and

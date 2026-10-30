@@ -378,6 +378,8 @@ export {
 	targetFor,
 } from './mcpProjectConfig';
 export type { MergeResult, ParsedConfig } from './mcpProjectConfig';
+export { describeMcpScope, mcpEnableScope } from './mcpSetting';
+export type { McpSettingScope, McpSettingValues } from './mcpSetting';
 export {
 	decodeTrail,
 	decodeTrailApproval,

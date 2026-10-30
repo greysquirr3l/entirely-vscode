@@ -32,6 +32,9 @@ import {
 	type PluginRow,
 	EDITOR_CONFIG,
 	ROOT_CONFIG,
+	describeMcpScope,
+	mcpEnableScope,
+	type McpSettingScope,
 } from '../lib/entire';
 import { mcpServerEnabledIn, readExtensionSettings } from '../services/configuration';
 import { runPluginCommand } from '../commands/plugins';
@@ -176,6 +179,30 @@ suite('Entire integration status model', () => {
 		assert.deepStrictEqual(missingPlugins(reading), ['graph']);
 		assert.deepStrictEqual(missingPlugins({ kind: 'folders', folders: [make({ kind: 'on-path' })] }), []);
 		assert.deepStrictEqual(missingPlugins({ kind: 'no-cli', cli: { kind: 'absent' } }), []);
+	});
+});
+
+suite('Entire MCP setting scope', () => {
+	test('picks the narrowest scope that keeps the server off, else the user scope', () => {
+		assert.strictEqual(mcpEnableScope({ workspaceFolderValue: false, workspaceValue: false }), 'workspace-folder');
+		assert.strictEqual(mcpEnableScope({ workspaceFolderValue: false }), 'workspace-folder');
+		assert.strictEqual(mcpEnableScope({ workspaceValue: false }), 'workspace');
+		assert.strictEqual(mcpEnableScope({ workspaceValue: true }), 'user');
+		assert.strictEqual(mcpEnableScope({ workspaceFolderValue: true, workspaceValue: true }), 'user');
+		assert.strictEqual(mcpEnableScope({}), 'user');
+	});
+
+	test('names the scope it will change', () => {
+		assert.strictEqual(describeMcpScope('user'), 'your user setting');
+		assert.strictEqual(describeMcpScope('workspace'), 'your workspace setting');
+		assert.strictEqual(describeMcpScope('workspace-folder', 'app'), 'the folder setting of "app"');
+	});
+
+	test('the setting is declared resource-scoped so a folder can hold its own value', () => {
+		const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8')) as {
+			contributes: { configuration: { properties: Record<string, { scope?: string }> } };
+		};
+		assert.strictEqual(manifest.contributes.configuration.properties['entirely.mcpServerEnabled'].scope, 'resource');
 	});
 });
 
@@ -461,6 +488,19 @@ suite('Entire project MCP configuration files', () => {
 });
 
 suite('Entire integration detection', () => {
+	test('availability: a hidden built-in in the suggestions is unknown, not on PATH, while a PATH-only plugin still is', async () => {
+		const cli = fakePluginCli({ stateful: 'folder' });
+		const folder = makeFolder({ graph: 'on the path only' });
+		const folders = await folderReading(detectorFor(cli, [folder], { suggested: ['mcp', 'completion', 'graph', 'brain'] }));
+		for (const name of ['mcp', 'completion']) {
+			const state = row(folders[0], name).state;
+			assert.strictEqual(state.kind, 'unknown', name);
+			assert.match(state.kind === 'unknown' ? state.detail : '', /also an Entire CLI command/);
+		}
+		assert.strictEqual(row(folders[0], 'graph').state.kind, 'on-path');
+		assert.strictEqual(row(folders[0], 'brain').state.kind, 'missing');
+	});
+
 	test('status-per-project: the same plugin is installed in one folder and not installed in another', async () => {
 		const cli = fakePluginCli({ stateful: 'folder' });
 		const withGraph = makeFolder({ graph: 'managed' });
@@ -706,6 +746,49 @@ suite('Entire integration offers', () => {
 		assert.deepStrictEqual(log.pluginOffers, []);
 	});
 
+	test('concurrent-offers: an unanswered plugin question does not hold back the project question', async () => {
+		const { log, workspace } = offerHarness({ project: 'add' });
+		const never = new Promise<undefined>(() => undefined);
+		const stuck = new IntegrationOffers({
+			machine: new MemoryState(),
+			workspace,
+			enabled: () => true,
+			install: () => Promise.resolve(),
+			addToProject: f => Promise.resolve(void log.adds.push(f.path)),
+			refresh: () => Promise.resolve(),
+			ui: {
+				offerPlugins: () => never,
+				pickPlugins: () => Promise.resolve([]),
+				offerProjectConfig: (f, file) => Promise.resolve(void log.projectOffers.push(`${f.path}|${file}`)).then(() => 'add' as const),
+			},
+		});
+		const pending = stuck.offer(readingFor([{ folder }]));
+		await new Promise(resolve => setTimeout(resolve, 50));
+		void pending; // never settles: the plugin question stays open
+		assert.deepStrictEqual(log.projectOffers, [`${folder.path}|.mcp.json`]);
+		assert.deepStrictEqual(log.adds, [folder.path]);
+		assert.strictEqual(workspace.get(projectOfferKey(folder.path)), true);
+	});
+
+	test('concurrent-offers: a failing plugin offer still lets the project question run, then reports the failure', async () => {
+		const { log } = offerHarness();
+		const offers = new IntegrationOffers({
+			machine: new MemoryState(),
+			workspace: new MemoryState(),
+			enabled: () => true,
+			install: () => Promise.resolve(),
+			addToProject: () => Promise.resolve(),
+			refresh: () => Promise.resolve(),
+			ui: {
+				offerPlugins: () => Promise.reject(new Error('plugin ui broke')),
+				pickPlugins: () => Promise.resolve([]),
+				offerProjectConfig: (f, file) => Promise.resolve(void log.projectOffers.push(`${f.path}|${file}`)).then(() => 'not-now' as const),
+			},
+		});
+		await assert.rejects(offers.offer(readingFor([{ folder }])), /plugin ui broke/);
+		assert.deepStrictEqual(log.projectOffers, [`${folder.path}|.mcp.json`]);
+	});
+
 	test('add-mcp-to-project: asks once per project, recorded when shown, and adds on yes', async () => {
 		const { offers, log, workspace } = offerHarness({ project: 'add' });
 		const reading = readingFor([{ folder }]);
@@ -894,7 +977,7 @@ suite('Entire integration row actions', () => {
 		assert.strictEqual(row((await folderReading(detector))[0], 'graph').state.kind, 'missing');
 		const { deps, prompts } = pluginFlows(cli, folder);
 		let latest: readonly FolderIntegrations[] = [];
-		const result = await installFromRow({ plugins: deps, refresh: async () => void (latest = await folderReading(detector)) }, 'graph');
+		const result = await installFromRow({ plugins: () => deps, refresh: async () => void (latest = await folderReading(detector)) }, 'graph', folder.path);
 		assert.strictEqual(result, 'installed');
 		assert.match(prompts[0].message, /Install the graph plugin/);
 		assert.match(prompts[0].detail, /downloads the plugin named "graph"/);
@@ -908,10 +991,19 @@ suite('Entire integration row actions', () => {
 		const detector = detectorFor(cli, [folder]);
 		const { deps } = pluginFlows(cli, folder, false);
 		let latest: readonly FolderIntegrations[] = [];
-		assert.strictEqual(await installFromRow({ plugins: deps, refresh: async () => void (latest = await folderReading(detector)) }, 'graph'), 'cancelled');
+		assert.strictEqual(await installFromRow({ plugins: () => deps, refresh: async () => void (latest = await folderReading(detector)) }, 'graph', folder.path), 'cancelled');
 		assert.deepStrictEqual(cli.calls().filter(line => line.includes('plugin install')), []);
 		assert.strictEqual(row(latest[0], 'graph').state.kind, 'missing');
 	});
+
+	function scopes(scope: McpSettingScope = 'user', state?: { enabled: boolean }) {
+		const written: { folder: string; scope: McpSettingScope }[] = [];
+		return {
+			scopeFor: () => scope,
+			enableAt: (folder: string, at: McpSettingScope) => Promise.resolve(void (written.push({ folder, scope: at }), state && (state.enabled = true))),
+			written,
+		};
+	}
 
 	function mcpFlows(cli: FakePluginCli, state: { enabled: boolean }, accept = true): { deps: McpDependencies; offered: () => number } {
 		let offered = 0;
@@ -946,11 +1038,81 @@ suite('Entire integration row actions', () => {
 		const { deps, offered } = mcpFlows(cli, state);
 		const { ui, log } = integrationUi();
 		let latest: readonly FolderIntegrations[] = [];
-		const result = await enableMcpFromRow({ mcp: deps, enabledFor: () => state.enabled, ui, refresh: async () => void (latest = await folderReading(detector)) }, folder);
+		const result = await enableMcpFromRow({ mcp: deps, enabledFor: () => state.enabled, ...scopes('user', state), ui, refresh: async () => void (latest = await folderReading(detector)) }, folder);
 		assert.strictEqual(result, 'listed');
 		assert.strictEqual(offered(), 1);
 		assert.strictEqual(latest[0].mcp.editor.kind, 'offered');
 		assert.deepStrictEqual(log.warnings, []);
+	});
+
+	test('click-to-install: a row in the second folder installs with that folder as the working directory', async () => {
+		const cli = fakePluginCli({ stateful: 'folder' });
+		const first = makeFolder();
+		const second = makeFolder();
+		const detector = detectorFor(cli, [first, second]);
+		const asked: string[] = [];
+		let latest: readonly FolderIntegrations[] = [];
+		const result = await installFromRow(
+			{
+				plugins: clicked => {
+					asked.push(clicked);
+					return pluginFlows(cli, [first, second].find(item => item.path === clicked) ?? first).deps;
+				},
+				refresh: async () => void (latest = await folderReading(detector)),
+			},
+			'graph',
+			second.path,
+		);
+		assert.strictEqual(result, 'installed');
+		assert.deepStrictEqual(asked, [second.path]);
+		assert.strictEqual(fs.existsSync(path.join(second.path, '.plugins', 'graph')), true);
+		assert.strictEqual(fs.existsSync(path.join(first.path, '.plugins', 'graph')), false);
+		assert.strictEqual(row(latest[0], 'graph').state.kind, 'missing');
+		assert.strictEqual(row(latest[1], 'graph').state.kind, 'installed');
+	});
+
+	test('enable-mcp: a user-scope change names the user setting and writes it', async () => {
+		const cli = fakePluginCli({ stateful: 'folder' });
+		const folder = makeFolder();
+		const state = { enabled: false };
+		const { deps } = mcpFlows(cli, state);
+		const asked: string[] = [];
+		const withLabel: McpDependencies = { ...deps, ui: { ...deps.ui, offerEnable: scope => (asked.push(scope), Promise.resolve(true)) } };
+		const target = scopes('user', state);
+		const { ui } = integrationUi();
+		await enableMcpFromRow({ mcp: withLabel, enabledFor: () => state.enabled, ...target, ui, refresh: () => Promise.resolve() }, folder);
+		assert.deepStrictEqual(asked, ['your user setting']);
+		assert.deepStrictEqual(target.written, [{ folder: folder.path, scope: 'user' }]);
+	});
+
+	test('enable-mcp: a workspace-folder or workspace value that keeps it off is the scope that changes, and the question names it', async () => {
+		for (const [scope, label] of [
+			['workspace-folder', /folder setting of "/],
+			['workspace', /your workspace setting/],
+		] as const) {
+			const cli = fakePluginCli({ stateful: 'folder' });
+			const folder = makeFolder();
+			const state = { enabled: false };
+			const { deps } = mcpFlows(cli, state);
+			const asked: string[] = [];
+			const withLabel: McpDependencies = { ...deps, ui: { ...deps.ui, offerEnable: text => (asked.push(text), Promise.resolve(true)) } };
+			const target = scopes(scope, state);
+			const { ui, log } = integrationUi();
+			await enableMcpFromRow({ mcp: withLabel, enabledFor: () => state.enabled, ...target, ui, refresh: () => Promise.resolve() }, folder);
+			assert.match(asked[0], label);
+			assert.deepStrictEqual(target.written, [{ folder: folder.path, scope }]);
+			assert.deepStrictEqual(log.warnings, []);
+		}
+	});
+
+	test('enable-mcp: nothing is written at any scope when the question is declined', async () => {
+		const cli = fakePluginCli({ stateful: 'folder' });
+		const folder = makeFolder();
+		const { deps } = mcpFlows(cli, { enabled: false }, false);
+		const target = scopes('workspace');
+		const { ui } = integrationUi();
+		await enableMcpFromRow({ mcp: deps, enabledFor: () => false, ...target, ui, refresh: () => Promise.resolve() }, folder);
+		assert.deepStrictEqual(target.written, []);
 	});
 
 	test('enable-mcp: nothing changes when the question is declined', async () => {
@@ -959,20 +1121,20 @@ suite('Entire integration row actions', () => {
 		const state = { enabled: false };
 		const { deps } = mcpFlows(cli, state, false);
 		const { ui, log } = integrationUi();
-		const result = await enableMcpFromRow({ mcp: deps, enabledFor: () => state.enabled, ui, refresh: () => Promise.resolve() }, folder);
+		const result = await enableMcpFromRow({ mcp: deps, enabledFor: () => state.enabled, ...scopes(), ui, refresh: () => Promise.resolve() }, folder);
 		assert.strictEqual(result, 'disabled');
 		assert.strictEqual(state.enabled, false);
 		assert.deepStrictEqual(log.warnings, []);
 	});
 
-	test('enable-mcp: says so when a workspace setting keeps the server off after the user setting is changed', async () => {
+	test('enable-mcp: says so when the server is still off after the setting was changed', async () => {
 		const cli = fakePluginCli({ stateful: 'folder' });
 		const folder = makeFolder();
 		const state = { enabled: false };
 		const { deps } = mcpFlows(cli, state);
 		const { ui, log } = integrationUi();
-		await enableMcpFromRow({ mcp: deps, enabledFor: () => false, ui, refresh: () => Promise.resolve() }, folder);
-		assert.match(log.warnings[0], /still off.*overrides your user setting/);
+		await enableMcpFromRow({ mcp: deps, enabledFor: () => false, ...scopes(), ui, refresh: () => Promise.resolve() }, folder);
+		assert.match(log.warnings[0], /still off in/);
 	});
 });
 

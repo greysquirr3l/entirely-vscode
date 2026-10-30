@@ -112,9 +112,17 @@ export class IntegrationOffers {
 		return asked;
 	}
 
-	/** Runs both offers, plugins first. */
+	/**
+	 * Runs both offers at once. A notification has no timeout, so an ignored
+	 * plugin question must not hold back the project question. A failure of
+	 * one never cancels the other; the first failure is thrown afterwards.
+	 */
 	async offer(reading: IntegrationReading): Promise<void> {
-		await this.offerPlugins(reading);
-		await this.offerProjects(reading);
+		const settled = await Promise.allSettled([this.offerPlugins(reading), this.offerProjects(reading)]);
+		for (const result of settled) {
+			if (result.status === 'rejected') {
+				throw result.reason instanceof Error ? result.reason : new Error(String(result.reason));
+			}
+		}
 	}
 }

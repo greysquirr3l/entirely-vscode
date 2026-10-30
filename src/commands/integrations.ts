@@ -1,4 +1,4 @@
-import { confirmProjectMcp, projectMcpArguments, type ControlConfirmation } from '../lib/entire';
+import { confirmProjectMcp, describeMcpScope, projectMcpArguments, type ControlConfirmation, type McpSettingScope } from '../lib/entire';
 import type { IntegrationFolder } from '../services/integrationDetection';
 import type { McpServerSource } from '../services/mcpServer';
 import type { ProjectMcpSource } from '../services/projectMcpConfig';
@@ -70,21 +70,27 @@ export async function addMcpToProject(deps: AddMcpDependencies, folder: Integrat
 }
 
 export interface InstallFromRowDependencies {
-	readonly plugins: PluginDependencies;
+	/** The plugin flows for one folder, so the install runs with that folder's working directory. */
+	readonly plugins: (folder: string) => PluginDependencies;
 	readonly refresh: () => Promise<void>;
 }
 
-/** Runs the plugin install flow for a row, then detects again. */
-export async function installFromRow(deps: InstallFromRowDependencies, name: string): Promise<PluginResult> {
-	const result = await installPluginCommand(deps.plugins, name);
+/** Runs the plugin install flow for a row in the clicked folder, then detects again. */
+export async function installFromRow(deps: InstallFromRowDependencies, name: string, folder: string): Promise<PluginResult> {
+	const result = await installPluginCommand(deps.plugins(folder), name);
 	await deps.refresh();
 	return result;
 }
 
 export interface EnableMcpDependencies {
 	readonly mcp: McpDependencies;
+	/** The source for the folder, when it differs from the one in `mcp`. */
+	readonly sourceFor?: (folder: string) => McpServerSource;
 	/** The effective `entirely.mcpServerEnabled` for the folder. */
 	readonly enabledFor: (folder: string) => boolean;
+	/** The narrowest scope whose change takes effect for the folder. */
+	readonly scopeFor: (folder: string) => McpSettingScope;
+	readonly enableAt: (folder: string, scope: McpSettingScope) => Promise<void>;
 	readonly ui: IntegrationUi;
 	readonly refresh: () => Promise<void>;
 }
@@ -93,14 +99,22 @@ export interface EnableMcpDependencies {
  * Turns the MCP server on for a folder through the existing flow that
  * asks before it changes the setting, then detects again.
  *
- * The flow changes the user setting. A workspace setting that says
- * otherwise still wins, and the row is left off; the person is told why.
+ * The change goes to the narrowest scope that will take effect: the
+ * folder's own value or the workspace's when one of them keeps the server
+ * off, otherwise the user setting. The question names that scope.
  */
 export async function enableMcpFromRow(deps: EnableMcpDependencies, folder: IntegrationFolder): Promise<string> {
-	const result = await startMcpServer({ ...deps.mcp, enabled: () => deps.enabledFor(folder.path) });
+	const scope = deps.scopeFor(folder.path);
+	const result = await startMcpServer({
+		...deps.mcp,
+		source: deps.sourceFor?.(folder.path) ?? deps.mcp.source,
+		enabled: () => deps.enabledFor(folder.path),
+		enable: () => deps.enableAt(folder.path, scope),
+		scopeLabel: () => describeMcpScope(scope, folder.name),
+	});
 	await deps.refresh();
 	if (result !== 'disabled' && result !== 'unavailable' && !deps.enabledFor(folder.path)) {
-		await deps.ui.warn(`The Entire MCP server is still off in ${folder.name}: a setting in that workspace overrides your user setting. Change "entirely.mcpServerEnabled" there.`);
+		await deps.ui.warn(`The Entire MCP server is still off in ${folder.name}: another setting overrides the change. Check "entirely.mcpServerEnabled" in that folder's settings.`);
 	}
 	return result;
 }

@@ -1,6 +1,13 @@
 import * as vscode from 'vscode';
 
-import { DEFAULT_EDITOR_HOOK_AGENT, DEFAULT_MINIMUM_CLI_VERSION, DEFAULT_SUGGESTED_PLUGINS, readSuggestedPlugins } from '../lib/entire';
+import {
+	DEFAULT_EDITOR_HOOK_AGENT,
+	DEFAULT_MINIMUM_CLI_VERSION,
+	DEFAULT_SUGGESTED_PLUGINS,
+	mcpEnableScope,
+	readSuggestedPlugins,
+	type McpSettingScope,
+} from '../lib/entire';
 import { readLogLevel, shouldLog, type LogLevel } from './logger';
 
 /** The extension's own settings. */
@@ -360,4 +367,20 @@ export function effectiveLogLevel(settings: ExtensionSettings): LogLevel {
 export function mcpServerEnabledIn(folder: string): boolean {
 	const scoped = vscode.workspace.getConfiguration('entirely', vscode.Uri.file(folder));
 	return scoped.get<boolean>('mcpServerEnabled', true);
+}
+
+/** The scope whose change turns the MCP server on for the folder. */
+export function mcpEnableScopeIn(folder: string): McpSettingScope {
+	const scoped = vscode.workspace.getConfiguration('entirely', vscode.Uri.file(folder));
+	return mcpEnableScope(scoped.inspect<boolean>('mcpServerEnabled') ?? {});
+}
+
+/** Turns the MCP server on at the given scope, for the folder's resource. */
+export async function enableMcpServerAt(folder: string, scope: McpSettingScope): Promise<void> {
+	const target = {
+		'workspace-folder': vscode.ConfigurationTarget.WorkspaceFolder,
+		workspace: vscode.ConfigurationTarget.Workspace,
+		user: vscode.ConfigurationTarget.Global,
+	}[scope];
+	await vscode.workspace.getConfiguration('entirely', vscode.Uri.file(folder)).update('mcpServerEnabled', true, target);
 }
