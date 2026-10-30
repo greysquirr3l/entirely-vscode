@@ -383,7 +383,7 @@ export class CaptureControlService {
 							outcome: {
 								kind: 'unconfirmed',
 								detail:
-									'The CLI finished but status still reports Entire as enabled. Another settings layer may override this one; run Show Doctor Report.',
+									'The CLI finished but status still reports Entire as enabled. Another settings layer may override this one; run Doctor: Copy a Diagnostic Report.',
 								lines: [],
 							},
 						};
@@ -409,7 +409,7 @@ export class CaptureControlService {
 					"The preview is the CLI's own text and the session lists are Entirely's reading of `session list`; they are worded differently.",
 				];
 				return verdict.kind === 'done'
-					? { outcome: { kind: 'done', summary: `Session data was cleaned in ${folder}. Verified against a fresh session list.`, lines } }
+					? { outcome: { kind: 'done', summary: `Session data was cleaned in ${folder}. A fresh session list no longer shows ${verdict.gone.join(', ')}.`, lines } }
 					: { outcome: { kind: 'unconfirmed', detail: `The CLI finished but ${verdict.detail}.`, lines } };
 			}
 

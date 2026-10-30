@@ -88,14 +88,16 @@ suite('Capture control: flags come from the help', () => {
 		assert.deepStrictEqual(missingForStep({ kind: 'runner-tailor', options: { agent: 'x' } }, planned('runner setup', RUNNER_SETUP_HELP.replace(/ {6}--agent string.*\n/, ''))), ['flag that names the agent for this run']);
 	});
 
-	test('no source file under lib/entire/capture*.ts names a flag outside a comment', () => {
+	test('no capture source file spells a flag as a quoted literal', () => {
 		const files = [
 			...fs.readdirSync(path.join(ROOT, 'src', 'lib', 'entire')).filter(name => name.startsWith('capture')).map(name => path.join('src', 'lib', 'entire', name)),
 			path.join('src', 'services', 'captureControl.ts'),
 			path.join('src', 'commands', 'captureControl.ts'),
 			path.join('src', 'commands', 'captureCommands.ts'),
+			path.join('src', 'commands', 'captureUi.ts'),
 		];
-		const spelling = /--(?:uninstall|force|local|project|dry-run|all|session|telemetry|yes|defaults-only|print-prompt|agent|sources|debug-dir|limit|checkpoint-remote|checkpoint-backend|absolute-git-hook-path|skip-push-sessions|summarize-[a-z-]+)\b/;
+		// Any quoted string that starts like a flag, long or short. The JSON flag is the one every reader shares.
+		const flagLike = /['"`]--?[a-z][a-z-]*/g;
 		const offenders: string[] = [];
 		for (const file of files) {
 			const code = fs
@@ -104,8 +106,10 @@ suite('Capture control: flags come from the help', () => {
 				.split('\n')
 				.map(line => line.replace(/(^|\s)\/\/.*$/, ''))
 				.join('\n');
-			if (spelling.test(code)) {
-				offenders.push(file);
+			for (const match of code.matchAll(flagLike)) {
+				if (!/^['"`]--json$/.test(match[0])) {
+					offenders.push(`${file}: ${match[0]}`);
+				}
 			}
 		}
 		assert.deepStrictEqual(offenders, []);

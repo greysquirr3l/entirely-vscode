@@ -1,4 +1,6 @@
 import * as assert from 'assert';
+import * as fs from 'fs';
+import * as path from 'path';
 
 import {
 	NO_UNINSTALL_LIST,
@@ -22,7 +24,10 @@ import {
 	type SettingsLayerReading,
 	type WorkspaceStatus,
 } from '../lib/entire';
+import { validateSummaryModel } from '../commands/captureControl';
 import { CLEAN_HELP, DISABLE_HELP } from './support/captureCli';
+
+const ROOT = path.resolve(__dirname, '..', '..');
 
 const FOLDER = '/work/widgets';
 const ACTING = { handle: 'alice', name: 'work' };
@@ -217,13 +222,72 @@ suite('Capture control: outcomes and verdicts', () => {
 		assert.strictEqual(verifyUninstalled(undefined, { entireDirectoryPresent: undefined, hookFilesLeft: [] }).complete, false);
 	});
 
-	test('verifyCleaned: one session must be gone, everything must be gone, the default scope may leave others', () => {
+	test('verifyCleaned: one session must have been listed and be gone, everything must be gone, HEAD needs something to have gone', () => {
 		assert.deepStrictEqual(verifyCleaned(['a', 'b'], ['b'], { kind: 'session', id: 'a' }), { kind: 'done', gone: ['a'], remaining: [] });
 		assert.strictEqual(verifyCleaned(['a', 'b'], ['a', 'b'], { kind: 'session', id: 'a' }).kind, 'unconfirmed');
 		assert.deepStrictEqual(verifyCleaned(['a', 'b'], [], { kind: 'all' }), { kind: 'done', gone: ['a', 'b'], remaining: [] });
 		assert.strictEqual(verifyCleaned(['a', 'b'], ['b'], { kind: 'all' }).kind, 'unconfirmed');
 		assert.deepStrictEqual(verifyCleaned(['a', 'b'], ['b'], { kind: 'head' }), { kind: 'done', gone: ['a'], remaining: ['b'] });
 		assert.strictEqual(verifyCleaned(['a'], undefined, { kind: 'head' }).kind, 'unconfirmed');
+	});
+
+	test('verifyCleaned: HEAD scope with nothing removed is unconfirmed and says what the list cannot show', () => {
+		const verdict = verifyCleaned(['a', 'b'], ['a', 'b'], { kind: 'head' });
+		assert.strictEqual(verdict.kind, 'unconfirmed');
+		assert.match(verdict.kind === 'unconfirmed' ? verdict.detail : '', /no listed session went away\. Entirely can only see sessions in `session list`, not shadow branches or temporary files/);
+		assert.strictEqual(verifyCleaned([], [], { kind: 'head' }).kind, 'unconfirmed');
+		assert.strictEqual(verifyCleaned(undefined, [], { kind: 'all' }).kind, 'unconfirmed');
+	});
+
+	test('verifyCleaned: a session that was not listed before is unconfirmed even when it is absent afterwards', () => {
+		const verdict = verifyCleaned(['b'], ['b'], { kind: 'session', id: 'a' });
+		assert.strictEqual(verdict.kind, 'unconfirmed');
+		assert.match(verdict.kind === 'unconfirmed' ? verdict.detail : '', /session a was not listed before/);
+	});
+
+	test('verifyCleaned: all scope with some removed is done and lists them', () => {
+		assert.deepStrictEqual(verifyCleaned(['a', 'b', 'c'], [], { kind: 'all' }), { kind: 'done', gone: ['a', 'b', 'c'], remaining: [] });
+	});
+
+	test('validateSummaryModel refuses a value that starts with a dash', () => {
+		assert.match(validateSummaryModel('-x') ?? '', /not starting with a dash/);
+		assert.match(validateSummaryModel('  --flag') ?? '', /not starting with a dash/);
+		assert.strictEqual(validateSummaryModel('org/model'), undefined);
+	});
+
+	test('unreadable live sessions need the folder name typed for a clean and a disable; a readable list does not', () => {
+		const clean = { kind: 'clean', scope: { kind: 'head' } } as const;
+		assert.strictEqual(captureConfirmationFor(clean, facts({ liveSessions: undefined, hasPreview: true })).requireTyped, 'widgets');
+		assert.match(captureConfirmationFor(clean, facts({ liveSessions: undefined, hasPreview: true })).detail, /Type the folder name widgets/);
+		assert.strictEqual(captureConfirmationFor(clean, facts({ liveSessions: [], hasPreview: true })).requireTyped, undefined);
+		assert.strictEqual(captureConfirmationFor(clean, facts({ liveSessions: ['s'], hasPreview: true })).requireTyped, undefined);
+		const disable = { kind: 'disable', target: 'local' } as const;
+		assert.strictEqual(captureConfirmationFor(disable, facts({ liveSessions: undefined })).requireTyped, 'widgets');
+		assert.strictEqual(captureConfirmationFor(disable, facts({ liveSessions: [] })).requireTyped, undefined);
+	});
+
+	test('every command title named in the capture messages exists in package.json', () => {
+		const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as { contributes: { commands: { title: string; category?: string }[] } };
+		const titles = new Set(manifest.contributes.commands.flatMap(entry => [entry.title, `${entry.category ?? 'Entirely'}: ${entry.title}`]));
+		const files = [
+			'src/lib/entire/captureActions.ts',
+			'src/lib/entire/captureFlags.ts',
+			'src/lib/entire/captureVerify.ts',
+			'src/services/captureControl.ts',
+			'src/commands/captureControl.ts',
+			'src/commands/captureCommands.ts',
+		];
+		const named: string[] = [];
+		for (const file of files) {
+			const code = fs.readFileSync(path.join(ROOT, file), 'utf8');
+			for (const match of code.matchAll(/\b(?:Entirely: |Doctor: )[A-Z][A-Za-z' ]+?(?=[.'"`,;)]|$)/gm)) {
+				named.push(match[0].trim());
+			}
+		}
+		assert.ok(named.length > 0, 'the scan found no command names');
+		for (const name of named) {
+			assert.ok(titles.has(name), `${name} is not a command title in package.json`);
+		}
 	});
 
 	const LOCAL = '.entire/settings.local.json';

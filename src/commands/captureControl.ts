@@ -501,7 +501,9 @@ export function validateSummaryTimeout(value: string): string | undefined {
 /** The reason a typed model hint is not acceptable, or undefined. */
 export function validateSummaryModel(value: string): string | undefined {
 	const trimmed = value.trim();
-	return trimmed.length > 0 && trimmed.length <= 200 && !/[\u0000-\u001f]/.test(trimmed) ? undefined : 'Enter a model hint on one line, up to 200 characters.';
+	return trimmed.length > 0 && trimmed.length <= 200 && !trimmed.startsWith('-') && !/[\u0000-\u001f]/.test(trimmed)
+		? undefined
+		: 'Enter a model hint on one line, up to 200 characters, not starting with a dash.';
 }
 
 async function askValue(

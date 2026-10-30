@@ -114,7 +114,7 @@ suite('Capture control: disable', () => {
 		const { deps, ui } = captureHarness(cli, {});
 		const outcome = await disableCapture(deps);
 		assert.strictEqual(outcome.kind, 'unconfirmed');
-		assert.match(describeText(outcome), /status still reports Entire as enabled\. Another settings layer may override this one; run Show Doctor Report/);
+		assert.match(describeText(outcome), /status still reports Entire as enabled\. Another settings layer may override this one; run Doctor: Copy a Diagnostic Report/);
 		assert.deepStrictEqual(ui.notices.at(-1)?.actions, []);
 		assert.strictEqual(ui.notices.at(-1)?.level, 'warn');
 	});
@@ -425,6 +425,45 @@ suite('Capture control: clean', () => {
 		const outcome = await cleanSessionData(deps);
 		assert.strictEqual(outcome.kind, 'failed');
 		assert.strictEqual(cli.mutating().length, 1);
+	});
+
+	test('a clean that exits 0 and removes nothing is unconfirmed, and the summary never says verified', async () => {
+		const cli = fakeCaptureCli({ sessions: SESSIONS, cleanNoEffect: true });
+		const { deps } = captureHarness(cli, { choices: ['head'] });
+		const outcome = await cleanSessionData(deps);
+		assert.strictEqual(outcome.kind, 'unconfirmed');
+		assert.match(describeText(outcome), /no listed session went away\. Entirely can only see sessions in `session list`, not shadow branches or temporary files/);
+		assert.doesNotMatch(describeText(outcome), /Verified/);
+	});
+
+	test('a clean of a session that was not listed is unconfirmed', async () => {
+		const cli = fakeCaptureCli({ sessions: SESSIONS });
+		const { deps } = captureHarness(cli);
+		const outcome = await cleanSessionData(deps, 'never-listed');
+		assert.strictEqual(outcome.kind, 'unconfirmed');
+		assert.match(describeText(outcome), /was not listed before/);
+	});
+
+	test('a done clean lists the sessions that went away', async () => {
+		const cli = fakeCaptureCli({ sessions: SESSIONS });
+		const { deps } = captureHarness(cli, { choices: ['all'] });
+		const outcome = await cleanSessionData(deps);
+		assert.strictEqual(outcome.kind, 'done');
+		assert.match(describeText(outcome), /no longer shows head-1, other-1/);
+	});
+
+	test('when live sessions cannot be read, the clean and the disable modals ask for the folder name', async () => {
+		const cli = fakeCaptureCli({ sessions: SESSIONS, fail: { status: 'x' } });
+		const clean = captureHarness(cli, { choices: ['head'] });
+		await cleanSessionData(clean.deps);
+		assert.match(clean.ui.confirmations[0].detail, /could not read which sessions are live/);
+		assert.strictEqual(clean.ui.confirmations[0].requireTyped, 'repo');
+		assert.deepStrictEqual(clean.ui.typedPrompts, ['repo']);
+		const off = captureHarness(cli, {});
+		await disableCapture(off.deps);
+		assert.strictEqual(off.ui.confirmations[0].requireTyped, 'repo');
+		const wrong = captureHarness(cli, { typed: ['nope'] });
+		assert.deepStrictEqual(await disableCapture(wrong.deps), { kind: 'cancelled' });
 	});
 
 	test('liveSessionNames reads the status and the list, limited to one session for that scope', () => {

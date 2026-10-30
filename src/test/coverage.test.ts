@@ -173,7 +173,14 @@ suite('Coverage matrix CLI surface', () => {
 			assert.ok(source.length > 0, `${row.command}: name a caller`);
 			// A caller may build the command as separate words, or as one quoted phrase handed to a helper.
 			const phrase = `'${words.join(' ')}'`;
-			// A flag in a row's name (`disable --uninstall`) is read from the CLI's help at runtime, so no caller spells it.
+			// A flag in a row's name (`disable --uninstall`) is read from the CLI's help at runtime, so no caller may spell it.
+			// Other commands name the same flag in their own files (`--dry-run` in import), so only this row's callers are checked.
+			for (const word of words.filter(candidate => candidate.startsWith('-'))) {
+				assert.ok(
+					source.every(code => !["'", '"', '`'].some(quote => code.includes(`${quote}${word}`))),
+					`${row.command}: a caller spells the flag ${word}; pick it from the help instead`,
+				);
+			}
 			for (const word of words.filter(candidate => !candidate.startsWith('-'))) {
 				assert.ok(
 					source.some(code => code.includes(`'${word}'`) || code.includes(phrase)),

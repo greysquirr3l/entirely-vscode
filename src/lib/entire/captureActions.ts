@@ -274,6 +274,8 @@ export function confirmationFor(action: CaptureAction, facts: ConfirmationFacts)
 	const local = 'This changes this checkout on this machine only.';
 	const runs = (verb: string): string => `Entirely will run \`entire ${verb}\` as ${login(facts)} in ${facts.folder}.`;
 	const file = facts.settingsFile ?? 'the settings file you chose';
+	// Live sessions that could not be read are not the same as none, so that case asks for the name too.
+	const unreadable = facts.liveSessions === undefined;
 
 	switch (action.kind) {
 		case 'disable':
@@ -284,8 +286,10 @@ export function confirmationFor(action: CaptureAction, facts: ConfirmationFacts)
 					`${runs('disable')} It writes ${file}.`,
 					liveSentence(facts, 'They will stop being recorded.'),
 					local,
+					unreadable ? `Type the folder name ${name} to continue.` : undefined,
 				]),
 				action: 'Turn Off',
+				requireTyped: unreadable ? name : undefined,
 			};
 
 		case 'uninstall': {
@@ -334,10 +338,10 @@ export function confirmationFor(action: CaptureAction, facts: ConfirmationFacts)
 					liveSentence(facts, 'Cleaning removes their state and they stop being recorded.'),
 					"Once you confirm here, Entirely passes the CLI's skip-confirmation flag, which also overrides its own live-session guard. This message is the guard.",
 					`${runs('clean')} ${local}`,
-					scope.kind === 'all' || !facts.hasPreview ? `Type the folder name ${name} to continue.` : undefined,
+					scope.kind === 'all' || !facts.hasPreview || unreadable ? `Type the folder name ${name} to continue.` : undefined,
 				]),
 				action: live.length > 0 ? 'Delete anyway' : 'Delete',
-				requireTyped: scope.kind === 'all' || !facts.hasPreview ? name : undefined,
+				requireTyped: scope.kind === 'all' || !facts.hasPreview || unreadable ? name : undefined,
 			};
 		}
 

@@ -58,9 +58,10 @@ export type CleanVerdict =
 /**
  * Compares the session ids listed before a clean with those listed after.
  *
- * One session or everything must be gone for the result to be done; the
- * default scope covers only what belongs to HEAD, so sessions that remain
- * there are not a failure.
+ * Done needs at least one listed session to have gone away. A clean that
+ * removed only shadow branches or temporary files is unconfirmed, because
+ * the session list cannot show them. For one session it must have been listed
+ * before and be gone; for everything, none may remain.
  */
 export function verifyCleaned(before: readonly string[] | undefined, after: readonly string[] | undefined, scope: CleanScope): CleanVerdict {
 	if (after === undefined) {
@@ -68,13 +69,20 @@ export function verifyCleaned(before: readonly string[] | undefined, after: read
 	}
 	const listedBefore = before ?? [];
 	const gone = listedBefore.filter(id => !after.includes(id));
+	const nothing = "no listed session went away. Entirely can only see sessions in `session list`, not shadow branches or temporary files";
 	if (scope.kind === 'session') {
-		return after.includes(scope.id)
-			? { kind: 'unconfirmed', detail: `session ${scope.id} is still listed`, gone, remaining: [scope.id] }
-			: { kind: 'done', gone, remaining: [] };
+		if (after.includes(scope.id)) {
+			return { kind: 'unconfirmed', detail: `session ${scope.id} is still listed`, gone, remaining: [scope.id] };
+		}
+		return listedBefore.includes(scope.id)
+			? { kind: 'done', gone, remaining: [] }
+			: { kind: 'unconfirmed', detail: `session ${scope.id} was not listed before, so ${nothing}`, gone, remaining: [] };
 	}
 	if (scope.kind === 'all' && after.length > 0) {
 		return { kind: 'unconfirmed', detail: `${after.length} ${after.length === 1 ? 'session is' : 'sessions are'} still listed after cleaning everything`, gone, remaining: after };
+	}
+	if (gone.length === 0) {
+		return { kind: 'unconfirmed', detail: nothing, gone, remaining: after };
 	}
 	return { kind: 'done', gone, remaining: after };
 }
