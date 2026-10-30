@@ -17,8 +17,6 @@ const DOCUMENTED_PAGES = [
 	'tokens', 'trail', 'version', 'why',
 ];
 
-const TRAIL_BRANCH = 'feat/trail-actions';
-
 const text = fs.readFileSync(path.join(ROOT, 'docs', 'coverage.md'), 'utf8');
 const coverage = parseCoverage(text);
 const commandRows = coverage.matrix.filter(row => row.command.startsWith('entire '));
@@ -46,11 +44,6 @@ function manifestIds(): Set<string> {
 		...(manifest.contributes?.commands ?? []).map(entry => entry.command),
 		...Object.keys(manifest.contributes?.configuration?.properties ?? {}),
 	]);
-}
-
-function git(...args: string[]): { status: number | null; stdout: string } {
-	const result = spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' });
-	return { status: result.status, stdout: result.stdout ?? '' };
 }
 
 function findEntire(): string | undefined {
@@ -125,23 +118,6 @@ suite('Coverage matrix (docs/coverage.md)', () => {
 		}
 	});
 
-	test('a trail-branch row names the branch, and the files it cites exist there', function (this: Mocha.Context) {
-		const rows = coverage.matrix.filter(row => row.status === 'Supported (trail branch)');
-		assert.ok(rows.length > 0);
-		for (const row of rows) {
-			assert.ok(row.evidence.startsWith(`\`${TRAIL_BRANCH}\``), `${row.command}: evidence must name ${TRAIL_BRANCH}`);
-		}
-		if (git('rev-parse', '--verify', '--quiet', `refs/heads/${TRAIL_BRANCH}`).status !== 0) {
-			// A clone without the branch cannot check the files, only the label.
-			return;
-		}
-		for (const row of rows) {
-			for (const match of row.evidence.matchAll(/`(src\/[^`]+)`/g)) {
-				assert.strictEqual(git('cat-file', '-e', `${TRAIL_BRANCH}:${match[1]}`).status, 0, `${row.command}: ${match[1]} is not on ${TRAIL_BRANCH}`);
-			}
-		}
-	});
-
 	test('every page of the documentation has a row', () => {
 		for (const page of DOCUMENTED_PAGES) {
 			const covered = matrixPaths.some(
@@ -195,9 +171,11 @@ suite('Coverage matrix CLI surface', () => {
 				return read(path.join(ROOT, caller));
 			});
 			assert.ok(source.length > 0, `${row.command}: name a caller`);
+			// A caller may build the command as separate words, or as one quoted phrase handed to a helper.
+			const phrase = `'${words.join(' ')}'`;
 			for (const word of words) {
 				assert.ok(
-					source.some(code => code.includes(`'${word}'`)),
+					source.some(code => code.includes(`'${word}'`) || code.includes(phrase)),
 					`${row.command}: no caller builds '${word}'`,
 				);
 			}
@@ -227,7 +205,7 @@ suite('Coverage matrix CLI surface', () => {
 
 suite('Coverage matrix parser', () => {
 	const sample = [
-		'**Totals.** Rows: 3 (supported 1, supported on the trail branch 0, excluded 1, gap 1)',
+		'**Totals.** Rows: 3 (supported 1, excluded 1, gap 1)',
 		'',
 		'## 1. The extension\'s CLI surface',
 		'| CLI invocation | Called from | What |',
@@ -246,7 +224,7 @@ suite('Coverage matrix parser', () => {
 
 	test('reads totals, surface rows and matrix rows', () => {
 		const parsed = parseCoverage(sample);
-		assert.deepStrictEqual(parsed.totals, { rows: 3, supported: 1, branch: 0, excluded: 1, gap: 1 });
+		assert.deepStrictEqual(parsed.totals, { rows: 3, supported: 1, excluded: 1, gap: 1 });
 		assert.deepStrictEqual(parsed.surface, [{ command: 'entire status', callers: ['src/a.ts', 'src/b.ts'] }]);
 		assert.deepStrictEqual(
 			parsed.matrix.map(row => [row.command, row.status]),
@@ -255,7 +233,7 @@ suite('Coverage matrix parser', () => {
 	});
 
 	test('counts rows by status', () => {
-		assert.deepStrictEqual(countStatuses(parseCoverage(sample).matrix), { supported: 1, branch: 0, excluded: 1, gap: 1 });
+		assert.deepStrictEqual(countStatuses(parseCoverage(sample).matrix), { supported: 1, excluded: 1, gap: 1 });
 	});
 
 	test('a document with no totals line has no totals', () => {
