@@ -312,7 +312,7 @@ starts and stops the process. **Entirely: Start MCP Server** starts it, and
 That provider writes no configuration file. Only **Add** in the Integrations
 view writes `.mcp.json`.
 
-Two questions are asked once: the first time missing plugins are found, one
+Two questions are asked once, and both can be on screen together: the first time missing plugins are found, one
 notification lists them and offers to install the ones you pick (once per
 machine, recorded when it is shown); and the first time a project's MCP
 configuration lacks the server, one notification offers to add it (once per

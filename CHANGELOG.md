@@ -122,6 +122,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Fixed
 
+- **Trail command output is no longer kept in the invocation record.** A trail's reviews,
+  comments and findings are the team's own words. The output channel (even at the debug
+  level) and the dump command now record only how many bytes a trail command returned.
 - **An ignored plugin notification no longer delays the `.mcp.json` offer.** The two
   one-time offers are shown together instead of one after the other.
 - **Install in the Integrations view runs in the folder you clicked.** In a multi-root
