@@ -39,6 +39,12 @@ export type PluginInstallOutcome =
 	| { readonly kind: 'cancelled' }
 	| { readonly kind: 'failed'; readonly detail: string };
 
+/** What the CLI says about a plugin that `plugin list` does not hold. */
+export type PluginAvailability =
+	| { readonly kind: 'on-path' }
+	| { readonly kind: 'missing' }
+	| { readonly kind: 'unknown'; readonly detail: string };
+
 /** Where plugins are listed, described, run and installed. */
 export interface PluginSource {
 	installed(): Promise<Read<readonly InstalledPlugin[]>>;
@@ -116,6 +122,47 @@ export class PluginService implements PluginSource {
 			return `${itself}, or cannot be checked: ${installed.detail}`;
 		}
 		return installed.value.some(plugin => plugin.name.toLowerCase() === name.toLowerCase()) ? undefined : itself;
+	}
+
+	/**
+	 * Asks the CLI whether it can reach each named plugin, for plugins that
+	 * `plugin list` does not hold (an `entire-<name>` binary on the PATH).
+	 *
+	 * A name is "on PATH" when the CLI answers its help, and "missing" only
+	 * when the CLI says no such plugin is installed. Any other failure is
+	 * unknown, with the reason. Nothing runs the plugin itself.
+	 */
+	async availability(names: readonly string[]): Promise<ReadonlyMap<string, PluginAvailability>> {
+		const found = new Map<string, PluginAvailability>();
+		if (names.length === 0) {
+			return found;
+		}
+		const builtins = await this.builtins();
+		await Promise.all(
+			names.map(async name => {
+				if (!isPluginName(name)) {
+					found.set(name, { kind: 'unknown', detail: 'that is not a plugin name' });
+				} else if (!builtins.ok) {
+					found.set(name, { kind: 'unknown', detail: builtins.detail });
+				} else if (builtins.value.has(name.toLowerCase())) {
+					found.set(name, { kind: 'unknown', detail: `"${name}" is a command of the Entire CLI itself, not a plugin` });
+				} else {
+					found.set(name, await this.reach(name));
+				}
+			}),
+		);
+		return found;
+	}
+
+	private async reach(name: string): Promise<PluginAvailability> {
+		const guide = await this.options.runner.usage(name, { cwd: this.cwd });
+		if (guide.ok) {
+			return { kind: 'on-path' };
+		}
+		if (isMissingPlugin(`${guide.stderr}\n${guide.stdout}`, name)) {
+			return { kind: 'missing' };
+		}
+		return { kind: 'unknown', detail: describeHelpFailure(name, `read the ${name} plugin's help`, guide.reason, failureDetail(guide.stderr, guide.stdout, guide.detail)) };
 	}
 
 	async usage(name: string): Promise<Read<PluginUsage> | { readonly ok: false; readonly missing: true; readonly detail: string }> {

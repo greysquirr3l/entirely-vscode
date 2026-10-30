@@ -243,7 +243,7 @@ suite('Entire extension settings', () => {
 			const declared = schema.default;
 			const actual = inspected.defaultValue;
 			const same =
-				declared === '' ? actual === undefined || actual === '' : actual === declared;
+				declared === '' ? actual === undefined || actual === '' : JSON.stringify(actual) === JSON.stringify(declared);
 
 			assert.ok(
 				same,
@@ -293,6 +293,8 @@ suite('Entire effective log level', () => {
 				dispatchTimeout: 180,
 				pluginTimeout: 120,
 				mcpServerEnabled: true,
+				suggestedPlugins: ['graph', 'investigate', 'brain'],
+				offerIntegrationInstall: true,
 				editorHookAgent: 'copilot-cli',
 				agentLookupCacheSeconds: 30,
 				importTimeout: 300,
@@ -322,6 +324,8 @@ suite('Entire effective log level', () => {
 				dispatchTimeout: 180,
 				pluginTimeout: 120,
 				mcpServerEnabled: true,
+				suggestedPlugins: ['graph', 'investigate', 'brain'],
+				offerIntegrationInstall: true,
 				editorHookAgent: 'copilot-cli',
 				agentLookupCacheSeconds: 30,
 				importTimeout: 300,
@@ -351,6 +355,8 @@ suite('Entire effective log level', () => {
 				dispatchTimeout: 180,
 				pluginTimeout: 120,
 				mcpServerEnabled: true,
+				suggestedPlugins: ['graph', 'investigate', 'brain'],
+				offerIntegrationInstall: true,
 				editorHookAgent: 'copilot-cli',
 				agentLookupCacheSeconds: 30,
 				importTimeout: 300,

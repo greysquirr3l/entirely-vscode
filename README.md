@@ -30,6 +30,7 @@ Entirely (this extension)
 | **Why this line** | Which agent edit introduced the line under the cursor, and why |
 | **File blame** | `entire blame` for the active file: every line marked as attributed, recorded but not synced, or not attributed to any recorded change |
 | **Account view** | Who the CLI is signed in as, and which jurisdiction the account belongs to — with sign-in and sign-out |
+| **Integrations view** | Whether each suggested Entire plugin and the Entire MCP server is available in each workspace folder, with click-to-install and click-to-add |
 | **Agent integrations** | Lists the agents the CLI supports, and installs or removes one after you confirm what it will touch; more than one can be installed |
 | **Hook bridge** | Reports the editor's own agent activity to the compatible `copilot-cli` integration; other integrations record their own activity |
 | **Terminal PATH repair** | Puts the Entire CLI on the integrated terminal's PATH, through the editor's own settings — no shell profile, no shell command |
@@ -241,6 +242,42 @@ Flags and the values they take (roles, visibility, backends) are read from
 that lacks a command, or does not describe a flag the extension needs, is
 reported and nothing is run. `entirely.controlPlaneTimeout` (default 60 seconds)
 bounds each call.
+
+## Plugins, the MCP server and the Integrations view
+
+The **Integrations** view shows one row for every plugin in `entirely.suggestedPlugins`
+(default `graph`, `investigate` and `brain`), every other plugin `entire plugin list`
+holds, and the Entire MCP server. A plugin is *installed* when the CLI lists it,
+*available on PATH* when the CLI answers for it without listing it, and *not
+installed* only when the CLI says so; any other failure is shown as unknown, with
+the reason. With more than one workspace folder the rows are grouped by folder.
+
+Status is read per folder, with the CLI run from that folder, so a per-folder
+`PATH` or `ENTIRE_PLUGIN_DIR` (direnv, for example) and a workspace setting for
+`entirely.mcpServerEnabled` show up in that folder's rows. The view is read when
+it opens, on its refresh button, after an install or change, and when the
+workspace folders or those settings change. It never polls.
+
+- **Install** on a missing plugin runs the same install as **Entirely: Install
+  Plugin**: a dialog names what is downloaded and the login it runs as.
+- **Turn On** on an MCP server that is off asks before it changes your user setting.
+- **Add** on the MCP server's project row adds an `entire` entry to the project's
+  `.mcp.json` after a dialog that names the file. The file is created if it is
+  missing. Every other entry and key is kept as it is, in the same order and
+  indentation. The entry is `command: "entire"` with the CLI's own `mcp`
+  arguments: no path to your CLI and no login name, because the file is usually
+  committed. `.vscode/mcp.json` is used only when it already exists and
+  `.mcp.json` does not. A file with comments or other non-JSON content is never
+  rewritten; you are shown what to add instead. A project that already lists
+  the Entire server, under any name, is shown as configured and left alone.
+
+Two questions are asked once: the first time missing plugins are found, one
+notification lists them and offers to install the ones you pick (once per
+machine, recorded when it is shown); and the first time a project's MCP
+configuration lacks the server, one notification offers to add it (once per
+project). Set `entirely.offerIntegrationInstall` to `false` to never be asked.
+Neither question appears when the CLI is missing or too old; the view then says
+so and links to the install instructions.
 
 ## The terminal PATH
 

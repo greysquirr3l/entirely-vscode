@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import { DEFAULT_EDITOR_HOOK_AGENT, DEFAULT_MINIMUM_CLI_VERSION } from '../lib/entire';
+import { DEFAULT_EDITOR_HOOK_AGENT, DEFAULT_MINIMUM_CLI_VERSION, DEFAULT_SUGGESTED_PLUGINS, readSuggestedPlugins } from '../lib/entire';
 import { readLogLevel, shouldLog, type LogLevel } from './logger';
 
 /** The extension's own settings. */
@@ -42,6 +42,10 @@ export interface ExtensionSettings {
 	readonly pluginTimeout: number;
 	/** Whether the Entire MCP server is offered to the editor's agent. */
 	readonly mcpServerEnabled: boolean;
+	/** The plugins the Integrations view and the install offer suggest. */
+	readonly suggestedPlugins: readonly string[];
+	/** Whether the one-time offers to install plugins and add the MCP server to a project are made. */
+	readonly offerIntegrationInstall: boolean;
 	/** How long, in seconds, a history import (and its preview) may take. */
 	readonly importTimeout: number;
 	/** How long, in seconds, to watch for a resumed session to become active. */
@@ -299,6 +303,8 @@ export function readExtensionSettings(): ExtensionSettings {
 		dispatchTimeout: clampDispatchTimeout(configuration.get<number>('dispatchTimeout', 180)),
 		pluginTimeout: clampPluginTimeout(configuration.get<number>('pluginTimeout', 120)),
 		mcpServerEnabled: configuration.get<boolean>('mcpServerEnabled', true),
+		suggestedPlugins: readSuggestedPlugins(configuration.get<unknown>('suggestedPlugins', DEFAULT_SUGGESTED_PLUGINS)),
+		offerIntegrationInstall: configuration.get<boolean>('offerIntegrationInstall', true),
 		importTimeout: clampImportTimeout(configuration.get<number>('importTimeout', 300)),
 		resumeWatchTimeout: clampResumeWatch(configuration.get<number>('resumeWatchTimeout', 60)),
 		searchDebounce: clampSearchDebounce(configuration.get<number>('searchDebounce', 400)),
@@ -325,4 +331,15 @@ export function effectiveLogLevel(settings: ExtensionSettings): LogLevel {
 	}
 
 	return settings.logLevel;
+}
+
+/**
+ * Whether the Entire MCP server is on for one workspace folder.
+ *
+ * A workspace or folder setting can switch it off for a project the user
+ * switched on globally, so the answer depends on the folder.
+ */
+export function mcpServerEnabledIn(folder: string): boolean {
+	const scoped = vscode.workspace.getConfiguration('entirely', vscode.Uri.file(folder));
+	return scoped.get<boolean>('mcpServerEnabled', true);
 }

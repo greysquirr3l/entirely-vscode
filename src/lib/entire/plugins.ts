@@ -3,12 +3,6 @@ import { describeActingLogin, type ControlConfirmation } from './controlPlaneAct
 import { pickFlags, type FlagWant } from './controlPlaneFlags';
 import type { AccountContext } from './accountContext';
 
-/**
- * Plugins the CLI documents as plugin commands. They are offered as
- * suggestions only: what a plugin accepts is read from its own help.
- */
-export const SUGGESTED_PLUGINS: readonly string[] = ['graph', 'investigate', 'brain'];
-
 /** Whether a value can name a plugin: the part after `entire-` in the executable's name. */
 export function isPluginName(value: string): boolean {
 	return /^[a-z0-9][a-z0-9_-]{0,40}$/i.test(value);

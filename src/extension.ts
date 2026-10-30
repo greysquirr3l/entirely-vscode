@@ -59,6 +59,7 @@ import { GENERATED_SCHEME, GeneratedDocuments } from './providers/generatedDocum
 import { ActivityService } from './services/activity';
 import { DispatchService } from './services/dispatch';
 import { registerPluginCommands } from './commands/pluginCommands';
+import { registerIntegrations } from './commands/integrationCommands';
 import { EntireMcpProvider, registerMcpProvider } from './services/mcpProvider';
 import { McpServerService } from './services/mcpServer';
 import { PluginService } from './services/plugins';
@@ -426,7 +427,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	const mcpServer = new McpServerService({ runner, workspaceRoot });
 	const mcpProvider = new EntireMcpProvider(mcpServer, () => readExtensionSettings().mcpServerEnabled);
 	context.subscriptions.push(mcpProvider, registerMcpProvider(mcpProvider));
-	registerPluginCommands(context, {
+	const pluginFlows = registerPluginCommands(context, {
 		plugins: {
 			source: new PluginService({
 				runner,
@@ -434,10 +435,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 				timeoutSeconds: () => readExtensionSettings().pluginTimeout,
 			}),
 			acting: async () => (await accounts.refresh(workspaceRoot())).acting,
+			suggested: () => readExtensionSettings().suggestedPlugins,
 			running: { active: false },
 		},
 		documents: generated,
 		mcp: { source: mcpServer, provider: mcpProvider, enabled: () => readExtensionSettings().mcpServerEnabled },
+	});
+
+	// Which plugins and the MCP server each workspace folder can use, with
+	// click-to-install. Detected on open and on request, never on a timer.
+	const integrations = registerIntegrations(context, {
+		runner,
+		plugins: pluginFlows.plugins,
+		mcp: pluginFlows.mcp,
+		log: { warn: line => log.warn(line) },
 	});
 
 	registerCommands(context, {
@@ -505,6 +516,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 			if (event.affectsConfiguration('entirely.cliPath')) {
 				runner.setConfiguredPath(readExtensionSettings().cliPath);
+				void integrations.refreshIfStarted();
 				checkpointSearch.reset();
 				controlPlaneProvider.refresh();
 				void activity.reloadIfRead();
@@ -533,6 +545,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	void sessions.refresh();
 	void checkpoints.refresh();
 	void authenticationProvider.refresh();
+	void integrations.refresh();
 }
 
 export function deactivate(): void {}

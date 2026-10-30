@@ -310,7 +310,6 @@ export type { DispatchMode, DispatchOutcome, DispatchRequest } from './dispatchA
 export {
 	MAX_PLUGIN_ARGUMENTS,
 	PLUGIN_INSTALL_WANTS,
-	SUGGESTED_PLUGINS,
 	confirmPluginInstall,
 	confirmPluginRun,
 	describeMissingPlugin,
@@ -331,3 +330,47 @@ export {
 export type { InstalledPlugin } from './plugins';
 export { MCP_PROVIDER_ID, MCP_SERVER_LABEL, describeMcpUnavailable, describesMcpServer, mcpClientConfig } from './mcp';
 export type { McpLaunch } from './mcp';
+export {
+	DEFAULT_SUGGESTED_PLUGINS,
+	MAX_SUGGESTED_PLUGINS,
+	describeCliUnavailable,
+	describeMcpConfig,
+	describeMcpEditor,
+	describePluginState,
+	integrationTargetOf,
+	isInstallable,
+	judgeCli,
+	missingPlugins,
+	readSuggestedPlugins,
+} from './integrations';
+export type {
+	CliAvailability,
+	DiscoveredCli,
+	FolderIntegrations,
+	IntegrationReading,
+	McpConfigFile,
+	McpConfigState,
+	McpConfigTarget,
+	McpEditorState,
+	McpServersKey,
+	PluginRow,
+	PluginState,
+	IntegrationTarget,
+} from './integrations';
+export {
+	EDITOR_CONFIG,
+	MAX_CONFIG_BYTES,
+	PROJECT_SERVER_NAME,
+	ROOT_CONFIG,
+	chooseConfigTarget,
+	confirmProjectMcp,
+	detectIndent,
+	hasEntireEntry,
+	manualSnippet,
+	mergeEntireServer,
+	parseConfig,
+	projectMcpArguments,
+	serverEntry,
+	targetFor,
+} from './mcpProjectConfig';
+export type { MergeResult, ParsedConfig } from './mcpProjectConfig';

@@ -88,6 +88,14 @@ export interface FakePluginOptions {
 	/** Commands that exit 1 with this text on stderr. */
 	fail?: Record<string, string>;
 	noCli?: boolean;
+	/**
+	 * Keeps plugin state in files, so it can differ between folders and change when a plugin is installed.
+	 * `folder` reads `.plugins/NAME` in the command's working directory (`managed` is listed by `plugin list`,
+	 * any other content is a binary on the PATH only); `machine` shares one set across folders.
+	 * A plugin named in `gated` that is not there is reported as not installed. `plugin install` adds it as managed.
+	 */
+	stateful?: 'folder' | 'machine';
+	gated?: string[];
 }
 
 export interface FakePluginCli {
@@ -133,24 +141,43 @@ export function fakePluginCli(options: FakePluginOptions = {}): FakePluginCli {
 	}
 	fs.writeFileSync(path.join(state, 'out', 'plugin_list'), options.list ?? PLUGIN_LIST_EMPTY);
 
+	const gated = (options.gated ?? ['graph', 'brain', 'investigate']).join('|');
+	const stateDir = options.stateful === 'machine' ? `${state}/plugins` : '$PWD/.plugins';
+	if (options.stateful === 'machine') {
+		fs.mkdirSync(path.join(state, 'plugins'), { recursive: true });
+	}
+	const stateful = options.stateful
+		? [
+				`P="${stateDir}"`,
+				`gate() { case "$1" in ${gated}) [ -f "$P/$1" ] || known "$1" ;; esac; }`,
+				'plugins_listing() { out=""; for f in "$P"/*; do if [ -f "$f" ] && [ "$(cat "$f")" = managed ]; then out="$out$(basename "$f")  v1.0.0\n"; fi; done; if [ -z "$out" ]; then cat "$S/out/plugin_list"; else printf "NAME  VERSION\n$out"; fi; }',
+				'plugins_install() { for a in "$@"; do last="$a"; done; mkdir -p "$P"; echo managed > "$P/$last"; echo "installed $last"; }',
+			]
+		: ['gate() { :; }'];
+
 	const script = [
 		'#!/bin/sh',
-		'known() { case "$1" in graph|brain|investigate) echo "the entire-$1 plugin is not installed; run \'entire plugin install $1\' and retry" >&2; exit 1 ;; esac; }',
+		`known() { case "$1" in ${gated}) echo "the entire-$1 plugin is not installed; run \'entire plugin install $1\' and retry" >&2; exit 1 ;; esac; }`,
 		'CTX=none',
 		'if [ "$1" = "--context" ]; then CTX="$2"; shift 2; fi',
 		`S='${state}'`,
+		...stateful,
 		'case "$1" in',
 		'\tversion) echo "entire 0.12.2"; exit 0 ;;',
-		'\tagent-help) shift; k=$(echo "$*" | tr " " "_"); [ -z "$k" ] && k=_; if [ -f "$S/help/$k" ]; then cat "$S/help/$k"; exit 0; fi; known "$1"; echo "Error: Invalid usage: unknown command" >&2; exit 1 ;;',
+		'\tagent-help) shift; gate "$1"; k=$(echo "$*" | tr " " "_"); [ -z "$k" ] && k=_; if [ -f "$S/help/$k" ]; then cat "$S/help/$k"; exit 0; fi; known "$1"; echo "Error: Invalid usage: unknown command" >&2; exit 1 ;;',
 		'esac',
 		'k=$(echo "$*" | tr " " "_")',
-		'case "$*" in *--help) if [ -f "$S/help/$k" ]; then cat "$S/help/$k"; exit 0; fi; known "$1"; cat "$S/help/--help"; echo "Error: Invalid usage: unknown command \\"$1\\"" >&2; exit 1 ;; esac',
+		'case "$*" in *--help) gate "$1"; if [ -f "$S/help/$k" ]; then cat "$S/help/$k"; exit 0; fi; known "$1"; cat "$S/help/--help"; echo "Error: Invalid usage: unknown command \\"$1\\"" >&2; exit 1 ;; esac',
 		`echo "$CTX|$ENTIRE_CONTEXT|$*" >> '${log}'`,
 		'if [ -f "$S/fail/$1" ]; then cat "$S/fail/$1" >&2; exit 1; fi',
 		'case "$1" in',
 		'\tmcp) read line; echo \'{"jsonrpc":"2.0","id":1,"result":{"serverInfo":{"name":"entire"}}}\'; exit 0 ;;',
+		...(options.stateful
+			? ['\tplugin) if [ "$2" = install ]; then plugins_install "$@"; exit 0; fi; if [ "$2" = list ]; then plugins_listing; exit 0; fi; echo done; exit 0 ;;']
+			: []),
 		'\tplugin) k2="plugin_$2"; if [ -f "$S/out/$k2" ]; then cat "$S/out/$k2"; else echo "done"; fi; exit 0 ;;',
 		'esac',
+		'gate "$1"',
 		'if [ -f "$S/out/$1" ]; then echo "$(cat "$S/out/$1") as ${ENTIRE_CONTEXT:-nobody}"; exit 0; fi',
 		'known "$1"',
 		'echo "Error: Invalid usage: unknown command \\"$1\\"; run `entire agent-help` for the list of commands" >&2',

@@ -104,9 +104,9 @@ row names a command its callers never build.
 | `entire plugin list` | `src/services/plugins.ts` | Installed plugins |
 | `entire plugin install` | `src/lib/entire/plugins.ts` | Install Plugin |
 | `entire mcp` | `src/services/mcpServer.ts` | The MCP server offered to the editor's agent |
-| `entire graph` | `src/lib/entire/plugins.ts` | A documented plugin, run by name |
-| `entire investigate` | `src/lib/entire/plugins.ts` | A documented plugin, run by name |
-| `entire brain` | `src/lib/entire/plugins.ts` | A documented plugin, run by name |
+| `entire graph` | `src/lib/entire/integrations.ts` | A documented plugin, suggested by default and run by name |
+| `entire investigate` | `src/lib/entire/integrations.ts` | A documented plugin, suggested by default and run by name |
+| `entire brain` | `src/lib/entire/integrations.ts` | A documented plugin, suggested by default and run by name |
 
 Plugin commands are run by name through `entirely.runPluginCommand`
 (`pluginArguments` in `src/lib/entire/plugins.ts`). The name comes from the
@@ -282,10 +282,10 @@ The three rows below are the plugins the documentation names.
 | `entire plugin remove` | Gap | | |
 | `entire plugin search` | Gap | | |
 | `entire plugin upgrade` | Gap | | |
-| `entire graph` | Supported | `entirely.runPluginCommand`, `src/lib/entire/plugins.ts`, `src/test/plugins.test.ts` | A plugin, run by name with its own arguments. The extension does not model the plugin's subcommands. |
-| `entire investigate` | Supported | `entirely.runPluginCommand`, `src/lib/entire/plugins.ts`, `src/test/plugins.test.ts` | Same: run by name as a plugin. |
-| `entire brain` | Supported | `entirely.runPluginCommand`, `src/lib/entire/plugins.ts`, `src/test/plugins.test.ts` | Same: run by name as a plugin. |
-| `entire mcp` | Supported | `entirely.startMcpServer`, `src/services/mcpServer.ts`, `src/test/plugins.test.ts` | Offered to the editor as an MCP server. The test probes a fake CLI and starts the launch line it returns, then speaks JSON-RPC to it; the real `entire mcp` is not run. |
+| `entire graph` | Supported | `entirely.runPluginCommand`, `src/lib/entire/integrations.ts`, `src/test/plugins.test.ts` | A plugin, run by name with its own arguments. The extension does not model the plugin's subcommands. The Integrations view shows whether it is installed in each folder and installs it from its row (`entirely.installIntegration`). The suggested names are the setting `entirely.suggestedPlugins`. |
+| `entire investigate` | Supported | `entirely.runPluginCommand`, `src/lib/entire/integrations.ts`, `src/test/plugins.test.ts` | Same: run by name as a plugin, and shown in the Integrations view. |
+| `entire brain` | Supported | `entirely.runPluginCommand`, `src/lib/entire/integrations.ts`, `src/test/plugins.test.ts` | Same: run by name as a plugin, and shown in the Integrations view. |
+| `entire mcp` | Supported | `entirely.startMcpServer`, `src/services/mcpServer.ts`, `src/test/plugins.test.ts` | Offered to the editor as an MCP server; the Integrations view shows it per folder and can add it to a project's `.mcp.json` (`entirely.addMcpToProject`, `src/test/integrations.test.ts`). The test probes a fake CLI and starts the launch line it returns, then speaks JSON-RPC to it; the real `entire mcp` is not run. |
 
 ### Not editor concerns
 

@@ -5,7 +5,7 @@ import * as vscode from 'vscode';
 import {
 	MCP_PROVIDER_ID,
 	MAX_PLUGIN_ARGUMENTS,
-	SUGGESTED_PLUGINS,
+	DEFAULT_SUGGESTED_PLUGINS,
 	confirmPluginInstall,
 	confirmPluginRun,
 	describeMcpUnavailable,
@@ -43,7 +43,7 @@ suite('Entire plugin names and arguments', () => {
 		for (const name of ['', '-graph', 'a/b', './x', 'https://x', 'a b', 'x'.repeat(42)]) {
 			assert.strictEqual(isPluginName(name), false, name);
 		}
-		assert.ok(SUGGESTED_PLUGINS.includes('graph'));
+		assert.ok(DEFAULT_SUGGESTED_PLUGINS.includes('graph'));
 	});
 
 	test('splits typed arguments into words and keeps quoted phrases together', () => {
@@ -381,6 +381,7 @@ function pluginDeps(cli: FakePluginCli, ui: PluginUi, script: PluginScript = {})
 		source: pluginService(cli),
 		acting: () => Promise.resolve(script.acting === false ? undefined : ALICE),
 		ui,
+		suggested: () => DEFAULT_SUGGESTED_PLUGINS,
 		running: { active: false },
 	};
 }
@@ -406,7 +407,7 @@ suite('Entire plugin commands', () => {
 		const cli = fakePluginCli();
 		const { ui, log } = pluginUi({});
 		assert.strictEqual(await runPluginCommand(pluginDeps(cli, ui)), 'cancelled');
-		assert.deepStrictEqual(log.choices.map(choice => choice.name).sort(), [...SUGGESTED_PLUGINS].sort());
+		assert.deepStrictEqual(log.choices.map(choice => choice.name).sort(), [...DEFAULT_SUGGESTED_PLUGINS].sort());
 		assert.ok(log.choices.every(choice => !choice.installed));
 	});
 

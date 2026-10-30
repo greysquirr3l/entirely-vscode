@@ -4,7 +4,6 @@ import {
 	describeMissingPlugin,
 	invalidPluginArguments,
 	isPluginName,
-	SUGGESTED_PLUGINS,
 	splitWords,
 	type AccountContext,
 	type ControlConfirmation,
@@ -39,6 +38,8 @@ export interface PluginDependencies {
 	readonly source: PluginSource;
 	readonly acting: () => Promise<AccountContext | undefined>;
 	readonly ui: PluginUi;
+	/** The plugin names offered when none is picked, from the user's setting. */
+	readonly suggested: () => readonly string[];
 	readonly running?: { active: boolean };
 }
 
@@ -68,7 +69,7 @@ async function choosePlugin(deps: PluginDependencies, installOnly: boolean): Pro
 		return 'failed';
 	}
 	const choices: PluginChoice[] = listed.value.map(item => ({ name: item.name, detail: item.detail, installed: true }));
-	for (const name of SUGGESTED_PLUGINS) {
+	for (const name of deps.suggested()) {
 		if (!choices.some(choice => choice.name === name)) {
 			choices.push({ name, detail: 'not installed', installed: false });
 		}

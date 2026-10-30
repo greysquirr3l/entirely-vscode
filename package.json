@@ -85,6 +85,10 @@
         {
           "id": "entirely.controlPlane",
           "name": "Control Plane"
+        },
+        {
+          "id": "entirely.integrations",
+          "name": "Integrations"
         }
       ],
       "explorer": [
@@ -96,6 +100,16 @@
       ]
     },
     "viewsWelcome": [
+      {
+        "view": "entirely.integrations",
+        "contents": "The Entire CLI is needed to see which integrations are available.\n[Show How to Install](https://docs.entire.com/installation)\n[Refresh](command:entirely.refreshIntegrations)",
+        "when": "entirely.integrationsState == no-cli"
+      },
+      {
+        "view": "entirely.integrations",
+        "contents": "Open a folder to see which Entire integrations are available in it.",
+        "when": "entirely.integrationsState == no-folder"
+      },
       {
         "view": "entirely.activity",
         "contents": "See recent sessions and commits across your repositories on Entire.\n[Open Activity](command:entirely.refreshActivity)\n[Generate a Dispatch](command:entirely.generateDispatch)"
@@ -410,6 +424,30 @@
         "command": "entirely.copyMcpConfig",
         "title": "Copy MCP Server Configuration",
         "category": "Entirely"
+      },
+      {
+        "command": "entirely.refreshIntegrations",
+        "title": "Refresh Integrations",
+        "category": "Entirely",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "entirely.installIntegration",
+        "title": "Install Plugin",
+        "category": "Entirely",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "entirely.enableMcpIntegration",
+        "title": "Turn On MCP Server",
+        "category": "Entirely",
+        "icon": "$(play)"
+      },
+      {
+        "command": "entirely.addMcpToProject",
+        "title": "Add MCP Server to Project Configuration",
+        "category": "Entirely",
+        "icon": "$(add)"
       }
     ],
     "configuration": {
@@ -568,12 +606,35 @@
         "entirely.mcpServerEnabled": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Offer `entire mcp` to the editor as an MCP server, so the editor's agent can reach Entire. The editor starts and stops the process; Entirely writes no MCP configuration file. Start it with **Entirely: Start MCP Server**."
+          "markdownDescription": "Offer `entire mcp` to the editor as an MCP server, so the editor's agent can reach Entire. The editor starts and stops the process; Entirely does not write the editor's own MCP configuration. Start it with **Entirely: Start MCP Server**. To add the server to a project's `.mcp.json` for other agents, use the Integrations view."
+        },
+        "entirely.suggestedPlugins": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,40}$"
+          },
+          "default": [
+            "graph",
+            "investigate",
+            "brain"
+          ],
+          "markdownDescription": "The Entire plugins the **Integrations** view shows a status for, and the plugin picker offers when none is installed. Each is the part after `entire-` in the plugin's executable name. A name that cannot name a plugin is ignored."
+        },
+        "entirely.offerIntegrationInstall": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Offer once per machine to install the suggested Entire plugins that are missing, and once per project to add the Entire MCP server to the project's `.mcp.json`. Turn this off to never be asked; the **Integrations** view still shows the status."
         }
       }
     },
     "menus": {
       "view/title": [
+        {
+          "command": "entirely.refreshIntegrations",
+          "when": "view == entirely.integrations",
+          "group": "navigation@1"
+        },
         {
           "command": "entirely.showActivityCommits",
           "when": "view == entirely.activity && entirely.activityListing != commits",
@@ -716,6 +777,21 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "entirely.installIntegration",
+          "when": "view == entirely.integrations && viewItem == entirely.integrationPluginMissing",
+          "group": "inline"
+        },
+        {
+          "command": "entirely.enableMcpIntegration",
+          "when": "view == entirely.integrations && viewItem == entirely.integrationMcpOff",
+          "group": "inline"
+        },
+        {
+          "command": "entirely.addMcpToProject",
+          "when": "view == entirely.integrations && viewItem == entirely.integrationMcpConfigAddable",
+          "group": "inline"
+        },
         {
           "command": "entirely.openTranscript",
           "when": "view == entirely.sessions && viewItem =~ /^entirely\\.(session|importedSession)$/",

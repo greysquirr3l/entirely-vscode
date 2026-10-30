@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import type { GeneratedDocuments } from '../providers/generatedDocuments';
 import type { EntireMcpProvider } from '../services/mcpProvider';
 import type { McpServerSource } from '../services/mcpServer';
-import { copyMcpConfig, startMcpServer, type McpUi } from './mcp';
+import { copyMcpConfig, startMcpServer, type McpDependencies, type McpUi } from './mcp';
 import { EditorPluginUi } from './pluginUi';
 import { installPluginCommand, runPluginCommand, type PluginDependencies } from './plugins';
 
@@ -59,10 +59,13 @@ export interface PluginCommandDependencies {
 }
 
 /** Registers the plugin and MCP commands. */
-export function registerPluginCommands(context: vscode.ExtensionContext, deps: PluginCommandDependencies): void {
+export function registerPluginCommands(
+	context: vscode.ExtensionContext,
+	deps: PluginCommandDependencies,
+): { readonly plugins: PluginDependencies; readonly mcp: McpDependencies } {
 	const pluginDeps: PluginDependencies = { ...deps.plugins, ui: new EditorPluginUi(deps.documents) };
 	const mcpUi = new EditorMcpUi();
-	const mcpDeps = {
+	const mcpDeps: McpDependencies = {
 		source: deps.mcp.source,
 		ui: mcpUi,
 		enabled: deps.mcp.enabled,
@@ -86,4 +89,5 @@ export function registerPluginCommands(context: vscode.ExtensionContext, deps: P
 			await copyMcpConfig(mcpDeps);
 		}),
 	);
+	return { plugins: pluginDeps, mcp: mcpDeps };
 }
