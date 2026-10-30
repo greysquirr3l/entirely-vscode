@@ -74,7 +74,7 @@
         },
         {
           "id": "entirely.sessionDetail",
-          "name": "Session",
+          "name": "Details",
           "visibility": "visible"
         },
         {
@@ -147,7 +147,7 @@
       },
       {
         "view": "entirely.sessionDetail",
-        "contents": "Select a session to see its details."
+        "contents": "Select a session, a trail change or an Activity entry to see it here."
       },
       {
         "view": "entirely.checkpoints",
@@ -197,6 +197,23 @@
         "command": "entirely.selectSession",
         "title": "Show Session Details",
         "category": "Entirely"
+      },
+      {
+        "command": "entirely.selectItem",
+        "title": "Show Details",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.retryDetail",
+        "title": "Refresh Details",
+        "category": "Entirely",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "entirely.openDetailInEditor",
+        "title": "Open Details in Editor",
+        "category": "Entirely",
+        "icon": "$(go-to-file)"
       },
       {
         "command": "entirely.openTranscript",
@@ -274,7 +291,8 @@
       {
         "command": "entirely.trailApprove",
         "title": "Approve a Change on a Trail",
-        "category": "Entirely"
+        "category": "Entirely",
+        "icon": "$(check)"
       },
       {
         "command": "entirely.trailComment",
@@ -535,6 +553,13 @@
           "maximum": 600,
           "markdownDescription": "How long, in seconds, a trail review action (approve, comment, merge, check out, link, unlink) may run before Entirely stops waiting for the Entire CLI. A check out that has to fetch can take longer than a read."
         },
+        "entirely.selectionCacheSeconds": {
+          "type": "number",
+          "default": 30,
+          "minimum": 0,
+          "maximum": 600,
+          "markdownDescription": "How long, in seconds, the **Details** view keeps what it loaded for a session, a trail change or an Activity entry, so choosing the same row again reads nothing. After that time the old content is still shown at once while it is read again. Ended sessions and Activity entries, which cannot change, are kept ten times as long. Set to `0` to read every time."
+        },
         "entirely.showSessionsInExplorer": {
           "type": "boolean",
           "default": false,
@@ -773,6 +798,16 @@
           "command": "entirely.refreshControlPlane",
           "when": "view == entirely.controlPlane",
           "group": "navigation@3"
+        },
+        {
+          "command": "entirely.retryDetail",
+          "when": "view == entirely.sessionDetail && entirely.detailShown",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.openDetailInEditor",
+          "when": "view == entirely.sessionDetail && entirely.detailShown",
+          "group": "navigation@2"
         }
       ],
       "commandPalette": [
@@ -819,6 +854,18 @@
         {
           "command": "entirely.revokeAccess",
           "when": "false"
+        },
+        {
+          "command": "entirely.selectItem",
+          "when": "false"
+        },
+        {
+          "command": "entirely.retryDetail",
+          "when": "entirely.detailShown"
+        },
+        {
+          "command": "entirely.openDetailInEditor",
+          "when": "entirely.detailShown"
         }
       ],
       "editor/title": [
@@ -930,6 +977,46 @@
           "command": "entirely.revokeAccess",
           "when": "view == entirely.controlPlane && viewItem == entirely.cpGrant",
           "group": "3_destructive@1"
+        },
+        {
+          "command": "entirely.retryDetail",
+          "when": "view == entirely.sessionDetail && viewItem =~ /^entirely\\.detail\\.(failed|refresh-failed)$/",
+          "group": "inline"
+        },
+        {
+          "command": "entirely.trailApprove",
+          "when": "view == entirely.sessionDetail && viewItem == entirely.detail.change",
+          "group": "inline"
+        },
+        {
+          "command": "entirely.trailApprove",
+          "when": "view == entirely.sessionDetail && viewItem == entirely.detail.change",
+          "group": "1_review@1"
+        },
+        {
+          "command": "entirely.trailComment",
+          "when": "view == entirely.sessionDetail && viewItem == entirely.detail.change",
+          "group": "1_review@2"
+        },
+        {
+          "command": "entirely.trailMerge",
+          "when": "view == entirely.sessionDetail && viewItem == entirely.detail.change",
+          "group": "1_review@3"
+        },
+        {
+          "command": "entirely.trailCheckout",
+          "when": "view == entirely.sessionDetail && viewItem == entirely.detail.change",
+          "group": "1_review@4"
+        },
+        {
+          "command": "entirely.trailLink",
+          "when": "view == entirely.sessionDetail && viewItem =~ /^entirely\\.detail\\.(change|trail)$/",
+          "group": "2_branch@1"
+        },
+        {
+          "command": "entirely.trailUnlink",
+          "when": "view == entirely.sessionDetail && viewItem =~ /^entirely\\.detail\\.(change|trail)$/",
+          "group": "2_branch@2"
         }
       ]
     },

@@ -35,6 +35,12 @@ export interface TrailCliAnswers {
 	readonly mergeRunFails?: boolean;
 	/** What `trail comment add` writes to stderr, refusing the comment. */
 	readonly commentFails?: string;
+	/** What `trail show --json` prints. */
+	readonly show?: string;
+	/** What `trail show` writes to stderr before it exits non-zero. */
+	readonly showFails?: string;
+	/** Makes `agent-help trail show` fail, as a CLI without the command does. */
+	readonly withoutShowHelp?: boolean;
 }
 
 /**
@@ -46,6 +52,7 @@ export interface TrailCliAnswers {
  * form from the CLI rather than from a table in the test.
  */
 const USAGE: Readonly<Record<string, string>> = {
+	'trail show': 'entire trail show — Show trail intent and its repositories and branches\n',
 	'trail approve': 'entire trail approve — Approve a trail\n',
 	'trail approvals': 'entire trail approvals — Show a trail\'s approvals\n',
 	'trail comment add': [
@@ -112,6 +119,21 @@ export const TRAIL_LIST = {
 	nextPageToken: undefined,
 };
 
+/** What `trail show --json` prints for the trail above: the trail, its project and its changes. */
+export const TRAIL_SHOW = {
+	...TRAIL_LIST.items[0],
+	body: 'The full description of the trail, which only the document may carry.',
+	type: 'feature',
+	priority: 'high',
+	url: 'https://entire.example/trails/40',
+	project: {
+		id: '01PROJECT',
+		name: 'greysquirr3l',
+		provider: 'github',
+		reference: { forge: 'gh', project: 'greysquirr3l' },
+	},
+};
+
 /**
  * The merge plan the CLI's dry run reports.
  *
@@ -169,6 +191,7 @@ export function fakeTrailCli(answers: TrailCliAnswers = {}): FakeTrailCli {
 	write('approvals', answers.approvals ?? '{"approvals":[]}');
 	write('comments', answers.comments ?? '{"items":[]}');
 	write('findings', answers.findings ?? '{"findings":[]}');
+	write('show', answers.show ?? JSON.stringify(TRAIL_SHOW));
 	write('merge', answers.merge ?? JSON.stringify(MERGE_PLAN));
 	write(
 		'merge-run',
@@ -183,7 +206,14 @@ export function fakeTrailCli(answers: TrailCliAnswers = {}): FakeTrailCli {
 		write('comment-fails', answers.commentFails);
 	}
 
+	if (answers.showFails !== undefined) {
+		write('show-fails', answers.showFails);
+	}
+
 	for (const [command, text] of Object.entries(USAGE)) {
+		if (command === 'trail show' && answers.withoutShowHelp) {
+			continue;
+		}
 		write(usageName(command), text);
 	}
 
@@ -195,12 +225,16 @@ export function fakeTrailCli(answers: TrailCliAnswers = {}): FakeTrailCli {
 		'echo "$*" >> "$LOG"',
 		'case "$1" in',
 		'\tversion) echo "entire 0.12.2" ;;',
-		'\tagent-help) cat "$PAYLOADS/$(echo "$2 $3 $4" | tr \' \' \'-\')" ;;',
+		'\tagent-help) cat "$PAYLOADS/$(echo "$2 $3 $4" | sed \'s/ *$//\' | tr \' \' \'-\')" ;;',
 		'\trepo) cat "$PAYLOADS/repo" ;;',
 		'\ttrail)',
 		'\t\tcase "$2" in',
 		'\t\t\tlist) cat "$PAYLOADS/list" ;;',
-		'\t\t\tshow) cat "$PAYLOADS/list" ;;',
+		'\t\t\tshow)',
+		'\t\t\t\tif [ -f "$PAYLOADS/show-fails" ]; then',
+		'\t\t\t\t\tcat "$PAYLOADS/show-fails" >&2; exit 1',
+		'\t\t\t\tfi',
+		'\t\t\t\tcat "$PAYLOADS/show" ;;',
 		'\t\t\tapprove) echo "approved" ;;',
 		'\t\t\tapprovals) cat "$PAYLOADS/approvals" ;;',
 		'\t\t\tcomment)',

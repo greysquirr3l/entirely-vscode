@@ -68,6 +68,11 @@ import { McpServerService } from './services/mcpServer';
 import { PluginService } from './services/plugins';
 import { RecapService } from './services/recap';
 import { registerActivityCommands } from './commands/activityCommands';
+import { registerSelectionCommands, wireSelection } from './commands/selection';
+import { DetailViewer } from './providers/detailViewer';
+import { SelectionService } from './services/selection';
+import { SelectedRows } from './providers/selectedMark';
+import { createSelectionLoader } from './services/selectionLoader';
 import { EditorGeneratedUi } from './commands/activityUi';
 import { EditorControlPlaneUi } from './commands/controlPlaneUi';
 
@@ -177,6 +182,32 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	});
 
 	const tokenUsage = new TokenUsageService({ runner, workspaceRoot });
+
+	const trails = new TrailService({
+		runner,
+		workspaceRoot,
+		actingHandle: () => accounts.current.acting?.handle,
+		actionTimeoutMs: () => readExtensionSettings().trailActionTimeout * 1000,
+	});
+
+	// What is selected in Sessions, Trails or Activity is read once and shown
+	// in the Details viewer. Rows drawn from text already held read nothing.
+	// The commands a row runs when it is clicked are registered here, before
+	// any tree view exists, so no row can be clicked ahead of them.
+	const selection = new SelectionService({
+		loader: createSelectionLoader({ detail: sessionDetailSource, usage: tokenUsage, trails }),
+		ttlSeconds: () => readExtensionSettings().selectionCacheSeconds,
+	});
+	const selected = new SelectedRows();
+	const generated = new GeneratedDocuments();
+	context.subscriptions.push(
+		selection,
+		selected,
+		vscode.window.registerFileDecorationProvider(selected),
+		generated,
+		vscode.workspace.registerTextDocumentContentProvider(GENERATED_SCHEME, generated),
+	);
+	registerSelectionCommands(context, { selection, documents: generated });
 
 	const checkpoints = new CheckpointsProvider(
 		createCheckpointSource(runner, workspaceRoot),
@@ -391,7 +422,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		() => accounts.context,
 	);
 	const activityView = vscode.window.createTreeView('entirely.activity', { treeDataProvider: activity });
-	const generated = new GeneratedDocuments();
 	const generatedUi = new EditorGeneratedUi(generated);
 	context.subscriptions.push(
 		activity,
@@ -399,8 +429,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		activity.onDidChangeTreeData(() => {
 			activityView.message = activity.viewMessage;
 		}),
-		generated,
-		vscode.workspace.registerTextDocumentContentProvider(GENERATED_SCHEME, generated),
 	);
 	registerActivityCommands(context, {
 		activity,
@@ -454,13 +482,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		log: { warn: line => log.warn(line) },
 	});
 
-	const trails = new TrailService({
-		runner,
-		workspaceRoot,
-		actingHandle: () => accounts.current.acting?.handle,
-		actionTimeoutMs: () => readExtensionSettings().trailActionTimeout * 1000,
-	});
-
 	const trailsProvider = new TrailsProvider(createTrailListingSource(trails), () =>
 		readExtensionSettings().refreshInterval,
 	);
@@ -482,6 +503,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 					: undefined;
 		}),
 	);
+
+	const viewer = new DetailViewer(sessionDetail, detailView);
+	context.subscriptions.push(viewer);
 
 	registerCommands(context, {
 		search,
@@ -514,7 +538,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		sessions,
 		sessionDetail,
 		sessionDetailSource,
-		tokenUsage,
+		selection,
 		transcripts,
 		checkpoints,
 		checkpointFilter,
@@ -533,6 +557,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		checkpointDetail: createCheckpointDetailSource(runner, workspaceRoot),
 		recorder,
 		output,
+	});
+
+	wireSelection(context, {
+		selection,
+		viewer,
+		selected,
+		sessions,
+		trails: trailsProvider,
+		activity,
+		documents: generated,
+		views: {
+			sessions: sessionsView,
+			explorerSessions: explorerSessionsView,
+			trails: trailsView,
+			activity: activityView,
+		},
 	});
 
 	// A setting that changes takes effect at once, without a window reload.

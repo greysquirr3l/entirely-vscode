@@ -6,12 +6,14 @@ import * as path from 'path';
 import {
 	NOT_RECOGNISED,
 	NOT_REPORTED,
+	buildSessionDetail,
 	decodeCheckpoint,
 	decodeTokenReport,
 	describeTokenReport,
+	type Selection,
 	type TokenReport,
 } from '../lib/entire';
-import { selectSession } from '../commands/sessionDetail';
+import { selectSessionInto as selectSession } from './support/legacySelect';
 import { makeTempDir } from './support/tempDir';
 import { CheckpointsProvider, describeCheckpointUsage } from '../providers/checkpointsProvider';
 import { SessionDetailProvider } from '../providers/sessionDetailProvider';
@@ -406,8 +408,13 @@ suite('Entire session usage view', () => {
 		const view = select(cli);
 		try {
 			const broken = new SessionDetailProvider();
-			broken.show({ id: 'sess-1', agent: 'A', status: 'ended', worktreePath: '/w' });
-			broken.showUsageFailure('sess-1', 'boom');
+			const listed = { id: 'sess-1', agent: 'A', status: 'ended', worktreePath: '/w' };
+			const selection: Selection = { kind: 'session', session: listed };
+			broken.render({
+				kind: 'ready',
+				selection,
+				model: buildSessionDetail(selection, { session: listed, usage: { kind: 'failed', detail: 'boom' } }),
+			});
 			const row = broken.getChildren().find(node => node.kind === 'field' && node.label === 'Tokens');
 			assert.ok(row && row.kind === 'field');
 			assert.strictEqual(row.value, 'Not available');

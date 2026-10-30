@@ -1,69 +1,39 @@
 import * as vscode from 'vscode';
 
-import { countToolCalls, renderTranscript } from '../lib/entire';
+import { renderTranscript } from '../lib/entire';
 import type { SessionDetailProvider } from '../providers/sessionDetailProvider';
-import type { SessionItemNode, SessionsProvider } from '../providers/sessionsProvider';
+import { selectionOfSession, type SessionItemNode, type SessionsProvider } from '../providers/sessionsProvider';
 import type { TranscriptContentProvider } from '../providers/transcriptDocument';
+import type { SelectionService } from '../services/selection';
 import type { SessionDetailSource } from '../services/sessionDetail';
-import type { TokenUsageSource } from '../services/tokenUsage';
 
 /** What selecting a session needs. */
 export interface SelectSessionDependencies {
 	readonly sessions: SessionsProvider;
-	readonly sessionDetail: SessionDetailProvider;
-	readonly detail: SessionDetailSource;
-	readonly usage: TokenUsageSource;
+	readonly selection: Pick<SelectionService, 'select' | 'clear'>;
 }
 
 /**
- * Shows a session in the detail view.
+ * Shows a session in the Details viewer.
  *
- * The row from the list appears at once. The rest comes from `session
- * info`, and the tool calls come from the transcript, which is read off
- * the interface thread. The transcript text itself is never put in the
- * tree: the tree gets counts, and the text opens in an editor on request.
+ * The reads are the ones the view has always made: the record from
+ * `session info`, the token usage, and the tool calls from the transcript,
+ * which is read off the interface thread. The selection service runs them,
+ * so a repeat selection is served from its cache and a slow read for an
+ * earlier session cannot overwrite a later one. The transcript text is
+ * never put in the tree: the tree gets counts, and the text opens in an
+ * editor on request.
  */
 export async function selectSession(
 	deps: SelectSessionDependencies,
 	element: SessionItemNode | undefined,
 ): Promise<void> {
 	deps.sessions.select(element);
-	deps.sessionDetail.show(element?.session);
 	if (!element) {
+		deps.selection.clear();
 		return;
 	}
-
-	const id = element.session.id;
-	deps.sessionDetail.showUsageLoading(id);
-	const usage = deps.usage.session(id);
-	const found = await deps.detail.info(id);
-	if (found.kind === 'failed') {
-		deps.sessionDetail.showInfoFailure(id, found.detail);
-	} else {
-		deps.sessionDetail.showInfo(found.info);
-	}
-
-	const read = await usage;
-	if (read.kind === 'found') {
-		deps.sessionDetail.showUsage(id, read.report);
-	} else {
-		deps.sessionDetail.showUsageFailure(id, read.detail);
-	}
-	if (found.kind === 'failed') {
-		return;
-	}
-
-	deps.sessionDetail.showToolCallsLoading(id);
-	const transcript = await deps.detail.transcript(found.info);
-	if (transcript.kind === 'failed') {
-		deps.sessionDetail.showToolCallsFailure(id, transcript.detail);
-		return;
-	}
-	deps.sessionDetail.showToolCalls(
-		id,
-		countToolCalls(transcript.loaded.transcript.items),
-		transcript.loaded.truncated,
-	);
+	await deps.selection.select(selectionOfSession(element), 'sessions');
 }
 
 /** What opening a transcript needs. */

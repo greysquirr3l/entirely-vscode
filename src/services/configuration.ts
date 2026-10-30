@@ -65,6 +65,8 @@ export interface ExtensionSettings {
 	readonly blameMaxDecoratedLines: number;
 	/** How long, in seconds, a trail review action may run before it is killed. */
 	readonly trailActionTimeout: number;
+	/** How long, in seconds, a detail loaded in the Details viewer is kept. Zero keeps nothing. */
+	readonly selectionCacheSeconds: number;
 	/** Whether the sessions tree is also shown in the Explorer. */
 	readonly showSessionsInExplorer: boolean;
 	/** How much the extension says. */
@@ -288,6 +290,18 @@ export function clampTrailActionTimeout(seconds: number): number {
 	return Math.min(MAX_TRAIL_ACTION_TIMEOUT_SECONDS, Math.max(5, Math.floor(seconds)));
 }
 
+/** The bounds of the time a loaded detail is kept, in seconds. */
+export const DEFAULT_SELECTION_CACHE_SECONDS = 30;
+export const MAX_SELECTION_CACHE_SECONDS = 600;
+
+/** Puts the selection cache lifetime in range. Zero turns the cache off. */
+export function clampSelectionCacheSeconds(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return DEFAULT_SELECTION_CACHE_SECONDS;
+	}
+	return Math.min(MAX_SELECTION_CACHE_SECONDS, Math.max(0, Math.floor(seconds)));
+}
+
 /**
  * Reads the extension's settings.
  *
@@ -334,6 +348,9 @@ export function readExtensionSettings(): ExtensionSettings {
 		blameMaxDecoratedLines: clampBlameMaxLines(configuration.get<number>('blameMaxDecoratedLines', 5000)),
 		trailActionTimeout: clampTrailActionTimeout(
 			configuration.get<number>('trailActionTimeout', DEFAULT_TRAIL_ACTION_TIMEOUT_SECONDS),
+		),
+		selectionCacheSeconds: clampSelectionCacheSeconds(
+			configuration.get<number>('selectionCacheSeconds', DEFAULT_SELECTION_CACHE_SECONDS),
 		),
 		showSessionsInExplorer: configuration.get<boolean>('showSessionsInExplorer', false),
 		logLevel: readLogLevel(configuration.get<string>('logLevel', 'info')),

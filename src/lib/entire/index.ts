@@ -455,3 +455,30 @@ export {
 export type { TrailPick } from './trailPick';
 export { describeGate, pendingApprovals, readTrailGate, scopeToProject } from './trailGate';
 export type { GatedChange, GatedTrail, TrailListing } from './trailGate';
+export { sessionRows } from './sessionDetailRows';
+export type { DetailRow, SessionSnapshot, ToolCallState, UsageState } from './sessionDetailRows';
+export {
+	buildActivitySessionDetail,
+	buildChangeDetail,
+	buildCommitDetail,
+	buildRepositoryDetail,
+	buildSessionDetail,
+	buildTrailDetail,
+	describeGone,
+	describeViewerNote,
+	detailTitle,
+	formatClock,
+	initialDetail,
+	isFresh,
+	isGoneFailure,
+	isSelection,
+	isSelectionSource,
+	lifetimeSeconds,
+	selectionKey,
+	unavailableRow,
+	viewOfKey,
+	withRow,
+} from './selection';
+export type { DetailModel, Selection, SelectionSource, ShownTrail, ViewerState } from './selection';
+export { renderDetailDocument } from './detailDocument';
+export { asChangePick, asTrailPick, pickFromTarget, touchedKeys } from './trailTarget';

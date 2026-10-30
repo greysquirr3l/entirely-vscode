@@ -4,10 +4,14 @@ import {
 	describeGate,
 	pendingApprovals,
 	pluralise,
+	selectionKey,
 	type GatedChange,
 	type GatedTrail,
+	type Selection,
+	type Trail,
 } from '../lib/entire';
 import type { TrailListingSource } from '../services/trailListing';
+import { rowUri } from './selectedMark';
 
 /** One trail. */
 export interface TrailNode {
@@ -20,6 +24,8 @@ export interface TrailNode {
 export interface ChangeNode {
 	readonly kind: 'change';
 	readonly entry: GatedChange;
+	/** The trail the change is on, which the review actions and the viewer need. */
+	readonly trail: Trail;
 }
 
 /** A node in the trails tree. */
@@ -30,8 +36,15 @@ export function buildTrailNodes(trails: readonly GatedTrail[]): TrailNode[] {
 	return trails.map(entry => ({
 		kind: 'trail',
 		entry,
-		changes: entry.changes.map(change => ({ kind: 'change', entry: change })),
+		changes: entry.changes.map(change => ({ kind: 'change', entry: change, trail: entry.trail })),
 	}));
+}
+
+/** What selecting a trails row means. */
+export function selectionOfTrailsNode(node: TrailsNode): Selection {
+	return node.kind === 'trail'
+		? { kind: 'trail', entry: node.entry }
+		: { kind: 'change', trail: node.trail, entry: node.entry };
 }
 
 /** The line beside a trail: its state and how many changes wait. */
@@ -81,6 +94,33 @@ export class TrailsProvider implements vscode.TreeDataProvider<TrailsNode> {
 		return this.emptyReasonText;
 	}
 
+	/** The selection for a key, when the row is listed. */
+	find(key: string): Selection | undefined {
+		const node = this.findNode(key);
+		return node ? selectionOfTrailsNode(node) : undefined;
+	}
+
+	private findNode(key: string): TrailsNode | undefined {
+		for (const trail of this.nodes) {
+			if (selectionKey(selectionOfTrailsNode(trail)) === key) {
+				return trail;
+			}
+			const change = trail.changes.find(node => selectionKey(selectionOfTrailsNode(node)) === key);
+			if (change) {
+				return change;
+			}
+		}
+		return undefined;
+	}
+
+	private selectCommand(node: TrailsNode): vscode.Command {
+		return {
+			command: 'entirely.selectItem',
+			title: 'Show Details',
+			arguments: [selectionOfTrailsNode(node), 'trails'],
+		};
+	}
+
 	/** Re-reads the trails and re-renders the tree. */
 	async refresh(): Promise<void> {
 		// A listing costs several CLI calls per change, so a tick that
@@ -116,8 +156,12 @@ export class TrailsProvider implements vscode.TreeDataProvider<TrailsNode> {
 			);
 			item.description = describeTrail(element.entry);
 			item.contextValue = 'entirely.trail';
-			item.iconPath = new vscode.ThemeIcon(trail.status === 'closed' ? 'archive' : 'git-pull-request');
+			item.iconPath = new vscode.ThemeIcon(
+				trail.status === 'closed' ? 'archive' : 'git-pull-request',
+			);
+			item.resourceUri = rowUri(selectionKey(selectionOfTrailsNode(element)));
 			item.tooltip = trail.url ?? item.label?.toString();
+			item.command = this.selectCommand(element);
 			return item;
 		}
 
@@ -138,6 +182,8 @@ export class TrailsProvider implements vscode.TreeDataProvider<TrailsNode> {
 						? 'error'
 						: 'question',
 		);
+		item.resourceUri = rowUri(selectionKey(selectionOfTrailsNode(element)));
+		item.command = this.selectCommand(element);
 		item.tooltip =
 			gate.kind === 'awaiting-approval' || gate.kind === 'blocked'
 				? [`Branch ${change.branch}`, ...gate.blockers].join('\n')

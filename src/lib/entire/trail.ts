@@ -64,6 +64,14 @@ export interface TrailChange {
 	/** Whether the change carries code. */
 	readonly hasCodeChanges?: boolean;
 	readonly url?: string;
+	/**
+	 * Whether `trail show` reached the trail through this change.
+	 *
+	 * Read when present and never relied on: the CLI's help says a change
+	 * selector shows the parent trail, and a payload without the flag is
+	 * normal.
+	 */
+	readonly current?: boolean;
 }
 
 /** The state a trail is in. */
@@ -321,6 +329,7 @@ export function decodeTrailChange(value: unknown, path: string): DecodeResult<Tr
 	}
 
 	const hasCodeChanges = optionalBoolean(read, 'hasCodeChanges');
+	const current = optionalBoolean(read, 'current');
 
 	return {
 		ok: true,
@@ -333,6 +342,7 @@ export function decodeTrailChange(value: unknown, path: string): DecodeResult<Tr
 			status: status.value,
 			hasCodeChanges,
 			url: url.value,
+			...(current === undefined ? {} : { current }),
 		},
 	};
 }
