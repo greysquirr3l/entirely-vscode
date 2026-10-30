@@ -38,3 +38,6 @@ plan.toml
 capabilities/**
 research/**
 tasks/**
+
+# Claude Code settings for working on this repository.
+.claude/**

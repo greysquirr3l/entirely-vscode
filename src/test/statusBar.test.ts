@@ -8,7 +8,7 @@ import { AccountContextService } from '../services/accountContext';
 import { makeTempDir } from './support/tempDir';
 import { CliLocator } from '../services/cli/locator';
 import { CliRunner } from '../services/cli/runner';
-import { StatusBar } from '../services/statusBar';
+import { StatusBar, StatusDisplay } from '../services/statusBar';
 import { clickAction, StatusController } from '../services/statusController';
 
 const temporaryDirectories: string[] = [];
@@ -90,6 +90,27 @@ suite('Entire status bar', () => {
 		}
 	});
 
+	test('shows a Marvin glyph for every state', () => {
+		const bar = new StatusBar();
+		try {
+			const expected: [StatusDisplay, string][] = [
+				[{ kind: 'tracked' }, 'entire-logo'],
+				[{ kind: 'active-session' }, 'entire-in-progress'],
+				[{ kind: 'not-set-up' }, 'entire-unavailable'],
+				[{ kind: 'not-a-repository' }, 'entire-blocked'],
+				[{ kind: 'invisible-to-context', context: 'someone' }, 'entire-not-connected'],
+				[{ kind: 'context-error', detail: 'no saved login' }, 'entire-error'],
+				[{ kind: 'error', detail: 'boom' }, 'entire-warning'],
+			];
+			for (const [display, glyph] of expected) {
+				bar.show(display);
+				assert.ok(bar.text.startsWith(`$(${glyph}) `), `${display.kind} shows ${glyph}, not '${bar.text}'`);
+			}
+		} finally {
+			bar.dispose();
+		}
+	});
+
 	test('warns in the status bar when the checkpoints are not going anywhere', () => {
 		const bar = new StatusBar();
 		try {
@@ -101,10 +122,11 @@ suite('Entire status bar', () => {
 				checkpointProblem: 'Checkpoints stay on this machine, so they will not appear on Entire.',
 			});
 
-				assert.notStrictEqual(bar.text, calm, 'the warning looks different from the calm state');
-				assert.match(bar.text, /warning/);
-				assert.match(bar.text, /entire-logo/, 'the state can still be read without hovering');
-				assert.match(bar.tooltip, /will not appear on Entire/);
+			assert.notStrictEqual(bar.text, calm, 'the warning looks different from the calm state');
+			assert.match(bar.text, /\$\(entire-dot\)/, 'a checkpoint problem shows the notification dot');
+			assert.doesNotMatch(bar.text, /warning/, 'the warning mark is no longer appended');
+			assert.match(bar.tooltip, /Entire is tracking this workspace/, 'the state can still be read by hovering');
+			assert.match(bar.tooltip, /will not appear on Entire/);
 		} finally {
 			bar.dispose();
 		}
@@ -123,7 +145,8 @@ suite('Entire status bar', () => {
 			});
 
 			assert.notStrictEqual(bar.text, calm);
-			assert.match(bar.text, /pulse/);
+			assert.match(calm, /\$\(entire-in-progress\)/);
+			assert.match(bar.text, /\$\(entire-dot\)/);
 		} finally {
 			bar.dispose();
 		}
@@ -204,7 +227,7 @@ suite('Entire status bar', () => {
 			bar.show({ kind: 'invisible-to-context', context: 'greysquirr3l' });
 
 			assert.notStrictEqual(bar.text, untracked, 'the two states look the same');
-			assert.match(bar.text, /eye-closed/);
+			assert.match(bar.text, /entire-not-connected/);
 			assert.match(bar.tooltip, /cannot see/);
 			assert.match(bar.tooltip, /greysquirr3l/, 'the login is not named');
 			assert.doesNotMatch(bar.tooltip, /not set up/, 'it reads as a workspace that is not tracked');

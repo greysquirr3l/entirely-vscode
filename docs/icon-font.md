@@ -24,6 +24,22 @@ The font uses Codicon-compatible metrics: 300 units per em, a 300-unit advance w
 | `entire-snooze` | `U+E00D` | Marvin with snooze marks |
 | `entire-blocked` | `U+E00E` | Marvin with blocked badge |
 
+## Where each glyph is used
+
+| Icon ID | Where it appears |
+| --- | --- |
+| `entire-logo` | Status bar: the workspace is tracked and no agent session is running |
+| `entire-in-progress` | Status bar: the workspace is tracked and an agent session is running |
+| `entire-dot` | Status bar: tracked or running, but there is a checkpoint problem (replaces the base icon; the tooltip says what is wrong) |
+| `entire-unavailable` | Status bar: Entire is not set up for the workspace |
+| `entire-blocked` | Status bar: the workspace is not a git repository |
+| `entire-not-connected` | Status bar: the login in use cannot see the workspace |
+| `entire-error` | Status bar: the login the user asked for is not one the CLI has |
+| `entire-warning` | Status bar: the CLI could not be read |
+| `entire-compact`, `entire-large`, `entire-dot-compact`, `entire-success`, `entire-warning-large`, `entire-snooze` | Declared and available, not used yet |
+
+The Activity Bar uses `images/entirely-view.svg`, not a glyph.
+
 For example:
 
 ```ts

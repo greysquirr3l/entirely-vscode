@@ -147,6 +147,32 @@ suite('Entirely manifest', () => {
 		assert.ok(!isIgnored(fontPath, patterns), `the icon font '${fontPath}' is excluded by .vscodeignore`);
 	});
 
+	test('declares every Entire product icon the source uses', () => {
+		const declared = new Set(Object.keys(readManifest().contributes?.icons ?? {}));
+		const used = new Set<string>();
+
+		const scan = (directory: string): void => {
+			for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+				const entryPath = path.join(directory, entry.name);
+				if (entry.isDirectory()) {
+					if (entry.name !== 'test') {
+						scan(entryPath);
+					}
+				} else if (entry.name.endsWith('.ts')) {
+					for (const match of fs.readFileSync(entryPath, 'utf8').matchAll(/\$\((entire-[a-z-]+)\)/g)) {
+						used.add(match[1]);
+					}
+				}
+			}
+		};
+		scan(path.join(ROOT, 'src'));
+
+		assert.ok(used.size > 0, 'the source uses no Entire product icons');
+		for (const id of used) {
+			assert.ok(declared.has(id), `the source uses $(${id}), which contributes.icons does not declare`);
+		}
+	});
+
 	test('uses a packaged 24 by 24 Marvin outline for the Activity Bar', () => {
 		const container = readManifest().contributes?.viewsContainers?.activitybar?.find(view => view.id === 'entirely');
 		assert.ok(container, 'the Entirely Activity Bar container is not declared');

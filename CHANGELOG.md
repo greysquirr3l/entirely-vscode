@@ -8,6 +8,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Changed
 
+- **Marvin icons in the activity bar and the status bar.** The activity bar shows a
+  Marvin line-art icon, and every status bar state has its own Marvin glyph (tracked,
+  session running, not set up, not a repository, login cannot see it, login error, CLI
+  error). A checkpoint problem now swaps the icon for Marvin with a notification dot
+  instead of adding a warning mark.
 - **Entirely presents itself as an unofficial extension for Entire.** The activity bar
   title is now "Entirely for Entire", the marketplace description starts with
   "Unofficial extension for Entire", and the README says the extension is a community
