@@ -47,12 +47,112 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "icons": {
+      "entire-logo": {
+        "description": "Entire Marvin mascot",
+        "default": {
+          "fontPath": "assets/entire-icons.woff",
+          "fontCharacter": "\\e001"
+        }
+      },
+      "entire-compact": {
+        "description": "Compact Entire Marvin mascot",
+        "default": {
+          "fontPath": "assets/entire-icons.woff",
+          "fontCharacter": "\\e002"
+        }
+      },
+      "entire-large": {
+        "description": "Large Entire Marvin mascot",
+        "default": {
+          "fontPath": "assets/entire-icons.woff",
+          "fontCharacter": "\\e003"
+        }
+      },
+      "entire-dot": {
+        "description": "Entire Marvin mascot with notification dot",
+        "default": {
+          "fontPath": "assets/entire-icons.woff",
+          "fontCharacter": "\\e004"
+        }
+      },
+      "entire-dot-compact": {
+        "description": "Compact Entire Marvin mascot with notification dot",
+        "default": {
+          "fontPath": "assets/entire-icons.woff",
+          "fontCharacter": "\\e005"
+        }
+      },
+      "entire-in-progress": {
+        "description": "Entire Marvin mascot with progress badge",
+        "default": {
+          "fontPath": "assets/entire-icons.woff",
+          "fontCharacter": "\\e006"
+        }
+      },
+      "entire-success": {
+        "description": "Entire Marvin mascot with success badge",
+        "default": {
+          "fontPath": "assets/entire-icons.woff",
+          "fontCharacter": "\\e007"
+        }
+      },
+      "entire-warning": {
+        "description": "Entire Marvin mascot with warning badge",
+        "default": {
+          "fontPath": "assets/entire-icons.woff",
+          "fontCharacter": "\\e008"
+        }
+      },
+      "entire-warning-large": {
+        "description": "Large Entire Marvin mascot with warning badge",
+        "default": {
+          "fontPath": "assets/entire-icons.woff",
+          "fontCharacter": "\\e009"
+        }
+      },
+      "entire-error": {
+        "description": "Entire Marvin mascot with error badge",
+        "default": {
+          "fontPath": "assets/entire-icons.woff",
+          "fontCharacter": "\\e00a"
+        }
+      },
+      "entire-unavailable": {
+        "description": "Entire Marvin mascot unavailable",
+        "default": {
+          "fontPath": "assets/entire-icons.woff",
+          "fontCharacter": "\\e00b"
+        }
+      },
+      "entire-not-connected": {
+        "description": "Entire Marvin mascot not connected",
+        "default": {
+          "fontPath": "assets/entire-icons.woff",
+          "fontCharacter": "\\e00c"
+        }
+      },
+      "entire-snooze": {
+        "description": "Entire Marvin mascot snoozed",
+        "default": {
+          "fontPath": "assets/entire-icons.woff",
+          "fontCharacter": "\\e00d"
+        }
+      },
+      "entire-blocked": {
+        "description": "Entire Marvin mascot blocked",
+        "default": {
+          "fontPath": "assets/entire-icons.woff",
+          "fontCharacter": "\\e00e"
+        }
+      }
+    },
     "viewsContainers": {
       "activitybar": [
         {
           "id": "entirely",
           "title": "Entirely for Entire",
-          "icon": "$(robot)"
+          "icon": "images/entirely-view.svg"
         }
       ]
     },

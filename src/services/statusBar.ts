@@ -164,7 +164,7 @@ function render(display: StatusDisplay): Rendering {
 			};
 		case 'tracked':
 			return {
-				text: `$(circle-filled) Entire${warningMark(display.checkpointProblem)}`,
+				text: `$(entire-logo) Entire${warningMark(display.checkpointProblem)}`,
 				tooltip:
 					'Entire is tracking this workspace. No agent session is running.' +
 					problemLine(display.checkpointProblem) +

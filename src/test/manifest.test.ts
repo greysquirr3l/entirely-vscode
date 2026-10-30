@@ -2,6 +2,11 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
 
+interface ProductIconContribution {
+	description?: string;
+	default?: { fontPath?: string; fontCharacter?: string };
+}
+
 interface ExtensionManifest {
 	icon?: string;
 	license?: string;
@@ -10,8 +15,9 @@ interface ExtensionManifest {
 	extensionKind?: string[];
 	galleryBanner?: { color?: string; theme?: string };
 	contributes?: {
+		icons?: Record<string, ProductIconContribution>;
 		commands?: { command: string }[];
-		viewsContainers?: Record<string, { id: string }[]>;
+		viewsContainers?: Record<string, { id: string; icon?: string }[]>;
 		views?: Record<string, { id: string }[]>;
 		configuration?: {
 			properties?: Record<
@@ -100,6 +106,62 @@ suite('Entirely manifest', () => {
 		assert.ok(banner.color, 'the gallery banner has no color');
 		assert.match(banner.color, /^#[0-9a-fA-F]{6}$/, 'the gallery banner color is not a hex triplet');
 		assert.ok(banner.theme === 'dark' || banner.theme === 'light', 'the gallery banner theme is not dark or light');
+	});
+
+	test('declares and packages the Entire product icon family', () => {
+		const manifest = readManifest();
+		const icons = manifest.contributes?.icons;
+		assert.ok(icons, 'package.json declares no custom product icons');
+
+		const expected = [
+			['entire-logo', '\\e001'],
+			['entire-compact', '\\e002'],
+			['entire-large', '\\e003'],
+			['entire-dot', '\\e004'],
+			['entire-dot-compact', '\\e005'],
+			['entire-in-progress', '\\e006'],
+			['entire-success', '\\e007'],
+			['entire-warning', '\\e008'],
+			['entire-warning-large', '\\e009'],
+			['entire-error', '\\e00a'],
+			['entire-unavailable', '\\e00b'],
+			['entire-not-connected', '\\e00c'],
+			['entire-snooze', '\\e00d'],
+			['entire-blocked', '\\e00e'],
+		] as const;
+		const fontPath = 'assets/entire-icons.woff';
+
+		for (const [id, character] of expected) {
+			const productIcon: ProductIconContribution | undefined = icons[id];
+			assert.ok(productIcon, `the '${id}' icon is not contributed`);
+			assert.ok(productIcon.description, `the '${id}' icon is not described`);
+			assert.strictEqual(productIcon.default?.fontPath, fontPath, `the '${id}' icon uses the wrong font`);
+			assert.strictEqual(productIcon.default?.fontCharacter, character, `the '${id}' icon uses the wrong code point`);
+		}
+
+		const font = path.join(ROOT, fontPath);
+		assert.ok(fs.existsSync(font), `the icon font '${fontPath}' is not on disk`);
+		assert.strictEqual(fs.readFileSync(font).subarray(0, 4).toString('ascii'), 'wOFF', 'the icon font is not a WOFF file');
+
+		const patterns = ignorePatterns(path.join(ROOT, '.vscodeignore'));
+		assert.ok(!isIgnored(fontPath, patterns), `the icon font '${fontPath}' is excluded by .vscodeignore`);
+	});
+
+	test('uses a packaged 24 by 24 Marvin outline for the Activity Bar', () => {
+		const container = readManifest().contributes?.viewsContainers?.activitybar?.find(view => view.id === 'entirely');
+		assert.ok(container, 'the Entirely Activity Bar container is not declared');
+		assert.strictEqual(container.icon, 'images/entirely-view.svg', 'the Activity Bar does not use the Marvin outline');
+
+		const icon = path.join(ROOT, container.icon);
+		assert.ok(fs.existsSync(icon), `the Activity Bar icon '${container.icon}' is not on disk`);
+		const svg = fs.readFileSync(icon, 'utf8');
+		assert.match(svg, /viewBox="0 0 24 24"/, 'the Activity Bar icon is not sized on a 24 by 24 grid');
+		assert.match(svg, /currentColor/, 'the Activity Bar icon does not inherit the VS Code theme colour');
+		assert.match(svg, /fill="none"/, 'the Activity Bar icon is not line art');
+		assert.doesNotMatch(svg, /fill="currentColor"/, 'the Activity Bar icon has a filled shape instead of line art');
+
+		const patterns = ignorePatterns(path.join(ROOT, '.vscodeignore'));
+		assert.ok(!isIgnored(container.icon, patterns), `the Activity Bar icon '${container.icon}' is excluded by .vscodeignore`);
 	});
 
 	test('declares the marketplace metadata vsce requires', () => {

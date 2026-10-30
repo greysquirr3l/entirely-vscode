@@ -101,10 +101,10 @@ suite('Entire status bar', () => {
 				checkpointProblem: 'Checkpoints stay on this machine, so they will not appear on Entire.',
 			});
 
-			assert.notStrictEqual(bar.text, calm, 'the warning looks different from the calm state');
-			assert.match(bar.text, /warning/);
-			assert.match(bar.text, /circle-filled/, 'the state can still be read without hovering');
-			assert.match(bar.tooltip, /will not appear on Entire/);
+				assert.notStrictEqual(bar.text, calm, 'the warning looks different from the calm state');
+				assert.match(bar.text, /warning/);
+				assert.match(bar.text, /entire-logo/, 'the state can still be read without hovering');
+				assert.match(bar.tooltip, /will not appear on Entire/);
 		} finally {
 			bar.dispose();
 		}
