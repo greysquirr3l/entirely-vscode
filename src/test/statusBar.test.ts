@@ -8,7 +8,7 @@ import { AccountContextService } from '../services/accountContext';
 import { makeTempDir } from './support/tempDir';
 import { CliLocator } from '../services/cli/locator';
 import { CliRunner } from '../services/cli/runner';
-import { StatusBar } from '../services/statusBar';
+import { StatusBar, StatusDisplay } from '../services/statusBar';
 import { clickAction, StatusController } from '../services/statusController';
 
 const temporaryDirectories: string[] = [];
@@ -90,6 +90,27 @@ suite('Entire status bar', () => {
 		}
 	});
 
+	test('shows the logo with a codicon beside it for every state', () => {
+		const bar = new StatusBar();
+		try {
+			const expected: [StatusDisplay, string][] = [
+				[{ kind: 'tracked' }, '$(entire-logo) Entire'],
+				[{ kind: 'active-session' }, '$(entire-logo) Entire $(pulse)'],
+				[{ kind: 'not-set-up' }, '$(entire-logo) Entire $(circle-slash)'],
+				[{ kind: 'not-a-repository' }, '$(entire-logo) Entire $(circle-outline)'],
+				[{ kind: 'invisible-to-context', context: 'someone' }, '$(entire-logo) Entire $(eye-closed)'],
+				[{ kind: 'context-error', detail: 'no saved login' }, '$(entire-logo) Entire $(error)'],
+				[{ kind: 'error', detail: 'boom' }, '$(entire-logo) Entire $(warning)'],
+			];
+			for (const [display, text] of expected) {
+				bar.show(display);
+				assert.strictEqual(bar.text, text, `${display.kind} shows '${bar.text}'`);
+			}
+		} finally {
+			bar.dispose();
+		}
+	});
+
 	test('warns in the status bar when the checkpoints are not going anywhere', () => {
 		const bar = new StatusBar();
 		try {
@@ -102,8 +123,8 @@ suite('Entire status bar', () => {
 			});
 
 			assert.notStrictEqual(bar.text, calm, 'the warning looks different from the calm state');
-			assert.match(bar.text, /warning/);
-			assert.match(bar.text, /circle-filled/, 'the state can still be read without hovering');
+			assert.strictEqual(bar.text, '$(entire-logo) Entire $(warning)');
+			assert.match(bar.tooltip, /Entire is tracking this workspace/, 'the state can still be read by hovering');
 			assert.match(bar.tooltip, /will not appear on Entire/);
 		} finally {
 			bar.dispose();
@@ -123,7 +144,8 @@ suite('Entire status bar', () => {
 			});
 
 			assert.notStrictEqual(bar.text, calm);
-			assert.match(bar.text, /pulse/);
+			assert.strictEqual(calm, '$(entire-logo) Entire $(pulse)');
+			assert.strictEqual(bar.text, '$(entire-logo) Entire $(pulse) $(warning)');
 		} finally {
 			bar.dispose();
 		}
@@ -204,7 +226,7 @@ suite('Entire status bar', () => {
 			bar.show({ kind: 'invisible-to-context', context: 'greysquirr3l' });
 
 			assert.notStrictEqual(bar.text, untracked, 'the two states look the same');
-			assert.match(bar.text, /eye-closed/);
+			assert.match(bar.text, /\$\(eye-closed\)/);
 			assert.match(bar.tooltip, /cannot see/);
 			assert.match(bar.tooltip, /greysquirr3l/, 'the login is not named');
 			assert.doesNotMatch(bar.tooltip, /not set up/, 'it reads as a workspace that is not tracked');
