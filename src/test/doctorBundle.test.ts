@@ -24,6 +24,21 @@ import { makeTempDir } from './support/tempDir';
 
 const FACTS: PathFacts = { exists: false, isLink: false, isDirectory: false, parentExists: true, parentIsLink: false, workspaceRoots: ['/work/repo'] };
 
+/** Reads a regular file through one handle that refuses to follow a link. */
+function readRegularFile(file: string): Buffer {
+	const handle = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+
+	try {
+		if (!fs.fstatSync(handle).isFile()) {
+			throw new Error(`${file} is not a regular file`);
+		}
+
+		return fs.readFileSync(handle);
+	} finally {
+		fs.closeSync(handle);
+	}
+}
+
 suite('Doctor bundle: path checks', () => {
 	test('accepts an absolute .zip in an existing folder', () => {
 		assert.deepStrictEqual(checkBundlePath('/tmp/out/bundle.zip', FACTS), { ok: true, overwrites: false, insideWorkspace: false });
@@ -403,8 +418,9 @@ suite('Doctor bundle: the chosen path is only touched by a finished archive', ()
 		const built = harness(cli, { paths: [target], confirms: [true, true] });
 		const deps: BundleDependencies = { service: built.service, files: built.files, ui: built.ui, acting: () => Promise.resolve(ALICE) };
 		assert.strictEqual(await writeDiagnosticBundle(deps, { raw: false }), 'written');
-		assert.ok(fs.lstatSync(target).isFile() && !fs.lstatSync(target).isSymbolicLink());
-		assert.strictEqual(fs.readFileSync(target).subarray(0, 2).toString(), 'PK');
+		// Opening without following links throws for a link, so reading from this one
+		// handle proves the target is a regular file with no separate check first.
+		assert.strictEqual(readRegularFile(target).subarray(0, 2).toString(), 'PK');
 		assert.strictEqual(fs.readFileSync(decoy, 'utf8'), decoyBefore, 'what the link pointed at was not written through');
 	});
 
