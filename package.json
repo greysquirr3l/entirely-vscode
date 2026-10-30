@@ -2,7 +2,7 @@
   "name": "entirely",
   "publisher": "greysquirr3l",
   "displayName": "Entirely",
-  "description": "Entire — code management for agent-human collaboration: sessions, checkpoints, trails, and review, in the editor.",
+  "description": "Unofficial extension for Entire: sessions, checkpoints, trails and review for agent-human collaboration, in the editor.",
   "version": "0.1.0",
   "license": "MIT",
   "icon": "images/logo.png",
@@ -51,7 +51,7 @@
       "activitybar": [
         {
           "id": "entirely",
-          "title": "Entirely",
+          "title": "Entirely for Entire",
           "icon": "$(robot)"
         }
       ]
@@ -60,35 +60,43 @@
       "entirely": [
         {
           "id": "entirely.sessions",
-          "name": "Sessions"
+          "name": "Sessions",
+          "visibility": "visible"
         },
         {
           "id": "entirely.sessionDetail",
-          "name": "Session"
+          "name": "Session",
+          "visibility": "visible"
         },
         {
           "id": "entirely.checkpoints",
-          "name": "Checkpoints"
-        },
-        {
-          "id": "entirely.search",
-          "name": "Search"
+          "name": "Checkpoints",
+          "visibility": "visible"
         },
         {
           "id": "entirely.activity",
-          "name": "Activity"
+          "name": "Activity",
+          "visibility": "collapsed"
         },
         {
-          "id": "entirely.authentication",
-          "name": "Account"
-        },
-        {
-          "id": "entirely.controlPlane",
-          "name": "Control Plane"
+          "id": "entirely.search",
+          "name": "Search",
+          "visibility": "collapsed"
         },
         {
           "id": "entirely.integrations",
-          "name": "Integrations"
+          "name": "Integrations",
+          "visibility": "collapsed"
+        },
+        {
+          "id": "entirely.controlPlane",
+          "name": "Control Plane",
+          "visibility": "collapsed"
+        },
+        {
+          "id": "entirely.authentication",
+          "name": "Account",
+          "visibility": "collapsed"
         }
       ],
       "explorer": [

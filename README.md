@@ -4,7 +4,10 @@
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/greysquirr3l/entirely-vscode/badge)](https://scorecard.dev/viewer/?uri=github.com/greysquirr3l/entirely-vscode)
 
-A Visual Studio Code extension for [Entire](https://entire.com) — the Git
+Entirely is an unofficial, community extension. It is not affiliated with or
+endorsed by Entire.
+
+A Visual Studio Code extension for [Entire](https://entire.com), the Git
 forge built for agent-human collaboration.
 
 Entire records what coding agents did as **sessions**, freezes them into

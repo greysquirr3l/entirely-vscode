@@ -6,6 +6,16 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Changed
+
+- **Entirely presents itself as an unofficial extension for Entire.** The activity bar
+  title is now "Entirely for Entire", the marketplace description starts with
+  "Unofficial extension for Entire", and the README says the extension is a community
+  project, not affiliated with or endorsed by Entire.
+- **Only Sessions, Session and Checkpoints open by default.** Activity, Search,
+  Integrations, Control Plane and Account start collapsed, in that order. Commands that
+  show one of them still expand it.
+
 ### Added
 
 - **Every agent integration the CLI ships.** **Entirely: Set Up Agent Integrations**
