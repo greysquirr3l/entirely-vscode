@@ -49,6 +49,7 @@ const expected = new Set([
 
 /** What a file path must not look like. */
 const forbidden = [
+	{ pattern: /(^|\/)\.mcp\.json$/, reason: 'a project MCP configuration, which the extension writes for the project it is used in' },
 	{ pattern: /(^|\/)src\//, reason: 'source files' },
 	{ pattern: /(^|\/)out\//, reason: 'compiled test output' },
 	{ pattern: /(^|\/)node_modules\//, reason: 'development dependencies' },

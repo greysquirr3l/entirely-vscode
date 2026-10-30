@@ -5,6 +5,9 @@
 .entire/**
 .github/**
 
+# The MCP server entries Entirely itself writes into a project it is used in.
+.mcp.json
+
 # Build inputs and output. The package carries the bundle in dist/ and
 # nothing else the build produced.
 out/**
