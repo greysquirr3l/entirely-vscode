@@ -457,8 +457,8 @@ credentials themselves.
 ## Settings
 
 Every setting is under `entirely.` and is in the Settings editor. Times are in
-seconds unless noted. `cliPath` and `cliContext` can only be set in user
-settings, never by a workspace.
+seconds unless noted. `cliPath` and `cliContext` can be set in user or
+remote-machine settings, never workspace settings.
 
 | Setting | Default | What it does |
 |---|---|---|

@@ -57,6 +57,6 @@ If you aren't sure where a problem lives, report it here and we'll route it.
 - It writes MCP configuration only inside the workspace, only after you
   agree, and never puts a credential or a path to your CLI in it.
 - It opens only Entire addresses in your browser.
-- `entirely.cliPath` and `entirely.cliContext` can only be set in user
-  settings, so a workspace can't point the extension at a different binary
+- `entirely.cliPath` and `entirely.cliContext` can be set in user or remote-machine
+  settings, never workspace settings, so a cloned repo can't point the extension at a different binary
   or login.
