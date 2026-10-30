@@ -1,4 +1,4 @@
-import { mcpClientConfig } from '../lib/entire';
+import { describeMcpScope, mcpClientConfig } from '../lib/entire';
 import type { McpServerSource } from '../services/mcpServer';
 
 /** What the MCP commands need from the editor. */
@@ -8,7 +8,7 @@ export interface McpUi {
 	/** Asks the editor to list its MCP servers, where one can be started. False when the editor cannot. */
 	showServers(): Promise<boolean>;
 	/** Offers to turn the setting on. True when the person accepts. */
-	offerEnable(): Promise<boolean>;
+	offerEnable(scope: string): Promise<boolean>;
 	copy(text: string): Promise<void>;
 }
 
@@ -17,6 +17,8 @@ export interface McpDependencies {
 	readonly ui: McpUi;
 	readonly enabled: () => boolean;
 	readonly enable: () => Promise<void>;
+	/** Names the setting `enable` changes, as the question puts it. Defaults to the user setting. */
+	readonly scopeLabel?: () => string;
 	/** Tells the editor to read the server list again. */
 	readonly refresh: () => void;
 }
@@ -33,7 +35,7 @@ export type McpResult = 'listed' | 'unavailable' | 'disabled' | 'copied';
 export async function startMcpServer(deps: McpDependencies): Promise<McpResult> {
 	const { ui } = deps;
 	if (!deps.enabled()) {
-		if (!(await ui.offerEnable())) {
+		if (!(await ui.offerEnable(deps.scopeLabel?.() ?? describeMcpScope('user')))) {
 			return 'disabled';
 		}
 		await deps.enable();

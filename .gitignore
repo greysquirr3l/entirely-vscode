@@ -101,3 +101,6 @@ $RECYCLE.BIN/
 .Trash-*
 .nfs*
 nohup.out
+
+# Per-machine Claude Code and Entire hook settings.
+.claude/

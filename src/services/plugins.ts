@@ -21,6 +21,9 @@ import type { HelpFlag } from '../lib/entire/search';
 import type { CliRunner } from './cli';
 import type { Read } from './controlPlane';
 
+/** Short row text for a hidden built-in; the tree tooltip carries the full reason. */
+export const BUILT_IN_DETAIL = 'also an Entire CLI command';
+
 /** What a plugin's own help says it accepts. */
 export interface PluginUsage {
 	readonly subcommands: readonly string[];
@@ -158,6 +161,13 @@ export class PluginService implements PluginSource {
 		const guide = await this.options.runner.usage(name, { cwd: this.cwd });
 		if (guide.ok) {
 			return { kind: 'on-path' };
+		}
+		// Hidden commands (mcp, completion) are in no listing and have no agent-help
+		// page, yet the CLI answers their --help. A PATH plugin would have answered
+		// agent-help, so a name answering only --help cannot be called a plugin.
+		const answered = await this.options.runner.help(name, { cwd: this.cwd });
+		if (answered.ok) {
+			return { kind: 'unknown', detail: BUILT_IN_DETAIL };
 		}
 		if (isMissingPlugin(`${guide.stderr}\n${guide.stdout}`, name)) {
 			return { kind: 'missing' };

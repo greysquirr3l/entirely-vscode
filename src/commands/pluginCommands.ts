@@ -30,13 +30,13 @@ export class EditorMcpUi implements McpUi {
 		}
 	}
 
-	async offerEnable(): Promise<boolean> {
+	async offerEnable(scope: string): Promise<boolean> {
 		const action = 'Turn On';
 		const choice = await vscode.window.showWarningMessage(
 			'The Entire MCP server is turned off.',
 			{
 				modal: true,
-				detail: `This changes your user setting "entirely.${MCP_SETTING}" to true. No MCP configuration file is written; the editor starts the server itself.`,
+				detail: `This changes ${scope} "entirely.${MCP_SETTING}" to true. No MCP configuration file is written; the editor starts the server itself.`,
 			},
 			action,
 		);

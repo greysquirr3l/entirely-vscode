@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { integrationTargetOf, judgeCli } from '../lib/entire';
 import { IntegrationsProvider } from '../providers/integrationsProvider';
 import type { CliRunner } from '../services/cli';
-import { mcpServerEnabledIn, readExtensionSettings } from '../services/configuration';
+import { enableMcpServerAt, mcpEnableScopeIn, mcpServerEnabledIn, readExtensionSettings } from '../services/configuration';
 import { IntegrationDetector, type IntegrationFolder } from '../services/integrationDetection';
 import { IntegrationOffers } from '../services/integrationOffers';
 import { McpServerService } from '../services/mcpServer';
@@ -44,13 +44,16 @@ export function registerIntegrations(context: vscode.ExtensionContext, wiring: I
 	const config = new ProjectMcpConfig();
 	const mcpFor = (folder: string) => new McpServerService({ runner, workspaceRoot: () => folder });
 
+	const pluginServiceFor = (folder: string) =>
+		new PluginService({ runner, workspaceRoot: () => folder, timeoutSeconds: () => readExtensionSettings().pluginTimeout });
+	const pluginsFor = (folder: string): PluginDependencies => ({ ...wiring.plugins, source: pluginServiceFor(folder) });
+
 	const provider = new IntegrationsProvider(
 		new IntegrationDetector({
 			cli: async () => judgeCli(await runner.discover(), readExtensionSettings().minimumCliVersion),
 			folders: workspaceFolders,
 			suggested: () => readExtensionSettings().suggestedPlugins,
-			plugins: folder =>
-				new PluginService({ runner, workspaceRoot: () => folder, timeoutSeconds: () => readExtensionSettings().pluginTimeout }),
+			plugins: pluginServiceFor,
 			mcp: mcpFor,
 			mcpEnabled: mcpServerEnabledIn,
 			config: folder => config.inspect(folder),
@@ -94,13 +97,16 @@ export function registerIntegrations(context: vscode.ExtensionContext, wiring: I
 		vscode.commands.registerCommand('entirely.installIntegration', async (node?: unknown) => {
 			const target = integrationTargetOf(node);
 			if (target?.kind === 'plugin') {
-				await installFromRow({ plugins: wiring.plugins, refresh }, target.name);
+				await installFromRow({ plugins: pluginsFor, refresh }, target.name, target.folder);
 			}
 		}),
 		vscode.commands.registerCommand('entirely.enableMcpIntegration', async (node?: unknown) => {
 			const target = integrationTargetOf(node);
 			if (target?.kind === 'mcp-enable') {
-				await enableMcpFromRow({ mcp: wiring.mcp, enabledFor: mcpServerEnabledIn, ui, refresh }, folderOf(target.folder));
+				await enableMcpFromRow(
+					{ mcp: wiring.mcp, sourceFor: mcpFor, enabledFor: mcpServerEnabledIn, scopeFor: mcpEnableScopeIn, enableAt: enableMcpServerAt, ui, refresh },
+					folderOf(target.folder),
+				);
 			}
 		}),
 		vscode.commands.registerCommand('entirely.addMcpToProject', async (node?: unknown) => {

@@ -1,51 +1,62 @@
 # Security Policy
 
+## Supported versions
+
+Entirely is pre-1.0. Only the latest release gets security fixes.
+
+| Version | Supported |
+| ------- | --------- |
+| 0.2.x   | Yes       |
+| < 0.2   | No        |
+
 ## Reporting a vulnerability
 
-If you find a vulnerability in Entirely, please report it privately rather
-than opening a public issue.
+Please report a vulnerability privately. Don't open a public issue, pull
+request or discussion for it.
 
-Use GitHub's private reporting form for this repository:
-**Security → Report a vulnerability** at
-<https://github.com/greysquirr3l/entirely-vscode/security/advisories/new>
+GitHub's private vulnerability reporting is not enabled on this repository
+yet, so the Security tab has no report form. Until it is, email
+<s0ma@protonmail.com> and put "Entirely security report" in the subject.
 
-That opens a private advisory visible only to the maintainers, so a
-vulnerability can be fixed before it is disclosed. Please do not open a
-public issue, a pull request or a discussion for a vulnerability.
+If you can't email, open a public issue that says only that you have a
+security report and how to reach you. Leave out the details.
 
-If private reporting is unavailable to you, email
-<s0ma@protonmail.com> instead, and say in the subject that it is a
-security report so the message is treated as one.
+A report helps most with:
 
-## What to include
-
-A report is more useful with:
-
-- the version of the extension you were using, and of VS Code
-- the steps that reproduce the problem
-- what you expected to happen, and what happened instead
+- the extension version and the VS Code version
+- the steps to reproduce
+- what you expected, and what happened
 - any proof-of-concept code or output
 
-Please do not include anything that would harm someone else's machine
-while reproducing the problem.
+Please don't include anything that could harm someone else's machine.
 
-## Disclosure
+## What to expect
 
-We will acknowledge a report within three working days, and we will tell
-you what we intend to do about it. We aim to have a fix released, or a
-mitigation in place, within 30 days of the report. We may need longer
-when a fix is involved in a dependency rather than in the extension, and
-we will say so if that is the case.
+We aim to acknowledge a report within three working days and to ship a fix
+or a mitigation within 30 days. A fix that depends on a dependency can take
+longer, and we'll say so. We credit reporters in the release notes unless
+you'd rather we didn't, and keep the details private until a fix has shipped.
 
-We will credit you in the release notes, unless you would rather we did
-not. We will keep the advisory private until a fix has shipped.
+## Scope
 
-## What this policy covers
+In scope: the Entirely extension in this repository.
 
-Entirely, the extension in this repository. It does not cover the Entire
-CLI, which is a separate project — report a vulnerability in the CLI
-through the same private advisory form, and we will pass it on.
+Out of scope: the Entire CLI and the Entire forge. Report those to Entire,
+under the policy at <https://github.com/entireio/cli/blob/HEAD/SECURITY.md>.
+If you aren't sure where a problem lives, report it here and we'll route it.
 
-The extension shells out to the CLI and reads its output. A vulnerability
-in the CLI is therefore a vulnerability in the extension's use of it, and
-is treated as one until the CLI is fixed.
+## What the extension does to protect you
+
+- It stores no secrets. Tokens stay in the Entire CLI's own credential store,
+  and the extension never reads that store.
+- Anything that changes Entire or your repository asks first, and says what
+  it will touch.
+- Transcripts, prompt bodies, checkpoint payloads and search queries are kept
+  out of the output channel. Sensitive operands are redacted from logged
+  command lines.
+- It writes MCP configuration only inside the workspace, only after you
+  agree, and never puts a credential or a path to your CLI in it.
+- It opens only Entire addresses in your browser.
+- `entirely.cliPath` and `entirely.cliContext` can be set in user or remote-machine
+  settings, never workspace settings, so a cloned repo can't point the extension at a different binary
+  or login.
