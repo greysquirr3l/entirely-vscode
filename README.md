@@ -426,6 +426,7 @@ the command line and the size.
   file. The path is checked again just before the write. The archive is never
   opened in the editor. **Entirely: Doctor: Write an Unredacted
   Diagnostic Bundle** is a separate command behind its own strict confirmation.
+  The real CLI's acceptance of a hidden `.entirely-<random>.zip` name for its output path has not been observed. If it refuses or ignores that name, the command reports a failure or "unconfirmed", removes the temporary file, and places nothing at the chosen path.
 - **Entirely: Doctor: Migrate Checkpoints to Git Refs** opens the CLI's dry run
   first. Only then does it offer the migration, which names the repository and
   the login it will run as, runs once, never pushes, and is checked by counting

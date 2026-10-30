@@ -27,7 +27,8 @@ All notable changes to the Entirely extension are documented in this file. The f
   (a regular, non-empty file with a zip signature, opened once without following links), and
   only then moved into place: renamed over the file when you agreed to replace it, linked
   (which refuses to overwrite) otherwise. The temporary file is removed on every failure or
-  cancel, and the path is checked again just before the write. It never opens the archive.
+  cancel, and the path is checked again just before the write.
+  The real CLI's acceptance of a hidden `.entirely-<random>.zip` name for its output path has not been observed. If it refuses or ignores that name, the command reports a failure or "unconfirmed", removes the temporary file, and places nothing at the chosen path. It never opens the archive.
   **Write an Unredacted Diagnostic Bundle** is a separate command with its own strict
   confirmation, offered only when the CLI's help describes the raw flag.
 - **Migrate checkpoints to git refs.** **Entirely: Doctor: Migrate Checkpoints to Git

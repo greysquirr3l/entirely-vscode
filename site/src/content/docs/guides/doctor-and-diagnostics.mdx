@@ -96,6 +96,8 @@ Choose **Save the whole output…** in the notification to write all of it to a 
 
 The archive is never opened in the editor, and Entirely never creates folders for it.
 
+The real CLI's acceptance of a hidden `.entirely-<random>.zip` name for its output path has not been observed. If it refuses or ignores that name, the command reports a failure or "unconfirmed", removes the temporary file, and places nothing at the chosen path.
+
 A path is refused, with the reason, and the CLI is not run, when it:
 
 | Path | Why |
