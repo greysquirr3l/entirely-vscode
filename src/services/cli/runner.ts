@@ -487,6 +487,7 @@ export class CliRunner {
 					stdout: outcome.stdout,
 					stderr: outcome.stderr,
 					durationMs: outcome.durationMs,
+					...(outcome.truncated ? { truncated: true } : {}),
 				},
 				invocation: {
 					binary: discovery.path,
@@ -511,6 +512,7 @@ export class CliRunner {
 				stdout: outcome.stdout,
 				stderr: outcome.stderr,
 				durationMs: outcome.durationMs,
+				...(outcome.truncated ? { truncated: true } : {}),
 			},
 			invocation: {
 				binary: discovery.path,

@@ -4,9 +4,9 @@ import * as vscode from 'vscode';
 export const GENERATED_SCHEME = 'entirely-generated';
 
 /** What kind of document was generated. It decides the file extension, so the editor picks the language. */
-export type GeneratedKind = 'dispatch' | 'recap' | 'plugin' | 'detail';
+export type GeneratedKind = 'dispatch' | 'recap' | 'plugin' | 'detail' | 'doctor';
 
-const EXTENSIONS: Record<GeneratedKind, string> = { dispatch: 'md', recap: 'txt', plugin: 'txt', detail: 'txt' };
+const EXTENSIONS: Record<GeneratedKind, string> = { dispatch: 'md', recap: 'txt', plugin: 'txt', detail: 'txt', doctor: 'txt' };
 
 /** How many documents are kept in memory at once. */
 const MAX_DOCUMENTS = 5;

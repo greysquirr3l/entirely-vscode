@@ -74,6 +74,7 @@ import { TrailChangesService } from './services/trailChanges';
 import { SelectionService } from './services/selection';
 import { SelectedRows } from './providers/selectedMark';
 import { createSelectionLoader } from './services/selectionLoader';
+import { registerDoctorDepthCommands } from './commands/doctorDepthCommands';
 import { EditorGeneratedUi } from './commands/activityUi';
 import { EditorControlPlaneUi } from './commands/controlPlaneUi';
 
@@ -463,6 +464,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			}),
 			ui: generatedUi,
 		},
+	});
+
+	// The CLI's log, hook traces, diagnostic bundle and checkpoint migration.
+	// Each is run by choosing the command; nothing here runs on its own.
+	registerDoctorDepthCommands(context, {
+		runner,
+		workspaceRoot,
+		documents: generated,
+		acting: async () => (await accounts.refresh(workspaceRoot())).acting,
 	});
 
 	// Plugins run as the acting login, and the MCP server is offered to the

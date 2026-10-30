@@ -13,12 +13,12 @@ The audit was derived against Entire CLI 0.12.2 on 2026-10-30. Its sources are E
 
 | Mark | Rows | Meaning |
 | --- | --- | --- |
-| Supported | 74 | The extension calls it, you can reach it from the editor, and a test in the repository covers it. |
+| Supported | 78 | The extension calls it, you can reach it from the editor, and a test in the repository covers it. |
 | Excluded | 7 | A decision: the extension deliberately does not do it. |
-| Gap | 52 | Not done, and no decision to leave it out. |
+| Gap | 48 | Not done, and no decision to leave it out. |
 | **Total** | **133** | |
 
-Some "supported" rows are covered in part. The matrix says so in each row: some tests run the call against a fake CLI, and some only check the arguments built for it. `why`, `blame`, `hooks`, `session resume` and `checkpoint explain` are tested with a stub runner that records arguments. The CLI itself is not run in those tests. For `enable`, the argument building is tested, and the hook bridge end to end uses a stub.
+The four deeper `doctor` subcommands (`logs`, `trace`, `bundle`, `migrate-checkpoints`) are supported but tested against a fake CLI only: their real output formats were not observed, and the real bundle and migration were never run. Some "supported" rows are covered in part. The matrix says so in each row: some tests run the call against a fake CLI, and some only check the arguments built for it. `why`, `blame`, `hooks`, `session resume` and `checkpoint explain` are tested with a stub runner that records arguments. The CLI itself is not run in those tests. For `enable`, the argument building is tested, and the hook bridge end to end uses a stub.
 
 ## Excluded on purpose
 
@@ -37,13 +37,12 @@ Some "supported" rows are covered in part. The matrix says so in each row: some 
 None of these is excluded. Each is something the CLI can do and the editor does not.
 
 1. **Setup and teardown.** `disable`, `configure`, `clean`, `runner setup`. Nothing in the editor stops capture or edits repository settings.
-2. **Diagnostics beyond the report.** `doctor bundle`, `logs`, `trace`, `migrate-checkpoints`.
-3. **Review and expertise.** `review`, `experts`.
-4. **Token analysis across history.** `tokens`, `tokens profile`.
-5. **Checkpoint deletion.** `checkpoint delete`. It is destructive and would need the same confirmation care as the control-plane deletes.
-6. **Control plane breadth.** Create and read for organisations and projects, organisation invitations, and repository `clone`, `mirror add`, `detach`, `remove`, `resync`, `protection`, `remote add` and `visibility get`.
-7. **Plugin management.** `plugin browse`, `doctor`, `index update`, `info`, `remove`, `search`, `upgrade`. Only `list` and `install` are wired.
-8. **Trail depth.** `trail create`, `update`, `watch`, and the comment and finding commands that edit, reply, resolve or dismiss.
+2. **Review and expertise.** `review`, `experts`.
+3. **Token analysis across history.** `tokens`, `tokens profile`.
+4. **Checkpoint deletion.** `checkpoint delete`. It is destructive and would need the same confirmation care as the control-plane deletes.
+5. **Control plane breadth.** Create and read for organisations and projects, organisation invitations, and repository `clone`, `mirror add`, `detach`, `remove`, `resync`, `protection`, `remote add` and `visibility get`.
+6. **Plugin management.** `plugin browse`, `doctor`, `index update`, `info`, `remove`, `search`, `upgrade`. Only `list` and `install` are wired.
+7. **Trail depth.** `trail create`, `update`, `watch`, and the comment and finding commands that edit, reply, resolve or dismiss.
 
 A gap is a finding, not a failure. Closing one means a command in `package.json`, a service, a test, and a move of the row from Gap to Supported.
 

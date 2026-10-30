@@ -490,3 +490,58 @@ export { DETAIL_COMMANDS, detailActions, isDetailCommand, linkFor, rowLink } fro
 export type { DetailAction } from './detailActions';
 export { renderDetailHtml, DETAIL_CSP } from './detailHtml';
 export { asChangePick, asTrailPick, pickFromTarget, pickFromTargetOrShown, touchedKeys } from './trailTarget';
+export {
+	DEFAULT_LOG_LINES,
+	DOCTOR_BUNDLE_WANTS,
+	DOCTOR_FALLBACK,
+	DOCTOR_LOG_WANTS,
+	DOCTOR_MIGRATE_WANTS,
+	DOCTOR_TRACE_WANTS,
+	bundleArguments,
+	isHookName,
+	logArguments,
+	migrateApplyArguments,
+	migrateDryRunArguments,
+	pickBundleFlags,
+	pickLogFlags,
+	pickMigrateFlags,
+	pickTraceFlags,
+	traceArguments,
+} from './doctorFlags';
+export type {
+	BundleFlags,
+	DoctorFlagPick,
+	DoctorSubcommand,
+	LogFlags,
+	MigrateFlags,
+	TraceFlags,
+	TraceRequest,
+} from './doctorFlags';
+export { describeMissingSubcommand, describeNoCli } from './doctorAvailability';
+export type { DoctorSubcommandCheck } from './doctorAvailability';
+export { boundOutput, describeBound, formatSize, renderDepthDocument, utf8Length } from './doctorOutput';
+export type { BoundedOutput, DepthDocumentKind, KeepEnd } from './doctorOutput';
+export {
+	checkBundlePath,
+	checkSavePath,
+	checkTextPath,
+	defaultBundleName,
+	defaultOutputName,
+	isZipSignature,
+} from './bundlePath';
+export type { PathCheck, PathFacts } from './bundlePath';
+export {
+	BUNDLE_NOTICE,
+	RAW_BUNDLE_NOTICE,
+	bundleOutcomeFromReadback,
+	confirmBundleWrite,
+	describeBundleOutcome,
+} from './diagnosticBundle';
+export type { BundleOutcome, BundleReadback } from './diagnosticBundle';
+export {
+	CHECKPOINT_REF_PREFIX,
+	classifyMigration,
+	confirmMigration,
+	describeMigrationOutcome,
+} from './migrateCheckpoints';
+export type { MigrationOutcome } from './migrateCheckpoints';

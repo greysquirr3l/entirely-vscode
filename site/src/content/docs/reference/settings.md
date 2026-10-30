@@ -68,6 +68,17 @@ The extension never waits forever on the CLI. Each class of call has its own lim
 | `entirely.activityTimeout` | `30` | 5 to 300 | `entire activity` and `entire recap`. |
 | `entirely.dispatchTimeout` | `180` | 10 to 1800 | **Generate Dispatch**. It is never restarted after a timeout. |
 | `entirely.pluginTimeout` | `120` | 10 to 1800 | **Run Plugin Command** and **Install Plugin**. Never restarted after a timeout. |
+| `entirely.doctorReadTimeout` | `30` | 5 to 300 | `entire doctor logs`, `entire doctor trace` and the dry run of `entire doctor migrate-checkpoints`. All three only read local files and git. |
+| `entirely.doctorBundleTimeout` | `120` | 10 to 900 | **Write a Diagnostic Bundle**. It reads every log file and runs several git commands. |
+| `entirely.migrateCheckpointsTimeout` | `300` | 10 to 1800 | **Migrate Checkpoints to Git Refs**. It is never started again after a timeout; running it again is safe because converted checkpoints are skipped. |
+
+## Doctor: log, traces and large output
+
+| Setting | Default | Range | What it does |
+| --- | --- | --- | --- |
+| `entirely.doctorLogLines` | `200` | 10 to 5000 | How many of the newest log lines **Show the CLI Log** asks for. The count is always sent, so the CLI never prints the whole file. |
+| `entirely.doctorTraceCount` | `5` | 1 to 200 | The default number of traces when you ask for the last few. You can change it for one run. |
+| `entirely.doctorOutputMaxKilobytes` | `512` | 16 to 4096 | The size past which a log, trace or migration report opens cut. The banner says how much was left out. |
 
 ## Agent integrations and the hook bridge
 

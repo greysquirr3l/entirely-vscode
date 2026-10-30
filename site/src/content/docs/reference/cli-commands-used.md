@@ -32,6 +32,12 @@ If the CLI is missing or too old to describe a command, the feature says so and 
 | `entire status` | Status bar, doctor report, checkpoint destination | Read |
 | `entire enable` | **Set Up Entire**. Non-interactive: the agent comes from `entire agent list`, with `--no-init-repo` | Changes |
 | `entire doctor` | **Doctor: Show the CLI's Full Diagnostic Output**. The bare report only | Read |
+| `entire doctor logs` | **Doctor: Show the CLI Log**. Always `--tail N` from `entirely.doctorLogLines`; never `--follow` or zero. The flag is read from the CLI's help | Read |
+| `entire doctor trace` | **Doctor: Show Hook Traces**. `--last`, `--hook`, `--slow` and `--summary` only when the help describes them; never `--json` | Read |
+| `entire doctor bundle` | **Doctor: Write a Diagnostic Bundle**. `--out` with a hidden temporary `.zip` beside the path you chose (moved into place only once it checks out); `--raw` only for the separate unredacted command | Writes a file you choose |
+| `entire doctor migrate-checkpoints` | **Doctor: Migrate Checkpoints to Git Refs**. A dry run first, then one run with no flag, so it never names a remote or pushes | Read, then changes (local git refs) |
+
+The four `doctor` subcommands above were tested only against a fake CLI. The real CLI's help for them was read, but none of the four was run against it, and their output formats were not observed.
 | `entire hooks` | The hook bridge, which reports editor-side agent events to one configured agent. The CLI marks it internal | Changes (records events) |
 
 ## Agent integrations
