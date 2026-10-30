@@ -17,11 +17,13 @@ export class AuthenticationPanel {
 	private static panel: vscode.WebviewPanel | undefined;
 	private static output = '';
 	private static note = '';
+	private static detail = '';
 	private static state: 'running' | 'done' | 'failed' = 'running';
 
 	/** Opens the panel and says what is being done. */
 	static start(note: string): void {
 		AuthenticationPanel.note = note;
+		AuthenticationPanel.detail = '';
 		AuthenticationPanel.output = '';
 		AuthenticationPanel.state = 'running';
 
@@ -39,9 +41,9 @@ export class AuthenticationPanel {
 	/** Says that the sign-in finished, and how. */
 	static finish(ok: boolean, detail?: string): void {
 		AuthenticationPanel.state = ok ? 'done' : 'failed';
-		if (detail) {
-			AuthenticationPanel.note = detail;
-		}
+		// The note says what to do before the sign-in. Once it is done it
+		// would be stale, and once it failed it still helps explain why.
+		AuthenticationPanel.detail = ok ? '' : (detail ?? '');
 		AuthenticationPanel.render();
 	}
 
@@ -106,13 +108,24 @@ export class AuthenticationPanel {
 			'</head>',
 			'<body>',
 			`<h1>${escapeHtml(heading)}</h1>`,
-			`<p class="note">${escapeHtml(AuthenticationPanel.note)}</p>`,
+			...AuthenticationPanel.paragraphs(),
 			'<pre class="output">',
 			escapeHtml(AuthenticationPanel.output),
 			'</pre>',
 			'</body>',
 			'</html>',
 		].join('\n');
+	}
+
+	/** The lines under the heading for the current state. */
+	private static paragraphs(): string[] {
+		if (AuthenticationPanel.state === 'done') {
+			return [];
+		}
+
+		return [AuthenticationPanel.note, AuthenticationPanel.detail]
+			.filter(line => line.length > 0)
+			.map(line => `<p class="note">${escapeHtml(line)}</p>`);
 	}
 
 	/** The panel's styling. */

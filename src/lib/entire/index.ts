@@ -112,9 +112,13 @@ export {
 } from './authentication';
 export type { AuthStatus } from './authentication';
 export {
-	describeHeadlessEnvironment,
+	describeRemote,
+	describeSignInLocation,
 	isHeadlessEnvironment,
+	locateBrowser,
 } from './environment';
+export type { BrowserLocation, WindowHost } from './environment';
+export { findVerificationUrl, isEntireUrl } from './verificationUrl';
 export {
 	MAX_QUERY_CHARACTERS,
 	SEARCH_RESULT_LIMIT,

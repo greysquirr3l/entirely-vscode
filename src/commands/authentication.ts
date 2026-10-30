@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
 
 import {
-	describeHeadlessEnvironment,
-	isHeadlessEnvironment,
+	describeSignInLocation,
+	findVerificationUrl,
+	locateBrowser,
 } from '../lib/entire';
+import type { WindowHost } from '../lib/entire';
 import type { AccountContextService } from '../services/accountContext';
 import type { AuthenticationService, SignInMethod } from '../services/authentication';
 import { AuthenticationPanel } from '../providers/authenticationPanel';
@@ -29,6 +31,10 @@ export interface AuthenticationDependencies {
 	readonly env?: NodeJS.ProcessEnv;
 	/** The platform the extension runs on. */
 	readonly platform?: NodeJS.Platform;
+	/** The window the extension runs in. */
+	readonly host?: WindowHost;
+	/** How an address is opened in the person's own browser. */
+	readonly openExternal?: (address: string) => Thenable<boolean>;
 	/** How the person picks a way to sign in. */
 	readonly pickMethod?: (choices: readonly SignInChoice[]) => Promise<SignInChoice | undefined>;
 	/** How the person confirms the sign-out. */
@@ -40,11 +46,12 @@ export interface AuthenticationDependencies {
  *
  * The device flow is offered whenever the CLI has it, because a browser
  * that is not on this machine is a situation the extension cannot see
- * but can still be ready for. On a machine with no display at all it is
- * the only flow there is, so it is chosen rather than offered.
+ * but can still be ready for. When the browser is not on the machine the
+ * CLI runs on, or there is none, it is the only flow that works, so it
+ * is chosen rather than offered.
  */
 export async function chooseSignInMethod(
-	headless: boolean,
+	deviceOnly: boolean,
 	deviceAvailable: boolean,
 	pick: (choices: readonly SignInChoice[]) => Promise<SignInChoice | undefined> = pickWithQuickPick,
 ): Promise<SignInChoice | undefined> {
@@ -64,7 +71,7 @@ export async function chooseSignInMethod(
 		detail: 'The CLI prints a code and you enter it in a browser on another machine',
 	};
 
-	if (headless) {
+	if (deviceOnly) {
 		return device;
 	}
 
@@ -95,28 +102,57 @@ export async function signIn(deps: AuthenticationDependencies): Promise<void> {
 	const cwd = deps.workspaceRoot();
 	const env = deps.env ?? process.env;
 	const platform = deps.platform ?? process.platform;
-	const headless = isHeadlessEnvironment(env, platform);
+	const host = deps.host ?? {
+		remoteName: vscode.env.remoteName,
+		uiKind: vscode.env.uiKind === vscode.UIKind.Web ? 'web' : 'desktop',
+	};
+	const location = locateBrowser(env, platform, host);
 
 	const flags = await deps.authentication.signInFlags(cwd);
 	const deviceAvailable = flags.includes('--device');
 
-	const choice = await chooseSignInMethod(headless, deviceAvailable, deps.pickMethod);
+	const choice = await chooseSignInMethod(location.kind !== 'local-display', deviceAvailable, deps.pickMethod);
 
 	if (!choice) {
 		return;
 	}
 
-	const note = headless
-		? describeHeadlessEnvironment(env, platform)
-		: choice.method === 'device'
+	const note =
+		location.kind !== 'local-display' && choice.method === 'device'
+			? describeSignInLocation(location)
+			: choice.method === 'device'
 			? 'Enter the code below in a browser on another machine.'
 			: 'The CLI is opening a browser. Finish the sign-in there.';
 
 	AuthenticationPanel.start(note);
 	deps.output.appendLine(`[entirely] signing in (${choice.method})`);
 
+	// In a remote or browser-based window the CLI cannot open a browser
+	// for the person, so the page the code goes to is opened for them.
+	const openPage = choice.method === 'device' && location.kind !== 'local-display';
+	const open = deps.openExternal ?? (address => vscode.env.openExternal(vscode.Uri.parse(address)));
+	let seen = '';
+	let opened = false;
+
 	const outcome = await deps.authentication.signIn(
-		{ method: choice.method, onOutput: text => AuthenticationPanel.append(text) },
+		{
+			method: choice.method,
+			onOutput: text => {
+				AuthenticationPanel.append(text);
+
+				if (!openPage || opened) {
+					return;
+				}
+
+				seen += text;
+				const address = findVerificationUrl(seen);
+
+				if (address) {
+					opened = true;
+					void Promise.resolve(open(address)).catch(() => false);
+				}
+			},
+		},
 		cwd,
 	);
 
