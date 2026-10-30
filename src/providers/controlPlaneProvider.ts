@@ -18,8 +18,8 @@ export type ControlNode =
 	| { readonly kind: 'project'; readonly project: Project }
 	| { readonly kind: 'repository'; readonly repository: ControlRepository }
 	| { readonly kind: 'organisation'; readonly organisation: Organisation }
-	| { readonly kind: 'access'; readonly scope: GrantScope; readonly target: string; readonly owner: string }
-	| { readonly kind: 'grant'; readonly scope: GrantScope; readonly target: string; readonly grant: AccessGrant }
+	| { readonly kind: 'access'; readonly scope: GrantScope; readonly target: string; readonly label: string }
+	| { readonly kind: 'grant'; readonly scope: GrantScope; readonly target: string; readonly label: string; readonly grant: AccessGrant }
 	| { readonly kind: 'cluster'; readonly cluster: ControlCluster }
 	| { readonly kind: 'message'; readonly text: string };
 
@@ -75,23 +75,23 @@ export class ControlPlaneProvider implements vscode.TreeDataProvider<ControlNode
 				return this.groupChildren(node.group);
 
 			case 'project': {
-				const repositories = await this.source.repositories(node.project.name);
+				const repositories = await this.source.repositories(node.project);
 				const nodes = asNodes(repositories, 'repositories', list =>
 					list.map((repository): ControlNode => ({ kind: 'repository', repository })),
 				);
-				return [...nodes, { kind: 'access', scope: 'project', target: node.project.name, owner: node.project.name }];
+				return [...nodes, { kind: 'access', scope: 'project', target: node.project.id, label: node.project.name }];
 			}
 
 			case 'repository': {
 				const path = repositoryPath(node.repository);
-				return path === undefined ? [] : this.grantNodes('repo', path);
+				return path === undefined ? [] : this.grantNodes('repo', path, path);
 			}
 
 			case 'organisation':
-				return this.grantNodes('org', node.organisation.name);
+				return this.grantNodes('org', node.organisation.name, node.organisation.name);
 
 			case 'access':
-				return this.grantNodes(node.scope, node.target);
+				return this.grantNodes(node.scope, node.target, node.label);
 
 			default:
 				return [];
@@ -115,9 +115,9 @@ export class ControlPlaneProvider implements vscode.TreeDataProvider<ControlNode
 		}
 	}
 
-	private async grantNodes(scope: GrantScope, target: string): Promise<ControlNode[]> {
-		return asNodes(await this.source.grants(scope, target), 'grants', list =>
-			list.map((grant): ControlNode => ({ kind: 'grant', scope, target, grant })),
+	private async grantNodes(scope: GrantScope, target: string, label: string): Promise<ControlNode[]> {
+		return asNodes(await this.source.grants(scope, target, label), 'grants', list =>
+			list.map((grant): ControlNode => ({ kind: 'grant', scope, target, label, grant })),
 		);
 	}
 

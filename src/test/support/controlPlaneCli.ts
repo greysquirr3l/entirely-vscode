@@ -197,6 +197,11 @@ export function fakeControlCli(options: FakeControlOptions = {}): FakeControlCli
 		'\tif [ -f "$S/out/api.$method" ]; then cat "$S/out/api.$method"; exit 0; fi',
 		'\techo "no response for $method" >&2; exit 1',
 		'fi',
+		// The real CLI takes a project as a name or a ULID but cannot read a name with a colon, such as gh:mirrors:<ULID>.
+		'case " $words " in',
+		'\t*" repo_list "*|*" project_grant_list "*|*" project_grant_add "*|*" project_grant_remove "*|*" project_delete "*)',
+		'\t\tcase "$target" in *:*) echo "invalid project name" >&2; exit 1 ;; esac ;;',
+		'esac',
 		'case "$mutations" in',
 		'\t*" $words "*)',
 		'\t\tif [ -f "$S/fail/$words" ]; then cat "$S/fail/$words" >&2; exit 1; fi',
@@ -328,6 +333,13 @@ export const ORGS = JSON.stringify([{ id: 'ORG1', name: 'Acme', region: 'us', ca
 export const PROJECTS = JSON.stringify([
 	{ id: 'PRJ1', name: 'widgets', ownerName: 'Acme', ownerType: 'org', region: 'us', repositoryCount: 2, capabilities: { canDelete: true } },
 	{ id: 'PRJ2', name: 'sandbox', ownerName: 'github:alice', ownerType: 'account', repositoryCount: 0 },
+]);
+
+/** A project mirrored from GitHub: its name has colons, its id is a ULID. */
+export const MIRROR_PROJECT = { id: '01M5X7PCQS6NEF5DTEPF1W1P4E', name: 'gh:mirrors:01M5X7JD9EAZW0E76M9SWG9FSB' } as const;
+
+export const MIRROR_REPOS = JSON.stringify([
+	{ id: 'M1', name: 'entirely-vscode', provider: 'github', visibility: 'public', state: 'ready', clusterSlug: 'aws-us-east-2' },
 ]);
 
 export const WIDGET_REPOS = JSON.stringify([
