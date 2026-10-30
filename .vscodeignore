@@ -45,3 +45,6 @@ tasks/**
 # The vendored brand symbol is only the generator's input; the VSIX carries
 # the built font and images/entirely-view.svg.
 assets/brand/**
+
+# The documentation site is a separate project with its own toolchain.
+site/**

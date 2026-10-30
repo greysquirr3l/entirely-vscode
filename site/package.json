@@ -1,0 +1,31 @@
+{
+  "name": "entirely-site",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "packageManager": "pnpm@11.18.0",
+  "description": "Documentation site for the Entirely VS Code extension, deployed to greysquirr3l.github.io/entirely",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "check": "astro check",
+    "deploy": "bash scripts/deploy-docs.sh",
+    "deploy:dry": "bash scripts/deploy-docs.sh --no-push"
+  },
+  "deploy-docs": {
+    "pagesRepo": "../../../greysquirr3l.github.io",
+    "subdir": "entirely",
+    "liveUrl": "https://greysquirr3l.github.io/entirely/",
+    "sourceRepo": "greysquirr3l/entirely-vscode"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@astrojs/starlight": "^0.42.6",
+    "astro": "^7.2.8",
+    "sharp": "^0.35.5",
+    "typescript": "^5.7.0"
+  }
+}

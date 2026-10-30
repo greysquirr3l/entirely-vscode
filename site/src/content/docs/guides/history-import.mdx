@@ -1,0 +1,49 @@
+---
+title: History import
+description: Import existing agent history into Entire.
+sidebar:
+  order: 9
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+If you used an agent before Entire was recording, **Entirely: Import Past Agent History as Read-Only Checkpoints** brings its existing local transcripts in as checkpoints. It runs only when you choose it.
+
+<Aside type="caution">
+The CLI's `entire import` command is experimental. Its behaviour and output may change between CLI versions, and the confirmation says so. Entirely reads the agent list from `entire import --help` and the flags from `entire import <agent> --help`, because `agent-help` doesn't list experimental commands.
+</Aside>
+
+## Steps
+
+<Steps>
+1. Run the command from the palette.
+2. Pick the agent. The list is whatever the CLI's `import` help offers.
+3. Choose all sessions, or type session ids (separated by spaces or commas, up to 50).
+4. Entirely runs the CLI's dry run and shows its report, for example "Would import 3 turn(s) from 1 session(s) (2 already imported)." That text is the confirmation. "Nothing has been written yet." appears under it. If the dry run reports nothing to import, you're told and nothing runs.
+5. Confirm with **Import**. A progress notification has a cancel button.
+6. The Sessions and Checkpoints views refresh, and the CLI's own result text is shown.
+</Steps>
+
+If the CLI offers no preview flag, Entirely will not import. Declining the confirmation changes nothing. Only one import runs at a time.
+
+## What gets imported
+
+The CLI reads the agent's local transcripts from the past month. Each turn becomes part of a read-only checkpoint. Imported checkpoints:
+
+- are not linked to a commit,
+- can't be resumed or rewound,
+- show a lock icon and "Imported · read-only" in the Sessions and Checkpoints views,
+- are not offered Stop, Attach, Adopt or Resume.
+
+The CLI marks imported sessions in its session list. The checkpoint list has no marker, so Entirely treats a checkpoint as imported when all its sessions are imported ones. A checkpoint whose sessions the list doesn't mention is left unmarked.
+
+## Cancel, time out, run again
+
+Cancelling stops the CLI. Turns already written stay, and the message says so: "Some turns may already be imported; running it again skips them." The same holds after a timeout. `entirely.importTimeout` (default `300` seconds) covers both the preview and the import. Raise it for a large history.
+
+Failures read "Cannot import history: …", "Could not preview the … import: …" or "The … import failed: …".
+
+## Related
+
+- [Sessions and checkpoints](/entirely/guides/sessions-and-checkpoints/)
+- [CLI commands used](/entirely/reference/cli-commands-used/), [Settings reference](/entirely/reference/settings/)

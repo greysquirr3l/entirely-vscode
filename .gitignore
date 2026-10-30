@@ -104,3 +104,8 @@ nohup.out
 
 # Per-machine Claude Code and Entire hook settings.
 .claude/
+
+# Documentation site build output.
+site/node_modules/
+site/dist/
+site/.astro/

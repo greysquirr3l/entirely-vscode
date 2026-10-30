@@ -1,0 +1,91 @@
+---
+title: Entirely
+description: An unofficial Visual Studio Code extension that shows Entire sessions, checkpoints and trails inside the editor.
+template: splash
+hero:
+  title: Entirely
+  tagline: See Entire's agent sessions, checkpoints and trails from inside VS Code. The CLI does the work; Entirely puts it in the editor.
+  image:
+    file: ../../assets/hero.png
+    alt: 'Comic panel: "Entirely for Visual Studio Code!" with a robot and a man pointing at it.'
+  actions:
+    - text: Get started
+      link: /entirely/getting-started/introduction/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/greysquirr3l/entirely-vscode
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Entirely is an unofficial, community extension. It is not affiliated with or endorsed by Entire.
+
+[Entire](https://entire.com) is a Git forge built for agent-human collaboration. It records what coding agents did as **sessions**, freezes them into **checkpoints**, and publishes that history so a team can see what every agent did and why. The Entire CLI does the work. Entirely is the editor-side surface for it.
+
+## What you get
+
+<CardGrid stagger>
+  <Card title="A status bar that knows" icon="information">
+    Shows whether the workspace is tracked by Entire and whether an agent session is live right now. See [Status bar](/entirely/reference/status-bar/).
+  </Card>
+  <Card title="Sessions and checkpoints" icon="list-format">
+    Every session Entire tracks for the repository, with the transcript in a read-only editor and each checkpoint opening straight into the native diff. See [Sessions and checkpoints](/entirely/guides/sessions-and-checkpoints/).
+  </Card>
+  <Card title="Trails and review" icon="approve-check">
+    Approve, comment on, merge and check out Entire trails. Merge, check out, link and unlink ask first, and each merge names what it merges. Approve and comment run once you pick a change or type the text. See [Trails and review](/entirely/guides/trails-and-review/).
+  </Card>
+  <Card title="Why this line" icon="magnifier">
+    Select a line and see which agent edit introduced it, and why. File blame marks every line as attributed, recorded but not synced, or unattributed. See [Blame and why this line](/entirely/guides/blame-and-why/).
+  </Card>
+  <Card title="Search and activity" icon="document">
+    Search past agent work, commits and code, and read recent activity, a generated dispatch and a recap. See [Search](/entirely/guides/search/) and [Activity, dispatch and recap](/entirely/guides/activity-dispatch-recap/).
+  </Card>
+  <Card title="Setup and control plane" icon="setting">
+    Manage agent integrations, plugins and the MCP server, and browse or change projects, repositories and organisations. Changes name the target and the login. See [Control plane](/entirely/guides/control-plane/).
+  </Card>
+</CardGrid>
+
+The extension never re-implements Entire. It discovers the installed CLI, reads its JSON output, and shells out for anything that changes state. If the CLI is missing, it shows a clear message with a link to the install instructions. When something is wrong, [Diagnose problems](/entirely/guides/doctor-and-diagnostics/) explains the report and the output channel.
+
+## Where to next
+
+<CardGrid>
+  <LinkCard
+    title="Quickstart"
+    description="From a fresh install to the first session in the editor."
+    href="/entirely/getting-started/quickstart/"
+  />
+  <LinkCard
+    title="Installation and sign in"
+    description="Install the extension and the CLI, then sign in from the editor."
+    href="/entirely/getting-started/installation/"
+  />
+  <LinkCard
+    title="Guides"
+    description="Sessions, trails, search, integrations, control plane, blame and diagnostics, task by task."
+    href="/entirely/guides/sessions-and-checkpoints/"
+  />
+  <LinkCard
+    title="Commands and settings"
+    description="Every command, setting, view and status bar state, with defaults."
+    href="/entirely/reference/commands/"
+  />
+  <LinkCard
+    title="CLI coverage"
+    description="Which parts of the Entire CLI are covered, left out on purpose, or untested against a real account."
+    href="/entirely/reference/coverage/"
+  />
+  <LinkCard
+    title="Concepts"
+    description="How the extension works, what it logs, and how accounts and remote windows behave."
+    href="/entirely/concepts/how-entirely-works/"
+  />
+  <LinkCard
+    title="Contributing"
+    description="Build the extension, run the tests, and follow the release process."
+    href="/entirely/contributing/development/"
+  />
+</CardGrid>

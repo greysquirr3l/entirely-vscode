@@ -1,0 +1,119 @@
+---
+title: Run and install plugins
+description: Run an Entire plugin command from the editor, read its output, and install plugins from the plugin index.
+sidebar:
+  order: 7
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+An Entire plugin is a separate program named `entire-NAME`. The CLI runs it when you type `entire NAME …`. Two commands let you do that from the editor:
+
+- **Entirely: Run Plugin Command** (`entirely.runPluginCommand`) picks a plugin, reads what it accepts from its own help, confirms, runs it, and shows the output.
+- **Entirely: Install Plugin** (`entirely.installPlugin`) installs a plugin from the plugin index by its bare name.
+
+Entirely has no plugin list of its own beyond the names in `entirely.suggestedPlugins`. What a plugin accepts is read from the plugin at run time.
+
+<Aside type="caution" title="Install is not verified against a live index">
+Plugin install runs `entire plugin install` with the flag that skips the CLI's prompt. That flag is read from `entire agent-help plugin install`. The install flow is tested against a fake CLI. It has not been exercised against the real plugin index.
+</Aside>
+
+## Run a plugin command
+
+<Steps>
+
+1. Run **Entirely: Run Plugin Command**.
+
+   The picker lists the plugins `entire plugin list` holds, plus every name in `entirely.suggestedPlugins` that is not installed (marked "not installed"). You can type a name that is not listed.
+
+2. Pick a subcommand, if the plugin has any.
+
+   Entirely reads `entire agent-help NAME`, and falls back to `entire NAME --help`. Subcommands from either layout are offered as a list.
+
+3. Type the arguments.
+
+   The plugin's own flags are shown as you type. Quoted phrases stay together. At most 64 arguments are accepted, and control characters are refused.
+
+4. Read the confirmation and agree.
+
+   The dialog shows the exact command line and says the plugin runs as a named login. For example: "It runs as github:alice (login alice@us.auth.entire.io). A plugin is a separate program, and what it does is up to the plugin." If no login can be worked out, nothing runs and you are asked to sign in.
+
+5. Read the output.
+
+   While it runs, a progress notification offers cancel. The output opens in a read-only document. If the plugin prints nothing, you get a message saying it finished and printed nothing.
+
+</Steps>
+
+### Who the plugin runs as
+
+The CLI's `--context` flag does not reach plugin processes. The login reaches a plugin only through the `ENTIRE_CONTEXT` environment variable, which Entirely sets for the command from the login named in the confirmation. The confirmed login and the login used are the same value. See [Accounts and contexts](/entirely/concepts/accounts-and-contexts/).
+
+### What reaches the log
+
+Everything after the plugin name is what you typed: a prompt, a query. In the `Entire` output channel the command line shows the plugin name and the words as `<redacted>`. The plugin's output is not written to the channel either. It goes to the document you see. See [Privacy and redaction](/entirely/concepts/privacy-and-redaction/).
+
+### The plugin is not installed
+
+When the CLI says the plugin is missing, Entirely names it and offers to install it instead of showing a command failure. The real CLI's message for a plugin it knows of, such as `graph`, `investigate` or `brain`, is:
+
+```text
+the entire-NAME plugin is not installed; run 'entire plugin install NAME' and retry
+```
+
+For a name the CLI does not know, it says `unknown command "NAME"`. Entirely recognises both. The offer reads: `The "NAME" plugin is not installed. Install it with "entire plugin install NAME", or choose Install Plugin.` Accepting it starts the install flow.
+
+## Install a plugin
+
+<Steps>
+
+1. Run **Entirely: Install Plugin**, or click **Install** on a `not installed` row in the [Integrations view](/entirely/guides/integrations-and-mcp/).
+
+   From the command, a picker lists the suggested names that are not installed. You can type another name.
+
+2. Read the confirmation.
+
+   It shows `entire plugin install NAME` and says Entire downloads the plugin named NAME from its plugin index into your plugin directory, as the named login. The plugin is an executable and runs with your permissions. Dependencies it declares are installed too.
+
+3. Agree and wait.
+
+   Entirely runs `entire plugin install --<skip-prompt flag> -- NAME`. On success it says the plugin is installed and points you to Run Plugin Command.
+
+</Steps>
+
+Only index names are accepted: letters, digits, dashes and underscores, up to 41 characters, starting with a letter or digit. A URL or a path is not a plugin name here. If your CLI has no flag that installs without a prompt, Entirely says "this version of the Entire CLI cannot install a plugin without a prompt; update the CLI" and does nothing.
+
+## Names that are also CLI commands
+
+Entirely refuses to run a plugin whose name is also a command of the CLI itself, for example `session`, `status` or `mcp`. The reason is the confirmation. Running `entire NAME …` for a built-in would run that command without its own confirmation in Entirely, so the plugin flow must not become a way around it. The message reads `"NAME" is a command of the Entire CLI itself, not a plugin`.
+
+Visible commands are read from the CLI's help at the time. Hidden commands such as `mcp` and `completion` are in no listing, but the CLI answers their `--help`. A name the CLI answers that `entire plugin list` does not hold is treated as a built-in.
+
+### PATH-only plugins
+
+`entire plugin list` shows only the managed plugin directory. A plugin that lives only on your `PATH` as `entire-NAME` is not listed. The Integrations view can show it as `available on PATH`. **Run Plugin Command** may still refuse it, because the same check that catches hidden built-ins sees a name the CLI answers and the list does not hold. If that is your plugin, run it in a terminal, or install it through `entire plugin install` so the CLI lists it. This is a known limitation, and no hardcoded list of built-ins is kept to work around it.
+
+## Settings
+
+| Setting | Default | Range | What it does |
+|---|---|---|---|
+| `entirely.pluginTimeout` | `120` | 10 to 1800 | Seconds to wait for a plugin to run or a download to finish. A plugin is never started again after a timeout. |
+| `entirely.suggestedPlugins` | `["graph", "investigate", "brain"]` | | Names offered in the picker and shown in the Integrations view. |
+
+## Failure messages
+
+| Message | Cause |
+|---|---|
+| "A plugin command is already running." | One plugin command or install runs at a time. |
+| "That is not a plugin name. Use letters, digits, dashes and underscores." | The name does not fit the rule above. |
+| "Plugins cannot be listed: …" | `entire plugin list` failed. |
+| "The NAME plugin cannot be run: …" | Its help could not be read, or the name is refused. |
+| "The NAME plugin failed: …" | The plugin exited non-zero. A timeout adds a hint to raise `entirely.pluginTimeout`. |
+
+## Related
+
+- [Integrations and the MCP server](/entirely/guides/integrations-and-mcp/)
+- [Privacy and redaction](/entirely/concepts/privacy-and-redaction/)
+- [Accounts and contexts](/entirely/concepts/accounts-and-contexts/)
+- [Commands reference](/entirely/reference/commands/)
+- [CLI commands used](/entirely/reference/cli-commands-used/)
+- [Settings reference](/entirely/reference/settings/)

@@ -1,0 +1,93 @@
+/* Entirely: monochrome page, one red accent.
+   Light accent #c4221b is 5.85:1 against white; white text on it is 5.85:1.
+   Dark accent #ff6b5e is 6.87:1 against #0d0f13.
+   Selectors match Starlight's `:root[data-theme=...]` specificity. */
+:root,
+:root[data-theme='light'] {
+  --sl-color-accent-low: #fde4e2;
+  --sl-color-accent: #c4221b;
+  --sl-color-accent-high: #8f1712;
+  --sl-color-text-accent: #c4221b;
+  --sl-color-text-invert: #ffffff;
+}
+:root[data-theme='dark'] {
+  --sl-color-accent-low: #4a1612;
+  --sl-color-accent: #ff6b5e;
+  --sl-color-accent-high: #ffb3ab;
+  --sl-color-text-accent: #ff6b5e;
+  --sl-color-text-invert: #0d0f13;
+  --sl-color-black: #0d0f13;
+}
+
+/* Cards: one neutral treatment instead of Starlight's colour cycle. */
+.card,
+a.card {
+  --sl-card-border: var(--sl-color-gray-5);
+  --sl-card-bg: var(--sl-color-gray-6);
+}
+.card .icon,
+.card [class*='icon'] {
+  border-color: var(--sl-color-gray-5) !important;
+  background-color: var(--sl-color-gray-7) !important;
+}
+.card .icon svg,
+.card [class*='icon'] svg {
+  color: var(--sl-color-text-accent);
+}
+
+/* Type: tight headlines, hairline rules. */
+.sl-markdown-content h1,
+main h1 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.sl-markdown-content h2 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border-bottom: 1px solid var(--sl-color-gray-5);
+  padding-bottom: 0.4em;
+}
+[data-has-hero] .hero h1 {
+  font-size: var(--sl-text-5xl);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+/* Sidebar group labels as small mono caps. */
+nav[aria-label='Main'] > ul > li > details > summary,
+nav[aria-label='Main'] > ul > li > strong {
+  font-family: var(--sl-font-mono);
+  font-size: var(--sl-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+/* Code and tables: sharp corners, visible rules. */
+.expressive-code pre,
+pre.astro-code {
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: var(--sl-border-radius-sm);
+}
+.sl-markdown-content table {
+  border: 1px solid var(--sl-color-gray-5);
+}
+.sl-markdown-content th {
+  font-family: var(--sl-font-mono);
+  font-size: var(--sl-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--sl-color-gray-4);
+}
+
+/* The hero is a square comic panel: keep it square and framed. */
+.hero img {
+  border: 2px solid var(--sl-color-gray-5);
+  border-radius: var(--sl-border-radius-sm);
+  max-width: min(100%, 28rem);
+  height: auto;
+}
+.site-title img {
+  height: 1.6rem;
+  width: auto;
+}

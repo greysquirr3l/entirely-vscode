@@ -1,0 +1,68 @@
+---
+title: Search
+description: Search past agent work, commits and code.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+The **Search** view looks through past agent work, commits and code with `entire search`. The CLI does the matching. Entirely passes your query, lays out the answer, and says where it looked and as whom.
+
+The view starts collapsed. Running a search expands it.
+
+## Search
+
+<Steps>
+1. Run **Entirely: Search Past Work and Code**, or use the search button in the Search view's title bar.
+2. Type what you're looking for in plain words. The query is trimmed and cut at 500 characters. The box remembers your last query.
+3. The view shows "Searching for …" while the CLI works, then the results.
+</Steps>
+
+**Entirely: Clear Search Results** empties the view.
+
+## What you'll see
+
+The first row is the scope line: "Searched this repository (*repo*) as *login*." or "Searched every repository this login can see as *login*." Beside it is a count such as "2 sessions, 1 commit, 3 file matches". Results follow in groups:
+
+| Group | What it holds | Opening a result |
+|---|---|---|
+| Sessions | Agent sessions. | In this repository, shows the session in the Session view. If the session isn't tracked in this workspace, you're told so. |
+| Commits | Commits. | Describes the commit (repository, branch, title) and offers **Copy Commit Hash**. |
+| Checkpoints | Checkpoints. | In this repository, opens the checkpoint's story in a panel (**Explain Checkpoint**). |
+| Other results | Any other kind the CLI returns, labelled by its type. | Describes it and offers **Copy ID**. |
+| Files | Code matches, shown as `path:line` with the matching text. | Opens the file at that line and column. |
+
+A result from another repository is marked with its repository name and isn't opened in the editor. You get a description and, for commits and other kinds, a copy button. A file that isn't in the workspace gets the message "… is not in this workspace. The search indexes the repository's pushed code, so the file may be on another branch or deleted."
+
+If the CLI says there are more results than it returned, a note says "Showing *n* of *m* results". The extension asks for up to 50 per search.
+
+## Empty and failed searches
+
+These are different and the view keeps them apart.
+
+- **Empty.** "The search for "…" found nothing in *scope*." The scope is named, so a login that can't see a repository isn't mistaken for a repository with nothing in it.
+- **Failed.** "The search failed: *reason*. This says nothing about whether anything matches." It also repeats what the search was meant to cover.
+- **Partial.** Sessions, commits and code are searched side by side. If one half fails, the other half's results are still listed, with a note such as "Files could not be searched: …".
+
+A missing CLI, or a CLI too old to have `search` or its code search, is a failure with a reason, not an empty result.
+
+## Scope
+
+`entirely.searchScope` chooses where the search looks.
+
+| Value | Default | Searches |
+|---|---|---|
+| `repository` | yes | The repository open in the window. |
+| `all-repositories` | | Every repository the acting login can see. |
+
+If the CLI has no flag for widening the search, the scope line falls back to saying "this repository", so the line never claims more than was searched. The login in the scope line is the one Entirely acts as. See [Accounts and contexts](/entirely/concepts/accounts-and-contexts/).
+
+## Privacy
+
+A query is your own words about your history, and hits are your history and source. For a search, the command line's query and the CLI's output are kept out of the output channel, even with `entirely.debug` on. Entirely sends the query to the CLI, and the CLI asks Entire's servers. See [Privacy and redaction](/entirely/concepts/privacy-and-redaction/).
+
+## Related
+
+- Filter only checkpoints, with a search as you type: [Sessions and checkpoints](/entirely/guides/sessions-and-checkpoints/)
+- [Settings reference](/entirely/reference/settings/), [Views reference](/entirely/reference/views/)

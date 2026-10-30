@@ -1,0 +1,150 @@
+---
+title: Use the control plane
+description: Browse projects, repositories, organisations and clusters, and change them from the editor with confirmations that name the target and the login.
+sidebar:
+  order: 8
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+The **Control Plane** view lists the projects, repositories, organisations and clusters the acting login can see, and who has access to each. Commands on its items create, change and delete things on Entire.
+
+<Aside type="caution" title="Changes are tested only against a fake CLI">
+The project, repository, organisation and cluster listings were read from the real CLI. The access (grant) listings were not seen succeeding for an account that could read them, so their row shape is taken from the CLI's help text. The changes (create, delete, visibility, grant, revoke) and `entire api` writes were tested only against a fake CLI. Nothing mutating has been run against a real Entire account. Expect rough edges, and try a throwaway project first.
+</Aside>
+
+These commands change Entire for everyone who uses it, not only your workspace. Every one asks first and names what it affects and the login it acts as.
+
+## Open the view
+
+Run **Entirely: Open Control Plane** (`entirely.openControlPlane`), or open the **Control Plane** view in the Entirely container. **Entirely: Refresh Control Plane** reads it again.
+
+The first row says "Acting as …": the login every change from this view is made as. If no login is available, the view says so and asks you to sign in. Nothing polls. Each level is read when you expand it and again on refresh.
+
+| Level | Contains |
+|---|---|
+| Projects | Repositories, then an **Access** node listing who holds a role on the project. |
+| Organisations | An access list for each organisation. |
+| Clusters | Slug, jurisdiction, whether it is the default; the host is in the tooltip. |
+
+A repository shows its visibility and state. Expanding a repository lists its access. A level that cannot be read shows "Could not read the …" with the reason, and an empty one says "No … are visible to this login."
+
+Roles come from the CLI's help, never from a list in the extension. For repositories and projects they are `reader`, `writer`, `admin`; for organisations `owner`, `admin`, `member`; for visibility `public`, `private`. Those are what the CLI 0.12.2 printed. Your CLI's help decides.
+
+## Commands
+
+| Command | Where | What it does |
+|---|---|---|
+| **Entirely: Create Repository** | Project | Asks for a name and, if the CLI lists them, a visibility. |
+| **Entirely: Change Repository Visibility** | Repository | Offers the visibilities other than the current one. |
+| **Entirely: Delete Repository** | Repository | Deletes it, with its history on Entire. |
+| **Entirely: Delete Project** | Project | Deletes the project. The dialog says how many repositories it holds. |
+| **Entirely: Delete Organisation** | Organisation | Deletes it. Its members lose the access it gave them. |
+| **Entirely: Give Access** | Project, repository, organisation, or Access node | Asks for a grantee and a role. |
+| **Entirely: Remove Access** | A person under Access | Removes their direct access. |
+| **Entirely: Call the Entire API** | Command Palette | Sends one `entire api` request. |
+
+The commands are in the item context menus. Create, grant and the other management actions are in the "manage" group, and the deletions are in a separate destructive group.
+
+### The confirmation
+
+Every change shows a modal dialog before anything runs. It contains:
+
+- The target, named in the title, for example "Delete the repository /et/acme/web?".
+- "Acting as alice (login alice@us.auth.entire.io)." (or just the handle when it equals the login name).
+- The words "The change is made on Entire for everyone who uses it, not only in this workspace."
+- For deletions: "It cannot be undone from the editor."
+
+The login is worked out just before the question, and the same login is handed to the command, so the dialog never names one login while the command runs as another.
+
+Grantees are written `provider:handle`, for example `github:alice`. Repository names use letters, digits, dots, dashes and underscores, and start with a letter or digit.
+
+### Repositories with mirrors
+
+`entire repo delete` refuses a repository that has mirrors on other clusters unless told to delete them too. When that happens, Entirely asks a second question, in plainer words: "Every mirror of it on other clusters is deleted too." The button reads **Delete Repository and Mirrors**. If you decline, nothing is deleted and the message says the repository has mirrors.
+
+The second step needs a flag the CLI's `repo delete` help describes. Without it, Entirely says to update the CLI and does nothing. Deleting with mirrors waits for them to go, so a large one may need a higher `entirely.controlPlaneTimeout`.
+
+## How success is judged
+
+Exit status alone does not decide. After a change, Entirely reads the relevant listing again and compares.
+
+| Change | Counted as done when |
+|---|---|
+| Create repository | The project now lists the repository. |
+| Delete repository, project or organisation | The listing no longer has it. |
+| Change visibility | The repository is listed with the new visibility. |
+| Give access | The grantee is listed with the role you chose. |
+| Remove access | The grantee was matched to a **direct** grant in a listing read before the request, and is gone from a listing read after. |
+
+Outcomes are reported in plain terms:
+
+- **Done:** "The Entire CLI now lists it that way."
+- **Could not …:** the CLI failed, or reported success while the listing says otherwise ("the Entire CLI reported success but still lists …").
+- **Accepted but unverified:** "The Entire CLI accepted the request to … as …, but the result could not be checked: …". The CLI accepted the request but the result could not be read back, for example because the listing failed.
+
+Revoke is stricter. If the grantee was not matched to a direct grant before the request, for instance a row that only has an id, a successful exit is reported as unconfirmed rather than done. Access a person inherits from elsewhere is not removed by revoking a direct grant, and does not count against it.
+
+If a change times out, Entirely reads the listing back. It reports done only if the CLI now lists it that way, and otherwise says it may still be running.
+
+## Mirrored repositories and GitHub access
+
+A repository that mirrors a GitHub repository has no Entire path, and the CLI's delete and edit commands refuse it. The view shows it with the tooltip "is a mirror and is managed upstream". It has no children, and delete, visibility and grant commands decline with a message. Visibility "follows the repository it mirrors".
+
+Access on a GitHub-mirrored project can't be changed through these commands. The CLI refuses with "Project access on a GitHub-mirrored project is a read-only projection of GitHub; grants are managed by the source". Treat the Access lists there as read-only. A personal GitHub account has no account-wide membership, so a repository collaborator can't be given project access this way. See [Accounts and contexts](/entirely/concepts/accounts-and-contexts/).
+
+## Call the Entire API
+
+**Entirely: Call the Entire API** sends one request through `entire api`.
+
+<Steps>
+
+1. Enter a path, such as `/api/v1/clusters`.
+
+   It must start with a single slash. No spaces, backslashes, control characters or `.` and `..` segments (including `%2e`), and not `//`.
+
+2. Pick a method: `GET`, `POST`, `PUT`, `PATCH` or `DELETE`.
+
+3. Pick a backend, if the CLI's help names more than one.
+
+4. Confirm, unless it is a `GET`.
+
+   A `GET` runs as typed. Any other method opens a dialog naming the method, the path, the backend and the login: "A request that is not a read can change or delete things on Entire, and the extension cannot tell what this one does."
+
+5. Read the response.
+
+   It opens in a read-only document headed with the method, path and login. JSON is pretty-printed.
+
+</Steps>
+
+The call runs once and is never retried, because a repeated write is a second write. No view, poller or watcher can reach it. The response and the path are kept out of the output channel. Body fields, headers and file input are not exposed.
+
+## Settings
+
+| Setting | Default | Range | What it does |
+|---|---|---|---|
+| `entirely.controlPlaneTimeout` | `60` | 5 to 900 | Seconds to wait for each CLI call from the view and its commands: a listing, a change or an API call. A change that times out is read back before it is reported. |
+
+## Failure messages
+
+| Message | Cause |
+|---|---|
+| "No Entire login is available, so Entirely cannot say who this would be done as. Sign in first." | No acting login. |
+| "A control plane change is already running." | One change at a time. |
+| "this version of the Entire CLI has no 'COMMAND' command; update the CLI" | The command is missing from `agent-help`. |
+| "the Entire CLI is not installed; install it to manage repositories, projects and organisations" | No CLI found. |
+| "this version of the Entire CLI does not describe a way to delete mirrors together with the repo" | No cascade flag in the CLI's help. |
+| "'VALUE' is not a role/visibility the CLI offers (…)" | The value is not in the CLI's own list. |
+
+Flags are read from `entire agent-help` for each command at the time of the call and never kept. A flag the help does not describe stops the call instead of being guessed.
+
+## Related
+
+- [Accounts and contexts](/entirely/concepts/accounts-and-contexts/)
+- [Privacy and redaction](/entirely/concepts/privacy-and-redaction/)
+- [How Entirely works](/entirely/concepts/how-entirely-works/)
+- [Views reference](/entirely/reference/views/)
+- [Commands reference](/entirely/reference/commands/)
+- [CLI commands used](/entirely/reference/cli-commands-used/)
+- [Coverage](/entirely/reference/coverage/)
+- [Doctor and diagnostics](/entirely/guides/doctor-and-diagnostics/)
