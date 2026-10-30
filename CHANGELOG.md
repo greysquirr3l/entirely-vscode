@@ -14,7 +14,7 @@ All notable changes to the Entirely extension are documented in this file. The f
   per row), is titled with the item's name, and opens again if you close it. It is text
   and links only: no script runs, every word from the CLI is escaped, and the colours
   follow your theme, including high contrast. Its links are the existing commands, with
-  their own confirmations: Approve, Comment, Merge, Check out, Link branch and Unlink
+  their own confirmations: Approve (which asks "Approve *change* as *login*?" first, since there is no picker), Comment, Merge, Check out, Link branch and Unlink
   branch on a change, Copy hash on a commit, the transcript and checkpoint links on a
   session, plus **Refresh** and **Open as text**.
 - Each selection makes at most one read, a repeat selection reads nothing, and a slow
@@ -37,6 +37,10 @@ All notable changes to the Entirely extension are documented in this file. The f
   link for the same reason.
 
 ### Fixed
+
+- Clicking the row that is already shown brings a hidden panel back, without reading again. The panel and this behaviour were tested against stand-ins only; check them in a real window.
+- Review commands and the transcript link ignore an argument that is not a row, instead of throwing. Selections with a fractional, negative or huge trail number are refused.
+- The palette's change picker reads open trails only, with a cancellable progress notification, independent of `entirely.trailBadgeLimit`.
 
 - **Trails showed "0 changes" for every trail and a badge that was always zero.** Against
   the real CLI, `entire trail list` carries no changes; only `entire trail show` does.

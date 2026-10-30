@@ -85,7 +85,7 @@ Merge, check out, link and unlink confirm in a modal prompt that names what they
 
 | Palette title | Id | Where | Changes | What it does |
 | --- | --- | --- | --- | --- |
-| Entirely: Approve a Change on a Trail | `entirely.trailApprove` | palette; detail panel link | Asks for input, no confirmation | `entire trail approve`, run as soon as you pick the change. No message is sent. |
+| Entirely: Approve a Change on a Trail | `entirely.trailApprove` | palette; detail panel link | Palette: asks for input, no confirmation. Panel or Trails row: modal naming the change and acting login | `entire trail approve`, run as soon as you pick the change in the palette, or confirm it from the panel or row. No message is sent. |
 | Entirely: Comment on a Change on a Trail | `entirely.trailComment` | palette; detail panel link | Asks for input, no confirmation | Posts a comment (`trail comment add`) as soon as you enter the text. If the CLI refuses a comment from an agent session, the note is posted as a finding (`trail finding add`) instead and you are told. Comment bodies are redacted from the logged command line. |
 | Entirely: Merge a Change on a Trail | `entirely.trailMerge` | palette; detail panel link | Confirms | `entire trail merge`, after a dry run that names what will be merged. |
 | Entirely: Check Out a Change on a Trail | `entirely.trailCheckout` | palette; detail panel link | Confirms | `entire trail checkout`. Warns about unsaved files because the checkout moves the working tree. |

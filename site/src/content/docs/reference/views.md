@@ -59,7 +59,7 @@ The panel has **Refresh**, which skips the cache for the selected item only, and
 
 An extension cannot clear the editor's own highlight on the last row chosen in a tree. Entirely marks the row the panel shows with a blue dot and label colour (a file decoration, so the row is not redrawn and the click's own command is not lost) and removes that mark in the other views, but the native highlight in those views stays.
 
-The review actions on a change are links in the panel to the existing commands (Approve, Comment, Merge, Check out, Link branch, Unlink branch), with the item's row id as the argument; a commit has **Copy hash**. Each command checks that the id is the item the panel shows, and otherwise asks which change you mean.
+The review actions on a change are links in the panel to the existing commands (Approve, Comment, Merge, Check out, Link branch, Unlink branch), with the item's row id as the argument; a commit has **Copy hash**. Each command checks that the id is the item the panel shows, and otherwise asks which change you mean. Approve asks "Approve *change* as *login*?" in a modal first, because nothing else confirms it there; the other actions keep their own confirmations. Clicking the row that is already shown brings a hidden panel back without reading again.
 
 The panel is a web page without script. It has a strict Content-Security-Policy, escapes every word the CLI sent, and takes its colours from the theme, so light, dark and high-contrast themes work. Its links have visible text and a focus outline.
 

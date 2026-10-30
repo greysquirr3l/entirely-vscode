@@ -134,14 +134,18 @@ as text** writes it to the document; it is never written to the `Entire` output
 channel.
 
 On a change, Approve, Comment, Merge, Check out, Link branch and Unlink branch
-are links to the same commands the palette has, with the same confirmations.
-They act on the change shown instead of asking which one, and each command checks
+are links to the same commands the palette has, with their own confirmations.
+They act on the change shown instead of asking which one. Approve, which the
+palette confirms by your picking the change, asks "Approve *change* as *login*?"
+in a modal when it comes from the panel or a row. Each command checks
 that it was given the item the panel shows before it acts.
 
 The panel is a web page with no script: text and links, a strict
 Content-Security-Policy, every word from the CLI escaped, and colours taken from
 your theme, so light, dark and high-contrast themes all work. The links are
-real links with visible text and a focus outline, so Tab and Enter work.
+real links with visible text and a focus outline, so Tab and Enter work. The panel,
+its reveal behaviour and the click handling were tested only against stand-ins for
+the editor; check them by hand in a real window.
 
 Selecting costs at most one CLI call, and only a read: a session uses its three
 usual reads, a trail or change one `trail show`, and an Activity row none (it is
