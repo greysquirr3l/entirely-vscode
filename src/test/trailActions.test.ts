@@ -559,6 +559,31 @@ suite('Entire trail command plumbing', () => {
 		assert.match(everything, /--body <redacted>/);
 	});
 
+	test('what a trail action or read prints is not kept in the invocation record', async () => {
+		const { runner } = fakeTrailCli({ list: JSON.stringify({ items: [], note: 'secret-list-body' }) });
+		const bodies: { stdout?: string; stderr?: string }[] = [];
+		runner.setSink({ report: (_invocation, kept) => void bodies.push(kept) });
+
+		const service = new TrailService({
+			runner,
+			workspaceRoot: () => undefined,
+			actingHandle: () => 'greysquirr3l',
+		});
+		const selector = { kind: 'change' as const, repository: 'entirely-vscode', number: 17 };
+
+		const checkedOut = await service.checkout(selector, undefined);
+		await service.approve(selector, 'a note');
+		await service.approvals(selector);
+		await service.list('proj');
+
+		assert.deepStrictEqual(checkedOut, { kind: 'ok', value: 'checked out' }, 'the caller still receives the output');
+		const kept = JSON.stringify(bodies);
+		assert.doesNotMatch(kept, /checked out/);
+		assert.doesNotMatch(kept, /approved/);
+		assert.doesNotMatch(kept, /secret-list-body/);
+		assert.doesNotMatch(kept, /"approvals"/);
+	});
+
 	test('a trail action runs with the configured timeout', async () => {
 		const seen: (number | undefined)[] = [];
 		const runner = {

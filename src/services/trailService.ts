@@ -237,6 +237,7 @@ export class TrailService {
 
 		const result = await this.options.runner.runJson(args, value => unwrap(decodeTrailList(value)), {
 			cwd: this.options.workspaceRoot(),
+			withholdBodies: true,
 		});
 
 		if (result.ok) {
@@ -261,7 +262,7 @@ export class TrailService {
 		const result = await this.options.runner.runJson(
 			args,
 			value => unwrap(decodeTrailDetail(value)),
-			{ cwd: this.options.workspaceRoot() },
+			{ cwd: this.options.workspaceRoot(), withholdBodies: true },
 		);
 
 		if (!result.ok) {
@@ -281,7 +282,7 @@ export class TrailService {
 		const result = await this.options.runner.runJson(
 			args,
 			value => unwrap(decodeTrailApprovals(value)),
-			{ cwd: this.options.workspaceRoot() },
+			{ cwd: this.options.workspaceRoot(), withholdBodies: true },
 		);
 
 		return result.ok
@@ -296,7 +297,7 @@ export class TrailService {
 		const result = await this.options.runner.runJson(
 			args,
 			value => unwrap(decodeTrailComments(value)),
-			{ cwd: this.options.workspaceRoot() },
+			{ cwd: this.options.workspaceRoot(), withholdBodies: true },
 		);
 
 		return result.ok
@@ -311,7 +312,7 @@ export class TrailService {
 		const result = await this.options.runner.runJson(
 			args,
 			value => unwrap(decodeTrailFindings(value)),
-			{ cwd: this.options.workspaceRoot() },
+			{ cwd: this.options.workspaceRoot(), withholdBodies: true },
 		);
 
 		return result.ok
@@ -431,6 +432,7 @@ export class TrailService {
 
 		const result = await this.options.runner.run(args, {
 			cwd: this.options.workspaceRoot(),
+			withholdBodies: true,
 		});
 
 		// A dry run that says the merge cannot happen still answers the
@@ -584,12 +586,14 @@ export class TrailService {
 	 *
 	 * The flags named here have their values left out of the reported
 	 * command line, because review text does not go to the output channel.
+	 * What the command printed is kept out of the invocation record too.
 	 */
 	private actionOptions(redactFlags: readonly string[] = []): RunOptions {
 		return {
 			cwd: this.options.workspaceRoot(),
 			timeoutMs: this.options.actionTimeoutMs?.() ?? DEFAULT_ACTION_TIMEOUT_MS,
 			redactFlags,
+			withholdBodies: true,
 		};
 	}
 
