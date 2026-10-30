@@ -12,7 +12,13 @@ import {
 } from '../lib/entire';
 import { readLogLevel, shouldLog, type LogLevel } from '../services/logger';
 import { makeTempDir } from './support/tempDir';
-import { clampAgentLookupCacheSeconds, clampTrailActionTimeout, effectiveLogLevel } from '../services/configuration';
+import {
+	clampAgentLookupCacheSeconds,
+	clampSelectionCacheSeconds,
+	clampTrailBadgeLimit,
+	clampTrailActionTimeout,
+	effectiveLogLevel,
+} from '../services/configuration';
 import { REDACTED_ARGUMENT, redactArguments } from '../services/cli/runner';
 import { readEntireSettings, settingsLayers } from '../services/settingsSource';
 
@@ -260,6 +266,8 @@ suite('Entire extension settings', () => {
 			'entirely.cliPath',
 			'entirely.refreshInterval',
 			'entirely.trailActionTimeout',
+			'entirely.selectionCacheSeconds',
+			'entirely.trailBadgeLimit',
 			'entirely.showSessionsInExplorer',
 			'entirely.minimumCliVersion',
 			'entirely.logLevel',
@@ -311,6 +319,8 @@ suite('Entire effective log level', () => {
 				resumeWatchTimeout: 60,
 				blameMaxDecoratedLines: 5000,
 				showSessionsInExplorer: false,
+				selectionCacheSeconds: 30,
+				trailBadgeLimit: 10,
 				trailActionTimeout: 60,
 				minimumCliVersion: '0.12.2',
 				logLevel: 'warn',
@@ -351,6 +361,8 @@ suite('Entire effective log level', () => {
 				resumeWatchTimeout: 60,
 				blameMaxDecoratedLines: 5000,
 				showSessionsInExplorer: false,
+				selectionCacheSeconds: 30,
+				trailBadgeLimit: 10,
 				trailActionTimeout: 60,
 				minimumCliVersion: '0.12.2',
 				logLevel: 'info',
@@ -391,6 +403,8 @@ suite('Entire effective log level', () => {
 				resumeWatchTimeout: 60,
 				blameMaxDecoratedLines: 5000,
 				showSessionsInExplorer: false,
+				selectionCacheSeconds: 30,
+				trailBadgeLimit: 10,
 				trailActionTimeout: 60,
 				minimumCliVersion: '0.12.2',
 				logLevel: 'trace',
@@ -398,6 +412,36 @@ suite('Entire effective log level', () => {
 			}),
 			'trace',
 		);
+	});
+});
+
+suite('Trails badge limit', () => {
+	test('is held between zero, which reads nothing, and fifty', () => {
+		assert.strictEqual(clampTrailBadgeLimit(0), 0);
+		assert.strictEqual(clampTrailBadgeLimit(-3), 0);
+		assert.strictEqual(clampTrailBadgeLimit(10), 10);
+		assert.strictEqual(clampTrailBadgeLimit(7.9), 7);
+		assert.strictEqual(clampTrailBadgeLimit(500), 50);
+	});
+
+	test('falls back to ten for a value that is not a number', () => {
+		assert.strictEqual(clampTrailBadgeLimit(Number.NaN), 10);
+		assert.strictEqual(clampTrailBadgeLimit(Number.POSITIVE_INFINITY), 10);
+	});
+});
+
+suite('Selection cache lifetime', () => {
+	test('is held between zero, which turns the cache off, and ten minutes', () => {
+		assert.strictEqual(clampSelectionCacheSeconds(0), 0);
+		assert.strictEqual(clampSelectionCacheSeconds(-5), 0);
+		assert.strictEqual(clampSelectionCacheSeconds(30), 30);
+		assert.strictEqual(clampSelectionCacheSeconds(45.9), 45);
+		assert.strictEqual(clampSelectionCacheSeconds(99999), 600);
+	});
+
+	test('falls back to thirty seconds for a value that is not a number', () => {
+		assert.strictEqual(clampSelectionCacheSeconds(Number.NaN), 30);
+		assert.strictEqual(clampSelectionCacheSeconds(Number.POSITIVE_INFINITY), 30);
 	});
 });
 

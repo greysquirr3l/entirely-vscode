@@ -199,6 +199,28 @@
         "category": "Entirely"
       },
       {
+        "command": "entirely.selectItem",
+        "title": "Show Details in the Detail Panel",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.retryDetail",
+        "title": "Refresh the Detail Panel",
+        "category": "Entirely",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "entirely.openDetailInEditor",
+        "title": "Open the Detail Panel as Text",
+        "category": "Entirely",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "entirely.copyCommitHash",
+        "title": "Copy Commit Hash",
+        "category": "Entirely"
+      },
+      {
         "command": "entirely.openTranscript",
         "title": "Open Session Transcript",
         "category": "Entirely",
@@ -585,6 +607,20 @@
           "maximum": 600,
           "markdownDescription": "How long, in seconds, a trail review action (approve, comment, merge, check out, link, unlink) may run before Entirely stops waiting for the Entire CLI. A check out that has to fetch can take longer than a read."
         },
+        "entirely.selectionCacheSeconds": {
+          "type": "number",
+          "default": 30,
+          "minimum": 0,
+          "maximum": 600,
+          "markdownDescription": "How long, in seconds, Entirely keeps what it loaded for a session, a trail, a trail change or an Activity entry, so choosing the same row again, or expanding the same trail again, reads nothing. After that time the old content is still shown at once in the detail panel while it is read again. Ended sessions and Activity entries, which cannot change, are kept ten times as long. Set to `0` to read every time."
+        },
+        "entirely.trailBadgeLimit": {
+          "type": "number",
+          "default": 10,
+          "minimum": 0,
+          "maximum": 50,
+          "markdownDescription": "How many open trails Entirely reads, each time the **Trails** view is refreshed by you or by an action, to count the changes that wait for an approval. The count on the view's badge covers only those trails, and its tooltip says so; expanding a trail reads the rest of that trail. The background refresh never reads them. Set to `0` to show no count."
+        },
         "entirely.showSessionsInExplorer": {
           "type": "boolean",
           "default": false,
@@ -925,6 +961,22 @@
         {
           "command": "entirely.revokeAccess",
           "when": "false"
+        },
+        {
+          "command": "entirely.selectItem",
+          "when": "false"
+        },
+        {
+          "command": "entirely.retryDetail",
+          "when": "entirely.detailShown"
+        },
+        {
+          "command": "entirely.openDetailInEditor",
+          "when": "entirely.detailShown"
+        },
+        {
+          "command": "entirely.copyCommitHash",
+          "when": "false"
         }
       ],
       "editor/title": [
@@ -932,6 +984,16 @@
           "command": "entirely.copyDispatch",
           "when": "resourceScheme == entirely-generated && resourceExtname == .md",
           "group": "navigation"
+        },
+        {
+          "command": "entirely.retryDetail",
+          "when": "activeWebviewPanelId == entirely.detail",
+          "group": "navigation@1"
+        },
+        {
+          "command": "entirely.openDetailInEditor",
+          "when": "activeWebviewPanelId == entirely.detail",
+          "group": "navigation@2"
         }
       ],
       "editor/context": [

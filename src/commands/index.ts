@@ -6,7 +6,7 @@ import { dumpCliOutput } from './dumpCliOutput';
 import { openCheckpointFile } from './openCheckpoint';
 import { repairTerminalPath } from './terminalPath';
 import { blameFile, clearBlame } from './blameFile';
-import { readExtensionSettings } from '../services/configuration';
+import { MAX_TRAIL_BADGE_LIMIT, readExtensionSettings } from '../services/configuration';
 import type { CliDoctorSource } from '../services/cliDoctor';
 import { explainCheckpoint, whyThisLine } from './whyThisLine';
 import { clearCheckpointSearch, searchCheckpoints } from './checkpointSearch';
@@ -30,15 +30,18 @@ import {
 	linkBranch,
 	mergeChange,
 	unlinkBranch,
+	type TrailReviewDependencies,
 } from './trailReview';
+import { pickFromTargetOrShown, touchedKeys, type DetailModel } from '../lib/entire';
 import type { CheckpointFileNode, CheckpointsProvider } from '../providers/checkpointsProvider';
 import type { SessionDetailProvider } from '../providers/sessionDetailProvider';
 import type { TranscriptContentProvider } from '../providers/transcriptDocument';
-import type { TokenUsageSource } from '../services/tokenUsage';
+import type { SelectionService } from '../services/selection';
 import type { SessionDetailSource } from '../services/sessionDetail';
 import type { SessionItemNode, SessionsProvider } from '../providers/sessionsProvider';
 import type { CheckpointFilter } from '../services/checkpointFilter';
 import type { TrailsProvider } from '../providers/trailsProvider';
+import type { TrailChangesService } from '../services/trailChanges';
 import type { CheckpointDetail } from '../lib/entire';
 import type { GitService } from '../services/gitService';
 import type { StatusController } from '../services/statusController';
@@ -63,7 +66,8 @@ export interface CommandDependencies {
 	readonly search: SearchProvider;
 	/** Reads one session in full. */
 	readonly sessionDetailSource: SessionDetailSource;
-	readonly tokenUsage: TokenUsageSource;
+	/** Loads the selected row in the detail panel. */
+	readonly selection: SelectionService;
 	/** Serves transcripts as read-only documents. */
 	readonly transcripts: TranscriptContentProvider;
 	readonly statusController: StatusController;
@@ -88,6 +92,8 @@ export interface CommandDependencies {
 	readonly trails: TrailService;
 	/** The trails section of the view. */
 	readonly trailsProvider: TrailsProvider;
+	/** Reads a trail's changes, which the CLI's list does not carry. */
+	readonly trailChanges: Pick<TrailChangesService, 'withChanges'>;
 	/** The CLI the extension talks to. */
 	readonly runner: CliRunner;
 	/** Which login the CLI is acting as. */
@@ -102,6 +108,18 @@ export interface CommandDependencies {
 	readonly output: vscode.OutputChannel;
 }
 
+function sessionIdOf(target: unknown): string | undefined {
+	if (typeof target !== 'object' || target === null) {
+		return undefined;
+	}
+	const session = (target as { session?: unknown }).session;
+	if (typeof session !== 'object' || session === null) {
+		return undefined;
+	}
+	const id = (session as { id?: unknown }).id;
+	return typeof id === 'string' ? id : undefined;
+}
+
 const EXTENSION_ID = 'greysquirr3l.entirely';
 
 /**
@@ -112,6 +130,33 @@ const EXTENSION_ID = 'greysquirr3l.entirely';
  * without a handler here fails the suite.
  */
 export function registerCommands(context: vscode.ExtensionContext, deps: CommandDependencies): void {
+	// The review commands act on the row they are given, from the Trails view
+	// or the detail panel, and ask which change only when given none. A link
+	// in the panel gives the row id of the item on show, so what the panel
+	// shows is what a link can act on and nothing else. When a command
+	// changes a trail, what the panel holds about it is dropped.
+	const shownModel = (): DetailModel | undefined => {
+		const state = deps.selection.state;
+		return state.kind === 'empty' || state.kind === 'notice' ? undefined : state.model;
+	};
+	const trailReview: TrailReviewDependencies = {
+		trails: deps.trails,
+		actingHandle: () => deps.accounts.current.acting?.handle,
+		// Reading every open trail can take a while, so it shows progress and
+		// can be cancelled. It does not depend on the badge setting.
+		withChanges: trails =>
+			Promise.resolve(
+				vscode.window.withProgress(
+					{ location: vscode.ProgressLocation.Notification, title: 'Reading the changes of the trails…', cancellable: true },
+					(_progress, token) => deps.trailChanges.withChanges(trails, MAX_TRAIL_BADGE_LIMIT, () => token.isCancellationRequested),
+				),
+			),
+		changed: pick => {
+			deps.selection.invalidate(touchedKeys(pick));
+			void deps.trailsProvider.refresh().then(() => deps.selection.reloadFrom(deps.trailsProvider));
+		},
+	};
+
 	// The filter box is created on demand and disposed when it is hidden;
 	// this makes sure one that is still open goes with the extension.
 	let filterBox: vscode.InputBox | undefined;
@@ -159,6 +204,7 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 		}),
 
 		vscode.commands.registerCommand('entirely.refresh', async () => {
+			deps.selection.clearCache();
 			await deps.statusController.refresh();
 			await deps.sessions.refresh();
 			await deps.checkpoints.refresh();
@@ -187,21 +233,18 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 		}),
 
 		vscode.commands.registerCommand('entirely.selectSession', async (element: SessionItemNode) => {
-			await selectSession(
-				{
-					sessions: deps.sessions,
-					sessionDetail: deps.sessionDetail,
-					detail: deps.sessionDetailSource,
-					usage: deps.tokenUsage,
-				},
-				element,
-			);
+			await selectSession({ sessions: deps.sessions, selection: deps.selection }, element);
 		}),
 
 		// The transcript opens in a read-only editor. It is reached from the
 		// detail view and from a session's context menu.
-		vscode.commands.registerCommand('entirely.openTranscript', async (target?: string | SessionItemNode) => {
-			const id = typeof target === 'string' ? target : target?.session.id;
+		vscode.commands.registerCommand('entirely.openTranscript', async (target?: unknown) => {
+			// A link or any caller can pass anything, so only text and a row
+			// with a session id are followed.
+			const id = typeof target === 'string' ? target : sessionIdOf(target);
+			if (target !== undefined && id === undefined) {
+				return;
+			}
 			await openTranscript(
 				{
 					sessionDetail: deps.sessionDetail,
@@ -296,51 +339,33 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 		// than part of a tree, because each one asks the reviewer to
 		// choose what they are acting on and then confirms what they
 		// are about to do.
-		vscode.commands.registerCommand('entirely.trailApprove', async () => {
-			await approveChange({
-				trails: deps.trails,
-				actingHandle: () => deps.accounts.current.acting?.handle,
-			});
+		vscode.commands.registerCommand('entirely.trailApprove', async (target?: unknown) => {
+			await approveChange(trailReview, pickFromTargetOrShown(target, shownModel()));
 		}),
 
-		vscode.commands.registerCommand('entirely.trailComment', async () => {
-			await commentOnChange({
-				trails: deps.trails,
-				actingHandle: () => deps.accounts.current.acting?.handle,
-			});
+		vscode.commands.registerCommand('entirely.trailComment', async (target?: unknown) => {
+			await commentOnChange(trailReview, pickFromTargetOrShown(target, shownModel()));
 		}),
 
-		vscode.commands.registerCommand('entirely.trailMerge', async () => {
-			await mergeChange({
-				trails: deps.trails,
-				actingHandle: () => deps.accounts.current.acting?.handle,
-			});
+		vscode.commands.registerCommand('entirely.trailMerge', async (target?: unknown) => {
+			await mergeChange(trailReview, pickFromTargetOrShown(target, shownModel()));
 		}),
 
-		vscode.commands.registerCommand('entirely.trailCheckout', async () => {
-			await checkoutChange({
-				trails: deps.trails,
-				actingHandle: () => deps.accounts.current.acting?.handle,
-			});
+		vscode.commands.registerCommand('entirely.trailCheckout', async (target?: unknown) => {
+			await checkoutChange(trailReview, pickFromTargetOrShown(target, shownModel()));
 		}),
 
-		vscode.commands.registerCommand('entirely.trailLink', async () => {
-			await linkBranch({
-				trails: deps.trails,
-				actingHandle: () => deps.accounts.current.acting?.handle,
-			});
+		vscode.commands.registerCommand('entirely.trailLink', async (target?: unknown) => {
+			await linkBranch(trailReview, pickFromTargetOrShown(target, shownModel()));
 		}),
 
-		vscode.commands.registerCommand('entirely.trailUnlink', async () => {
-			await unlinkBranch({
-				trails: deps.trails,
-				actingHandle: () => deps.accounts.current.acting?.handle,
-			});
+		vscode.commands.registerCommand('entirely.trailUnlink', async (target?: unknown) => {
+			await unlinkBranch(trailReview, pickFromTargetOrShown(target, shownModel()));
 		}),
 
 		// The drill-down from a line that a checkpoint owns. It is reached
 		// from the panel, so it is not in the palette.
-		vscode.commands.registerCommand('entirely.explainCheckpoint', async (id: string) => {
+		vscode.commands.registerCommand('entirely.explainCheckpoint', async (id?: unknown) => {
 			await explainCheckpoint(
 				{
 					why: deps.why,

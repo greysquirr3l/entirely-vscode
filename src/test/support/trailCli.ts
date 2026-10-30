@@ -35,6 +35,14 @@ export interface TrailCliAnswers {
 	readonly mergeRunFails?: boolean;
 	/** What `trail comment add` writes to stderr, refusing the comment. */
 	readonly commentFails?: string;
+	/** What `trail show --json` prints, for any trail without an answer of its own in `shows`. */
+	readonly show?: string;
+	/** What `trail show <number> --json` prints, by trail number. */
+	readonly shows?: Readonly<Record<number, string>>;
+	/** What `trail show` writes to stderr before it exits non-zero. */
+	readonly showFails?: string;
+	/** Makes `agent-help trail show` fail, as a CLI without the command does. */
+	readonly withoutShowHelp?: boolean;
 }
 
 /**
@@ -46,6 +54,7 @@ export interface TrailCliAnswers {
  * form from the CLI rather than from a table in the test.
  */
 const USAGE: Readonly<Record<string, string>> = {
+	'trail show': 'entire trail show — Show trail intent and its repositories and branches\n',
 	'trail approve': 'entire trail approve — Approve a trail\n',
 	'trail approvals': 'entire trail approvals — Show a trail\'s approvals\n',
 	'trail comment add': [
@@ -85,32 +94,88 @@ const USAGE: Readonly<Record<string, string>> = {
 
 
 /**
- * The trail the fake CLI knows about.
+ * The trail the fake CLI knows about, as the real CLI lists it.
  *
- * One trail with one change on it, which is enough for a reviewer to
- * be offered something to act on.
+ * Observed against CLI 0.12.2 (read-only): `trail list --json` items carry
+ * these keys and NO `changes`. A trail's changes only come with
+ * `trail show`, so a test that expects changes from the list is testing a
+ * shape the CLI does not send.
  */
 export const TRAIL_LIST = {
 	items: [
 		{
+			assigneeAccountIds: [],
+			assignees: [],
+			authorAccountId: '01ACCOUNT',
+			body: '',
+			closedAt: null,
+			createdAt: '2026-10-01T09:00:00Z',
 			id: '01M62YAQVTG0WN2J6G7149VCK9',
+			isPossiblyPartial: false,
+			metadata: {},
 			number: 40,
-			title: 'Shape the thing',
+			priority: 'high',
+			projectId: '01PROJECT',
+			repoIds: ['01REPO'],
 			status: 'open',
-			changes: [
-				{
-					id: '01M62YB0HTSHFQ0WE38EHPFX1',
-					repository: 'entirely-vscode',
-					branch: 'shape-probe',
-					number: 17,
-					title: 'Shape the thing',
-					status: 'open',
-				},
-			],
+			title: 'Shape the thing',
+			type: 'feature',
+			updatedAt: '2026-10-02T09:00:00Z',
 		},
 	],
 	nextPageToken: undefined,
 };
+
+/** One change as `trail show --json` lists it. */
+export const SHOWN_CHANGE = {
+	id: '01M62YB0HTSHFQ0WE38EHPFX1',
+	repository: 'entirely-vscode',
+	repositoryId: '01REPO',
+	branch: 'shape-probe',
+	number: 17,
+	title: 'Shape the thing',
+	status: 'open',
+	hasCodeChanges: true,
+	url: 'https://entire.example/changes/17',
+	createdAt: '2026-10-01T09:05:00Z',
+	updatedAt: '2026-10-02T09:05:00Z',
+};
+
+/**
+ * What `trail show --json` prints for the trail above: the same keys plus
+ * `project`, `url` and `changes[]`.
+ */
+export const TRAIL_SHOW = {
+	...TRAIL_LIST.items[0],
+	body: 'The full description of the trail, which only the document may carry.',
+	url: 'https://entire.example/trails/40',
+	project: {
+		id: '01PROJECT',
+		name: 'greysquirr3l',
+		provider: 'github',
+		reference: { forge: 'gh', project: 'greysquirr3l' },
+	},
+	changes: [SHOWN_CHANGE],
+};
+
+/** A trail whose one change was merged and whose branch is gone, as the CLI sends it: status `merged`, `branch` an empty string. */
+export const TRAIL_SHOW_MERGED = {
+	...TRAIL_SHOW,
+	changes: [{ ...SHOWN_CHANGE, branch: '', status: 'merged' }],
+};
+
+/** Another open trail, for the tests that read more than one. */
+export function listedTrail(number: number, title: string, status = 'open'): (typeof TRAIL_LIST.items)[number] {
+	return { ...TRAIL_LIST.items[0], id: `01TRAIL${number}`, number, title, status };
+}
+
+/** The `trail show` answer of a listed trail, with the changes given. */
+export function shownTrail(
+	trail: (typeof TRAIL_LIST.items)[number],
+	changes: readonly Record<string, unknown>[],
+): Record<string, unknown> {
+	return { ...TRAIL_SHOW, ...trail, url: `https://entire.example/trails/${trail.number}`, changes };
+}
 
 /**
  * The merge plan the CLI's dry run reports.
@@ -169,6 +234,10 @@ export function fakeTrailCli(answers: TrailCliAnswers = {}): FakeTrailCli {
 	write('approvals', answers.approvals ?? '{"approvals":[]}');
 	write('comments', answers.comments ?? '{"items":[]}');
 	write('findings', answers.findings ?? '{"findings":[]}');
+	write('show', answers.show ?? JSON.stringify(TRAIL_SHOW));
+	for (const [number, text] of Object.entries(answers.shows ?? {})) {
+		write(`show-${number}`, text);
+	}
 	write('merge', answers.merge ?? JSON.stringify(MERGE_PLAN));
 	write(
 		'merge-run',
@@ -183,7 +252,14 @@ export function fakeTrailCli(answers: TrailCliAnswers = {}): FakeTrailCli {
 		write('comment-fails', answers.commentFails);
 	}
 
+	if (answers.showFails !== undefined) {
+		write('show-fails', answers.showFails);
+	}
+
 	for (const [command, text] of Object.entries(USAGE)) {
+		if (command === 'trail show' && answers.withoutShowHelp) {
+			continue;
+		}
 		write(usageName(command), text);
 	}
 
@@ -195,12 +271,16 @@ export function fakeTrailCli(answers: TrailCliAnswers = {}): FakeTrailCli {
 		'echo "$*" >> "$LOG"',
 		'case "$1" in',
 		'\tversion) echo "entire 0.12.2" ;;',
-		'\tagent-help) cat "$PAYLOADS/$(echo "$2 $3 $4" | tr \' \' \'-\')" ;;',
+		'\tagent-help) cat "$PAYLOADS/$(echo "$2 $3 $4" | sed \'s/ *$//\' | tr \' \' \'-\')" ;;',
 		'\trepo) cat "$PAYLOADS/repo" ;;',
 		'\ttrail)',
 		'\t\tcase "$2" in',
 		'\t\t\tlist) cat "$PAYLOADS/list" ;;',
-		'\t\t\tshow) cat "$PAYLOADS/list" ;;',
+		'\t\t\tshow)',
+		'\t\t\t\tif [ -f "$PAYLOADS/show-fails" ]; then',
+		'\t\t\t\t\tcat "$PAYLOADS/show-fails" >&2; exit 1',
+		'\t\t\t\tfi',
+		'\t\t\t\tif [ -f "$PAYLOADS/show-$3" ]; then cat "$PAYLOADS/show-$3"; else cat "$PAYLOADS/show"; fi ;;',
 		'\t\t\tapprove) echo "approved" ;;',
 		'\t\t\tapprovals) cat "$PAYLOADS/approvals" ;;',
 		'\t\t\tcomment)',

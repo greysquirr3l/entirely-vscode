@@ -105,7 +105,7 @@ The `--context` flag and the `ENTIRE_CONTEXT` variable are both passed when `ent
 | Command | Feature | Kind |
 | --- | --- | --- |
 | `entire trail list` | Trails view | Read |
-| `entire trail show` | One trail and its changes | Read |
+| `entire trail show` | One trail and its changes; read when a trail is expanded or selected in Trails, and shared with the detail panel | Read |
 | `entire trail approvals` | Who approved a change | Read |
 | `entire trail comment list` | A change's comments | Read |
 | `entire trail finding list` | A change's findings | Read |
