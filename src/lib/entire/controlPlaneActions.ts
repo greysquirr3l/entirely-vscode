@@ -7,6 +7,8 @@ export type ControlAction =
 			readonly kind: 'delete-repository';
 			readonly name: string;
 			readonly project: string;
+			/** The project's id, which the CLI is handed to read the project again. */
+			readonly projectId: string;
 			readonly path: string;
 			/** Also delete the mirrors on other clusters. Set only after the CLI refused without it. */
 			readonly cascade: boolean;
@@ -14,13 +16,17 @@ export type ControlAction =
 	| {
 			readonly kind: 'create-repository';
 			readonly name: string;
+			/** The project's readable name, for the question. */
 			readonly project: string;
+			/** The project's id, which the CLI is handed. */
+			readonly projectId: string;
 			readonly visibility?: string;
 	  }
 	| {
 			readonly kind: 'set-visibility';
 			readonly name: string;
 			readonly project: string;
+			readonly projectId: string;
 			readonly path: string;
 			readonly visibility: string;
 			readonly current?: string;
@@ -35,8 +41,10 @@ export type ControlAction =
 	| {
 			readonly kind: 'grant';
 			readonly scope: GrantScope;
-			/** The CLI's operand for the object: a repository path, or a project or organisation name. */
+			/** The CLI's operand for the object: a repository path, a project id, or an organisation name. */
 			readonly target: string;
+			/** What the object is called on screen, when the operand is an id. */
+			readonly label?: string;
 			readonly grantee: string;
 			readonly role: string;
 	  }
@@ -44,6 +52,7 @@ export type ControlAction =
 			readonly kind: 'revoke';
 			readonly scope: GrantScope;
 			readonly target: string;
+			readonly label?: string;
 			readonly grantee: string;
 	  };
 
@@ -70,6 +79,11 @@ export function scopeWord(scope: GrantScope): string {
 	return SCOPE_WORDS[scope];
 }
 
+/** What a grant or revoke calls its object when it is shown: the readable label, else the operand. */
+export function shownTarget(action: Extract<ControlAction, { kind: 'grant' | 'revoke' }>): string {
+	return action.label ?? action.target;
+}
+
 /** What the change is, as a short phrase naming what it affects. */
 export function describeControlAction(action: ControlAction): string {
 	switch (action.kind) {
@@ -84,9 +98,9 @@ export function describeControlAction(action: ControlAction): string {
 		case 'delete-organisation':
 			return `delete the organisation ${action.name}`;
 		case 'grant':
-			return `give ${action.grantee} the ${action.role} role on the ${scopeWord(action.scope)} ${action.target}`;
+			return `give ${action.grantee} the ${action.role} role on the ${scopeWord(action.scope)} ${shownTarget(action)}`;
 		case 'revoke':
-			return `remove ${action.grantee}'s access to the ${scopeWord(action.scope)} ${action.target}`;
+			return `remove ${action.grantee}'s access to the ${scopeWord(action.scope)} ${shownTarget(action)}`;
 	}
 }
 
@@ -146,14 +160,14 @@ export function confirmationFor(action: ControlAction, acting: Pick<AccountConte
 			};
 		case 'grant':
 			return {
-				message: `Give ${action.grantee} the ${action.role} role on ${action.target}?`,
-				detail: `${as} ${action.grantee} will be able to use the ${scopeWord(action.scope)} ${action.target} as ${action.role}. ${remote}`,
+				message: `Give ${action.grantee} the ${action.role} role on ${shownTarget(action)}?`,
+				detail: `${as} ${action.grantee} will be able to use the ${scopeWord(action.scope)} ${shownTarget(action)} as ${action.role}. ${remote}`,
 				action: 'Grant Access',
 			};
 		case 'revoke':
 			return {
-				message: `Remove ${action.grantee}'s access to ${action.target}?`,
-				detail: `${as} ${action.grantee} loses the access they hold directly on the ${scopeWord(action.scope)} ${action.target}. Access they inherit from elsewhere is not affected. ${remote}`,
+				message: `Remove ${action.grantee}'s access to ${shownTarget(action)}?`,
+				detail: `${as} ${action.grantee} loses the access they hold directly on the ${scopeWord(action.scope)} ${shownTarget(action)}. Access they inherit from elsewhere is not affected. ${remote}`,
 				action: 'Revoke Access',
 			};
 	}

@@ -249,6 +249,7 @@ export type {
 	ControlRepository,
 	Organisation,
 	Project,
+	ProjectRef,
 } from './controlPlane';
 export {
 	API_METHODS,
@@ -281,6 +282,7 @@ export {
 	describeControlAction,
 	describeControlOutcome,
 	scopeWord,
+	shownTarget,
 } from './controlPlaneActions';
 export type { ControlAction, ControlConfirmation, ControlOutcome } from './controlPlaneActions';
 export {
