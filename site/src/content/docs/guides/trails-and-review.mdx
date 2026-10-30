@@ -36,9 +36,26 @@ An empty view reads "No trails to show", or gives the reason it couldn't list th
 Access to a project is per login, not just per repository. On a personal account, a login that can see the repository may still be unable to see its project, and then it can't list or review the project's trails. Entirely says so and names `entirely.cliContext` instead of showing an empty list. See [Accounts and contexts](/entirely/concepts/accounts-and-contexts/).
 </Aside>
 
+## The Details view
+
+Select a trail or a change, by click or by keyboard, and the **Details** view shows it. A change row paints at once from the listing: title, `repository/number`, branch, status, whether it carries code, and the gate with its approval count and blockers. One `entire trail show <repo>/<n> --json` then adds the parent trail's number, title, status, type, priority, page, whether it has a description, and the other changes on it. The gate is the listing's. The merge check is not run again, so it is as fresh as the last Trails refresh.
+
+A project trail row shows its own fields and its changes with their gates, read with one `entire trail show <n>`.
+
+What it does not show, because each needs a read of its own or is not in the data: base branch and head commit, who approved, comment and finding counts, and linked items. A description appears only as "Has a description"; **Open Details in Editor** writes it to a read-only document, and it is never written to the output channel.
+
+- **Merged or deleted.** If `trail show` fails with the CLI's not-found wording, or the answer leaves the change out of the trail's change list, the view says "… is no longer available. It may have been merged or deleted." with a Refresh row.
+- **Failed read.** A row names the item and the CLI's reason, with a Retry button. No popup.
+- **CLI missing, or without `trail show`.** You keep the listing's fields and one row, "Trail details need a newer Entire CLI", which opens **Set Up Entire**. Sessions and Activity are not affected.
+- **Cache.** The answer is kept for `entirely.selectionCacheSeconds` (default `30`). Approving, merging, linking or unlinking drops it for that change and its trail and refreshes the Trails view. The `trail show` read uses `entirely.trailActionTimeout`.
+
+The change's header row has the review actions: **Approve** inline, and Comment, Merge, Check Out, Link and Unlink in its menu. They are the commands below, with the same confirmations, acting on the change shown instead of asking you to pick. Link and Unlink act on its parent trail.
+
+The reads were checked against a fake CLI. `trail show` for a change that has since been merged or deleted was not seen against a live server, so the not-found wording is read from the CLI's error text and may need adjusting.
+
 ## Review commands
 
-Each command lists the trails of this repository from the CLI, in the CLI's order, and asks you to pick one. Changes are picked for approve, comment, merge and check out. Trails are picked for link and unlink. If there are none, you're told so.
+Run from the palette, each command lists the trails of this repository from the CLI, in the CLI's order, and asks you to pick one. Run from the Details view or with a row from the Trails view, it acts on that row and does not ask. Changes are picked for approve, comment, merge and check out. Trails are picked for link and unlink. If there are none, you're told so.
 
 | Command | Picks | Asks | What you see after |
 |---|---|---|---|

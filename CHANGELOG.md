@@ -5,6 +5,39 @@ All notable changes to the Entirely extension are documented in this file. The f
 
 ## [Unreleased]
 
+### Changed
+
+- **The Session view is now Details.** Its id is unchanged (`entirely.sessionDetail`), so
+  your layout, its visibility and any `when` clause keep working; only the name changed.
+  It shows what you last selected in Sessions, Trails or Activity, and its welcome text
+  now reads "Select a session, a trail change or an Activity entry to see it here."
+- **Moving to a session row with the arrow keys now loads it**, as clicking always did. A
+  collapsed Details view opens on a selection without taking focus from the row you chose.
+
+### Added
+
+- **Trails and Activity rows open in Details.** A trail or change shows its listing row
+  (branch, status, gate, approvals, blockers) and, from one `entire trail show`, the
+  parent trail's type, priority, page and other changes. An Activity commit, session line
+  or repository shows the CLI's own text. Each selection makes at most one read, a repeat
+  selection reads nothing, and a slow read for an earlier row never replaces a later one.
+  A failed read is a row with Retry, not a popup. A merged or deleted trail says it is no
+  longer available, and a CLI without `trail show` leaves the listing's fields with a row
+  that says why.
+- **`entirely.selectionCacheSeconds`** (default `30`, `0` turns it off). Reselecting a row
+  shows the cached detail at once with an "as of" time; after the time it is read again
+  in the background. Ended sessions and Activity rows are kept ten times as long. The
+  refresh commands clear the cache, and so do approving, merging, linking and unlinking.
+- **Refresh Details** and **Open Details in Editor** in the view's title bar. The first
+  skips the cache for the selected item; the second opens the same detail as a read-only
+  document, the one place a trail's description is written out.
+- **Review actions on the change in Details**: Approve (inline), Comment, Merge, Check Out,
+  Link and Unlink are the existing commands and confirmations, acting on the change shown.
+- Selecting an item marks its row with a blue dot and label colour, and clears the mark in the other views. The
+  editor's own row highlight in those views cannot be cleared by an extension and stays.
+- Activity session lines still cannot link to the Session detail: the CLI's line carries no
+  session id, and Entirely does not guess one.
+
 ## [0.2.0] - 2026-10-30
 
 ### Changed

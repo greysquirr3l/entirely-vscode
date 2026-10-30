@@ -25,6 +25,16 @@ Title bar buttons:
 
 The first row names the login: "Activity for *login*". Under it you'll see Overview figures, Repositories with counts, then grouped sessions or commits. A commit row shows the title with the id, repository and detail beside it.
 
+### Selecting a row
+
+A commit, a session line or a repository row opens in the **Details** view when you click it or arrow to it. Nothing is read from the CLI for this: the row is drawn from the text the last Activity read already printed, and the view says what that text holds.
+
+- **Commit**: the short hash, the title as the CLI printed it (the static view may cut a long one short), the repository, and the CLI's detail text whole (agent, size, file count, checkpoint count are in one string and are not split). A checkpoint id is not in the line, so there is no link to a checkpoint.
+- **Session line**: the text as printed. The line carries no session id, so it cannot link to the session in the Sessions view, and Entirely does not guess a match from the prompt text.
+- **Repository**: its name and count, the scope line and the overview figures. It has no link to the Control Plane, because the name carries no forge.
+
+Overview figures and the scope line are not selectable. Reading Activity again clears what the view held for these rows. A selected row that is gone after a read empties the view. **Open Details in Editor** writes the same text to a read-only document.
+
 Messages instead of a list:
 
 - "Reading your activity…" while loading.

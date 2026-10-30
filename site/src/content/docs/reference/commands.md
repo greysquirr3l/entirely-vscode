@@ -46,7 +46,10 @@ See [Accounts and contexts](/entirely/concepts/accounts-and-contexts/).
 | Palette title | Id | Where | Changes | What it does |
 | --- | --- | --- | --- | --- |
 | Entirely: Show Sessions | `entirely.showSessions` | palette | Read | Reveals the Sessions view. |
-| Entirely: Show Session Details | `entirely.selectSession` | session row click; hidden | Read | Fills the Session view with the selected session: agent, model, tokens, files touched, tool calls. |
+| Entirely: Show Session Details | `entirely.selectSession` | hidden | Read | Selects a session in the Details view, as clicking its row does. Kept so keybindings and other commands can call it. |
+| Entirely: Show Details | `entirely.selectItem` | row click; hidden | Read | Loads the selected session, trail, change or Activity row in the Details view. Takes a selection and its view; ignores anything else. |
+| Entirely: Refresh Details | `entirely.retryDetail` | Details title bar, failed row; palette while something is selected | Read | Reads the selected item again, skipping the cache for it alone. |
+| Entirely: Open Details in Editor | `entirely.openDetailInEditor` | Details title bar; palette while something is selected | Read | Opens the detail shown as a read-only `entirely-generated` document. |
 | Entirely: Open Session Transcript | `entirely.openTranscript` | Sessions inline icon (session and imported-session rows) | Read | Opens the transcript in a read-only editor. Transcript text is never written to the output channel. |
 | Entirely: Show Only This Workspace's Session | `entirely.showOwnSession` | Sessions view title (when showing all) | Read | Filters the tree to the session of this workspace (`entire session current`). |
 | Entirely: Show All Sessions | `entirely.showAllSessions` | Sessions view title (when filtered) | Read | Removes the filter. |
