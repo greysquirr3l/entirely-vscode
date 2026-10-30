@@ -113,6 +113,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Fixed
 
+- **The sign-in no longer says the machine has no display when Entirely runs on a remote
+  host.** In a Remote-SSH, container, WSL, Codespaces or browser-based window the sign-in
+  uses a code because the CLI cannot open your browser, says so, and opens the code page in
+  your own browser. The note is also gone once the sign-in succeeds.
 - A CLI failure now reports what the CLI said rather than only its exit
   code. A project that the acting login cannot see is named as such and
   names the setting to change, instead of showing an empty trail list.

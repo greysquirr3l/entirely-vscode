@@ -7,8 +7,13 @@ import {
 	decodeAuthStatus,
 	describeIdentity,
 	describeJurisdiction,
+	describeRemote,
+	describeSignInLocation,
+	findVerificationUrl,
+	isEntireUrl,
 	isHeadlessEnvironment,
 	isSignedIn,
+	locateBrowser,
 } from '../lib/entire';
 import { AccountContextService } from '../services/accountContext';
 import { makeTempDir } from './support/tempDir';
@@ -221,6 +226,110 @@ suite('The headless machine', () => {
 	});
 });
 
+suite('Where the browser is', () => {
+	const desktop = { remoteName: undefined, uiKind: 'desktop' } as const;
+
+	test('is on this machine for a desktop window with a display', () => {
+		assert.deepStrictEqual(locateBrowser({}, 'darwin', desktop), { kind: 'local-display' });
+		assert.deepStrictEqual(locateBrowser({ DISPLAY: ':0' }, 'linux', desktop), {
+			kind: 'local-display',
+		});
+	});
+
+	test('is nowhere for a desktop window on a machine with no display', () => {
+		assert.deepStrictEqual(locateBrowser({}, 'linux', desktop), { kind: 'headless' });
+	});
+
+	test('is on the person\'s machine in a remote window, display or not', () => {
+		const host = { remoteName: 'ssh-remote', uiKind: 'desktop' } as const;
+
+		assert.deepStrictEqual(locateBrowser({}, 'linux', host), {
+			kind: 'remote',
+			remoteName: 'ssh-remote',
+		});
+		assert.deepStrictEqual(locateBrowser({ DISPLAY: ':0' }, 'linux', host), {
+			kind: 'remote',
+			remoteName: 'ssh-remote',
+		});
+	});
+
+	test('is on the person\'s machine in a browser-based editor', () => {
+		assert.deepStrictEqual(locateBrowser({}, 'linux', { remoteName: undefined, uiKind: 'web' }), {
+			kind: 'web',
+		});
+		assert.deepStrictEqual(locateBrowser({}, 'linux', { remoteName: 'codespaces', uiKind: 'web' }), {
+			kind: 'web',
+		});
+	});
+
+	test('treats an empty remote name as no remote', () => {
+		assert.deepStrictEqual(locateBrowser({}, 'darwin', { remoteName: ' ', uiKind: 'desktop' }), {
+			kind: 'local-display',
+		});
+	});
+
+	test('names common remotes in plain words and others as they are', () => {
+		assert.strictEqual(describeRemote('ssh-remote'), 'a remote host over SSH');
+		assert.strictEqual(describeRemote('dev-container'), 'a container');
+		assert.strictEqual(describeRemote('attached-container'), 'a container');
+		assert.strictEqual(describeRemote('wsl'), 'WSL');
+		assert.strictEqual(describeRemote('codespaces'), 'a codespace');
+		assert.strictEqual(describeRemote('tunnel'), 'tunnel');
+	});
+
+	test('says the truth about each place in the sign-in note', () => {
+		assert.strictEqual(describeSignInLocation({ kind: 'local-display' }), '');
+		assert.strictEqual(
+			describeSignInLocation({ kind: 'remote', remoteName: 'ssh-remote' }),
+			'Entirely is running on a remote host over SSH (ssh-remote), so the sign-in uses a code you enter in your browser.',
+		);
+		assert.ok(describeSignInLocation({ kind: 'web' }).includes('browser-based editor'));
+		assert.ok(describeSignInLocation({ kind: 'headless' }).includes('no graphical display'));
+		assert.strictEqual(
+			describeSignInLocation({ kind: 'remote', remoteName: 'ssh-remote' }).includes('no graphical display'),
+			false,
+		);
+	});
+});
+
+suite('The verification address', () => {
+	test('accepts https addresses on entire.io and entire.com', () => {
+		assert.ok(isEntireUrl('https://auth.entire.io/device'));
+		assert.ok(isEntireUrl('https://entire.com/device?code=ABCD'));
+		assert.ok(isEntireUrl('https://us.auth.entire.com/device'));
+	});
+
+	test('rejects http, other hosts and lookalikes', () => {
+		assert.strictEqual(isEntireUrl('http://auth.entire.io/device'), false);
+		assert.strictEqual(isEntireUrl('https://example.com/device'), false);
+		assert.strictEqual(isEntireUrl('https://entire.io.evil.com/device'), false);
+		assert.strictEqual(isEntireUrl('https://evilentire.io/device'), false);
+		assert.strictEqual(isEntireUrl('https://entire.io@evil.com/device'), false);
+		assert.strictEqual(isEntireUrl('javascript:alert(1)'), false);
+		assert.strictEqual(isEntireUrl('not an address'), false);
+	});
+
+	test('finds the first Entire address in the CLI output', () => {
+		const output = 'See https://example.com/help\nEnter ABCD-EFGH at https://auth.entire.io/device.\n';
+
+		assert.strictEqual(findVerificationUrl(output), 'https://auth.entire.io/device');
+	});
+
+	test('finds nothing in output with no allowed address', () => {
+		assert.strictEqual(findVerificationUrl('open https://evil.example/device\n'), undefined);
+		assert.strictEqual(findVerificationUrl('open http://auth.entire.io/device\n'), undefined);
+		assert.strictEqual(findVerificationUrl('no address here\n'), undefined);
+	});
+
+	test('waits for the end of an address that arrives in pieces', () => {
+		assert.strictEqual(findVerificationUrl('open https://auth.entire.io/dev'), undefined);
+		assert.strictEqual(
+			findVerificationUrl('open https://auth.entire.io/device\n'),
+			'https://auth.entire.io/device',
+		);
+	});
+});
+
 suite('The account view', () => {
 	test('shows the identity and the home jurisdiction', () => {
 		const decoded = decodeAuthStatus(JSON.parse(AUTH_STATUS));
@@ -406,6 +515,7 @@ suite('The sign-in command', () => {
 			output: { appendLine: () => undefined },
 			env: {},
 			platform: 'linux',
+			host: { remoteName: undefined, uiKind: 'desktop' },
 			pickMethod: async () => {
 				throw new Error('the person was asked, on a machine with no display');
 			},
@@ -417,6 +527,73 @@ suite('The sign-in command', () => {
 
 		assert.ok(login, 'the sign-in never ran');
 		assert.ok(login?.includes('--device'), `the device flow was not used: ${login}`);
+	});
+});
+
+suite('The sign-in command in a remote window', () => {
+	/** Signs in with the host and the picker given, and says what happened. */
+	async function signInWith(
+		host: { remoteName: string | undefined; uiKind: 'desktop' | 'web' },
+		platform: NodeJS.Platform,
+		env: NodeJS.ProcessEnv,
+	): Promise<{ invocations: string[]; opened: string[]; picked: number }> {
+		const { runner, invocations } = runnerFor({
+			login: { output: 'Enter ABCD-EFGH at https://auth.entire.io/device\nwaiting' },
+		});
+		const accounts = new AccountContextService(runner);
+		await accounts.refresh(undefined);
+
+		const opened: string[] = [];
+		let picked = 0;
+
+		await signIn({
+			authentication: new AuthenticationService(runner),
+			accounts,
+			workspaceRoot: () => undefined,
+			output: { appendLine: () => undefined },
+			env,
+			platform,
+			host,
+			openExternal: async address => {
+				opened.push(address);
+				return true;
+			},
+			pickMethod: async choices => {
+				picked += 1;
+				return choices[0];
+			},
+		});
+
+		return { invocations: invocations(), opened, picked };
+	}
+
+	test('uses the device flow without asking, and opens the code page once', async () => {
+		const result = await signInWith(
+			{ remoteName: 'ssh-remote', uiKind: 'desktop' },
+			'linux',
+			{},
+		);
+		const login = result.invocations.find(
+			line => line.includes('login') && !line.includes('agent-help'),
+		);
+
+		assert.ok(login?.includes('--device'), `the device flow was not used: ${login}`);
+		assert.strictEqual(result.picked, 0);
+		assert.deepStrictEqual(result.opened, ['https://auth.entire.io/device']);
+	});
+
+	test('uses the device flow in a browser-based editor', async () => {
+		const result = await signInWith({ remoteName: undefined, uiKind: 'web' }, 'linux', {});
+
+		assert.strictEqual(result.picked, 0);
+		assert.strictEqual(result.opened.length, 1);
+	});
+
+	test('still offers the pick on a local desktop, and opens nothing itself', async () => {
+		const result = await signInWith({ remoteName: undefined, uiKind: 'desktop' }, 'darwin', {});
+
+		assert.strictEqual(result.picked, 1);
+		assert.deepStrictEqual(result.opened, []);
 	});
 });
 
