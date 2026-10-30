@@ -59,6 +59,10 @@ export interface ExtensionSettings {
 	readonly doctorBundleTimeout: number;
 	/** How long, in seconds, the checkpoint migration may take. */
 	readonly migrateCheckpointsTimeout: number;
+	/** How long, in seconds, disable, uninstall, configure and clean (and the clean preview) may take. */
+	readonly captureControlTimeout: number;
+	/** How long, in seconds, `entire runner setup` may take. A tailoring run calls a summary provider. */
+	readonly runnerSetupTimeout: number;
 	/** Whether the Entire MCP server is offered to the editor's agent. */
 	readonly mcpServerEnabled: boolean;
 	/** The plugins the Integrations view and the install offer suggest. */
@@ -290,6 +294,30 @@ export function clampMigrateCheckpointsTimeout(seconds: number): number {
 	return Math.min(MAX_MIGRATE_CHECKPOINTS_TIMEOUT_SECONDS, Math.max(MIN_MIGRATE_CHECKPOINTS_TIMEOUT_SECONDS, Math.floor(seconds)));
 }
 
+/** The bounds of the time disable, uninstall, configure and clean may take, in seconds. */
+export const MIN_CAPTURE_CONTROL_TIMEOUT_SECONDS = 5;
+export const MAX_CAPTURE_CONTROL_TIMEOUT_SECONDS = 600;
+
+/** Puts the capture-control timeout inside the range the extension will wait for. */
+export function clampCaptureControlTimeout(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return 60;
+	}
+	return Math.min(MAX_CAPTURE_CONTROL_TIMEOUT_SECONDS, Math.max(MIN_CAPTURE_CONTROL_TIMEOUT_SECONDS, Math.floor(seconds)));
+}
+
+/** The bounds of the time `runner setup` may take, in seconds. A tailoring run waits for a summary provider. */
+export const MIN_RUNNER_SETUP_TIMEOUT_SECONDS = 10;
+export const MAX_RUNNER_SETUP_TIMEOUT_SECONDS = 1800;
+
+/** Puts the runner-setup timeout inside the range the extension will wait for. */
+export function clampRunnerSetupTimeout(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return 300;
+	}
+	return Math.min(MAX_RUNNER_SETUP_TIMEOUT_SECONDS, Math.max(MIN_RUNNER_SETUP_TIMEOUT_SECONDS, Math.floor(seconds)));
+}
+
 /** The bounds of the time an import may take, in seconds. Imports read a month of transcripts. */
 export const MIN_IMPORT_TIMEOUT_SECONDS = 10;
 export const MAX_IMPORT_TIMEOUT_SECONDS = 3600;
@@ -417,6 +445,8 @@ export function readExtensionSettings(): ExtensionSettings {
 		doctorReadTimeout: clampDoctorReadTimeout(configuration.get<number>('doctorReadTimeout', 30)),
 		doctorBundleTimeout: clampDoctorBundleTimeout(configuration.get<number>('doctorBundleTimeout', 120)),
 		migrateCheckpointsTimeout: clampMigrateCheckpointsTimeout(configuration.get<number>('migrateCheckpointsTimeout', 300)),
+		captureControlTimeout: clampCaptureControlTimeout(configuration.get<number>('captureControlTimeout', 60)),
+		runnerSetupTimeout: clampRunnerSetupTimeout(configuration.get<number>('runnerSetupTimeout', 300)),
 		mcpServerEnabled: configuration.get<boolean>('mcpServerEnabled', true),
 		suggestedPlugins: readSuggestedPlugins(configuration.get<unknown>('suggestedPlugins', DEFAULT_SUGGESTED_PLUGINS)),
 		offerIntegrationInstall: configuration.get<boolean>('offerIntegrationInstall', true),
