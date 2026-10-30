@@ -6,6 +6,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-30
+
 ### Changed
 
 - **Entire's official symbol, unmodified.** The activity bar icon and the status bar glyph

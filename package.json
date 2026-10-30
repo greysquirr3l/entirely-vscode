@@ -3,7 +3,7 @@
   "publisher": "greysquirr3l",
   "displayName": "Entirely",
   "description": "Unofficial extension for Entire: sessions, checkpoints, trails and review for agent-human collaboration, in the editor.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "icon": "images/logo.png",
   "galleryBanner": {
