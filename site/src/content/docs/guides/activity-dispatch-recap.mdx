@@ -1,0 +1,84 @@
+---
+title: Activity, dispatch and recap
+description: Recent activity across repositories, and the generated dispatch.
+sidebar:
+  order: 4
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+These three features read from Entire's servers through the CLI, so they cover repositories beyond the open one. They need a signed-in login. See [Sign in](/entirely/getting-started/sign-in/).
+
+## Activity view
+
+The **Activity** view shows recent sessions or commits across the repositories the acting login can see, with headline figures and a repository list. The view starts collapsed.
+
+It is lazy. It reads the first time you open it and when you ask, and it never polls. Every read is a request to Entire's servers. If you change an activity setting after the view has been read, it reads again. If it has never been read, it stays idle.
+
+Title bar buttons:
+
+- **Show Recent Commits in Activity** and **Show Recent Sessions in Activity** swap the list.
+- **Refresh** (**Entirely: Refresh Activity**) reads again.
+- **Generate Dispatch**, described below.
+
+**Entirely: Open Activity** opens the container, focuses the view and reads.
+
+The first row names the login: "Activity for *login*". Under it you'll see Overview figures, Repositories with counts, then grouped sessions or commits. A commit row shows the title with the id, repository and detail beside it.
+
+Messages instead of a list:
+
+- "Reading your activity…" while loading.
+- "Activity could not be read: …" on failure.
+- "The Entire CLI printed activity in a layout this extension does not recognise … Update the extension or the CLI." The extension parses the CLI's static text and reports an unknown layout rather than guessing.
+- "The Entire CLI printed no activity. Work appears here once it has been published to Entire."
+
+### Why static output
+
+`entire activity` and `entire recap` open an interactive screen when they see a terminal. The editor isn't one, so Entirely pipes the output and sets `ACCESSIBLE=1`, which the CLI documents for screen readers. That makes activity, recap and dispatch print plain text. `entire recap` is also run only if its help describes a static flag. Without one, Entirely reports the CLI as too old and doesn't run it.
+
+## Show Recap
+
+**Entirely: Show Recap** asks which period to summarise. The choices are the periods the CLI's help describes. It then reads the recap and opens it in a read-only text editor. It changes nothing, so it asks for no confirmation.
+
+Failures read "The recap cannot be shown: …", "The recap could not be read: …", or "The Entire CLI printed no recap for that period."
+
+## Generate Dispatch
+
+A dispatch is a written summary of recent recorded work. Generating one starts work on Entire's servers or in an agent on your machine, so it asks first and runs once.
+
+<Steps>
+1. Run **Entirely: Generate Dispatch** (palette or the Activity title bar).
+2. If the CLI offers a locally installed agent, pick who writes it: Entire, or the local agent.
+3. If the CLI describes a time window, enter how far back to look. A duration like `7d`, a relative time, or an ISO date. Empty uses the CLI default.
+4. For a dispatch written by Entire, if the CLI describes a jurisdiction flag, enter a jurisdiction slug such as `us` or `eu`. Empty uses your home jurisdiction.
+5. Confirm. The question names the repository, the window, the place it runs, and the login it runs as, read again just before asking. It states that the request is sent once and not sent again if it fails or is cancelled. A local agent may use its own account or quota.
+6. A progress notification, "Generating a dispatch as *login*…", has a cancel button.
+7. The dispatch opens in a read-only Markdown editor. **Copy Dispatch** in the editor title copies it. **Entirely: Copy Dispatch** also works from the palette on the latest one.
+</Steps>
+
+Only options the CLI's help describes are offered. There's no local-agent choice on a CLI without one. If no login is available, the command stops and says to sign in first. A second dispatch while one is running is refused.
+
+Failure messages:
+
+- "The dispatch could not be generated: *reason*. It was not retried."
+- "The dispatch was cancelled. It was not started again; if Entire had already begun, it may still finish there."
+- "The Entire CLI finished but wrote no dispatch. There may be no recorded work in that window."
+
+<Aside type="caution">
+Dispatch has been tested against a fake CLI and has not been verified against a live run. Check the first result against what you expect. See [Coverage](/entirely/reference/coverage/).
+</Aside>
+
+Entirely keeps the last few generated documents in memory for copying. They aren't written to disk or the output channel.
+
+## Settings
+
+| Setting | Default | Effect |
+|---|---|---|
+| `entirely.activityTimeout` | `30` | Seconds the Activity view and Show Recap wait. |
+| `entirely.dispatchTimeout` | `180` | Seconds Generate Dispatch waits. A dispatch written by a local agent can take minutes. It is never started again after a timeout. |
+
+## Related
+
+- [Accounts and contexts](/entirely/concepts/accounts-and-contexts/)
+- [Privacy and redaction](/entirely/concepts/privacy-and-redaction/)
+- [CLI commands used](/entirely/reference/cli-commands-used/), [Commands reference](/entirely/reference/commands/)

@@ -1,0 +1,119 @@
+---
+title: Sessions and checkpoints
+description: Watch live sessions and open checkpoints as diffs.
+sidebar:
+  order: 1
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import sessions from '../../../assets/sessions.png';
+
+A session is one agent's recorded work. A checkpoint is that work frozen when it is committed. Entirely shows both in the **Entirely for Entire** activity bar container, reads them from the Entire CLI, and opens a checkpoint's changes in the normal diff editor.
+
+<Image src={sessions} alt="The Entirely container in VS Code showing the Sessions, Session and Checkpoints views beside an open editor." />
+
+## The Sessions view
+
+The **Sessions** view lists every session Entire tracks for the repository, across all worktrees, not only the open folder. Sessions are grouped by status, with `active` first. Each row shows the agent and the start of its last prompt. The line beside it gives the status, branch, turn count and checkpoint count. Hover a row for the session id, worktree, model, start and last-active times, and the full last prompt.
+
+Imported history shows a lock icon and the label "Imported · read-only". See [History import](/entirely/guides/history-import/).
+
+If nothing is listed, the view says why. With no sessions it reads "No sessions yet. Sessions are recorded automatically when an agent runs in a repository that Entire tracks."
+
+### Only this workspace's session
+
+The view title has a button, **Show Only This Workspace's Session**. It narrows the list to the one session that belongs to this worktree. If the CLI only knows a session from another worktree, the view says "This workspace has no session of its own." instead of showing someone else's. **Show All Sessions** reverses it.
+
+### Sessions in the Explorer
+
+Set `entirely.showSessionsInExplorer` to `true` to show the same tree as **Entirely Sessions** in the Explorer, below the source control views. It is off by default.
+
+### Refreshing
+
+The view re-reads the CLI every `entirely.refreshInterval` seconds (default `30`). Set it to `0` to refresh only when you run **Entirely: Refresh**. The same interval drives the Checkpoints and Trails views.
+
+## The Session detail view
+
+Click a session. The **Session** view fills in at once from the list, then adds what `entire session info` reports:
+
+- Agent, status, branch, worktree, session id, turns (with pending turns), checkpoints, model, started and last-active times.
+- Last prompt, as an expandable block.
+- **Ended**, **Last checkpoint** and **Files touched**, when the CLI reports them.
+- **Tokens**, from `entire session tokens`. Counts the CLI did not report read "Not reported", never zero. If the CLI sent usage this version can't read, the row says "Not recognised". If the lookup fails, it says "Not available" and the tooltip gives the reason.
+- Tool calls, counted from the transcript.
+- **Transcript: Open in editor**.
+
+The transcript opens in a read-only editor tab (**Entirely: Open Session Transcript**, or the inline button on a session row). It never goes into the tree or the output channel. A long session has a large transcript, so if opening one times out, raise `entirely.transcriptTimeout` (default `60` seconds). See [Privacy and redaction](/entirely/concepts/privacy-and-redaction/).
+
+## Session actions
+
+Right-click a session in the Sessions view, or run the command from the palette and pick a session. Each action runs only when you choose it and asks first. None are offered for imported sessions.
+
+| Command | What it does | What it asks |
+|---|---|---|
+| **Entirely: Resume Session** | Runs `entire session resume <branch>` in an integrated terminal. | "Resume *branch*?" It checks out the branch, restores the session's log, and opens a terminal where Entire may ask you questions. |
+| **Entirely: Attach Session to a Commit** | Links a session to a commit. | You pick a commit (recent commits, `HEAD`, or a typed ref). The CLI's own preview of what linking would change, including any rewrite of unpushed commits, is the confirmation. Only then does the real run happen. |
+| **Entirely: Adopt Session from Another Worktree** | Moves a live session from another worktree into this workspace. | "Adopt session?" It states the source worktree and that the session is seeded with your uncommitted changes. |
+| **Entirely: Stop Session** | Ends live capture of a session. | "Stop session?" No checkpoint is written, so commit first if work is pending. An agent still running keeps running, untracked. |
+
+What you'll see afterwards:
+
+- **Stop**, **Attach** and **Adopt** refresh the Sessions view and report success or the CLI's reason for failure. Adopt also checks that the session is now listed for this workspace, and tells you to refresh if it isn't.
+- **Resume** can't see your answers in the terminal, so it doesn't assume the work started. It watches the session list for up to `entirely.resumeWatchTimeout` seconds (default `60`) and reports either that the session is active again, or that none appeared, with the terminal's exit code if it had ended. Resume refuses while any workspace file has unsaved changes, and names them. A second Resume on a branch already being watched starts nothing.
+
+Attach, adopt and stop wait up to `entirely.lifecycleActionTimeout` seconds (default `60`). Attaching to a pushed commit uploads the transcript, so raise it on a slow connection.
+
+<Aside type="caution">
+The flags for these commands come from the CLI's own help each time. A CLI that is missing, too old to have the command, or that refuses is reported as a failure with a reason, never as a success.
+</Aside>
+
+## Checkpoints
+
+The **Checkpoints** view lists recorded checkpoints. A row shows the message (or the id), the agent, the date and the session count. Expand one to see:
+
+- **Tokens**: usage for the checkpoint from `entire checkpoint tokens`, with the same "Not reported" and "Not available" wording as sessions.
+- The files the checkpoint touched. These are read when you first expand the checkpoint.
+
+Click a file to open its diff. Entirely finds the checkpoint's commit with the built-in git extension and opens the change against the commit before it, in VS Code's diff editor. Nothing is written to disk.
+
+You'll see a message instead of a diff in these cases:
+
+- The built-in git extension is unavailable, or no git repository was found for the workspace.
+- The checkpoint is not in this repository. The message offers **Explain Checkpoint**, which shows its story in a panel.
+- The checkpoint has no parent commit to compare against.
+
+An empty view reads "No checkpoints yet. A checkpoint is recorded when agent work is committed, and appears here once it is."
+
+### Searching checkpoint history
+
+The search button in the Checkpoints title bar (**Entirely: Search Checkpoints**) opens a box. As you type, the extension runs `entire checkpoint search` and the tree narrows to the matches. The CLI does the matching, not a local filter. The query is trimmed and cut at 500 characters.
+
+- `entirely.searchDebounce` sets how long to wait after you stop typing (default `400` ms).
+- The filter stays applied after you close the box. **Entirely: Clear Checkpoint Search** removes it.
+- The view says "Searching checkpoints…", then "*N* checkpoints matched." or "No checkpoint matched." (adding a count if other hits were commits or sessions).
+- A failed search reads "The search failed: …" and says nothing about whether anything matches. A missing CLI or one without `checkpoint search` is a failure, not an empty result.
+
+For a search across sessions, commits and code, use the [Search view](/entirely/guides/search/).
+
+## Starting an agent turn from the editor
+
+Entirely has no command that starts an agent turn. It does report the editor's own agent activity (Copilot Chat events) to Entire through the hook bridge, so a turn you run in the editor is recorded as a session by the compatible `copilot-cli` integration. Other agents record their own activity through their own hooks. The setup is described in [Agent integrations](/entirely/guides/agent-integrations/).
+
+## Settings
+
+| Setting | Default | Effect |
+|---|---|---|
+| `entirely.showSessionsInExplorer` | `false` | Also show the sessions tree in the Explorer. |
+| `entirely.refreshInterval` | `30` | Seconds between refreshes. `0` means refresh only on command. |
+| `entirely.transcriptTimeout` | `60` | Seconds to wait for a transcript. |
+| `entirely.lifecycleActionTimeout` | `60` | Seconds for stop, attach and adopt. |
+| `entirely.resumeWatchTimeout` | `60` | Seconds Resume watches for the session to come back. |
+| `entirely.searchDebounce` | `400` | Milliseconds to wait before searching checkpoints while you type. |
+
+## Related
+
+- [Views reference](/entirely/reference/views/) and [Commands reference](/entirely/reference/commands/)
+- [Settings reference](/entirely/reference/settings/)
+- [CLI commands used](/entirely/reference/cli-commands-used/)
+- [How Entirely works](/entirely/concepts/how-entirely-works/)

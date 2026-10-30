@@ -1,0 +1,156 @@
+---
+title: Integrations and the MCP server
+description: See which Entire plugins and the Entire MCP server are available per project, install or turn them on from the view, and add the server to .mcp.json.
+sidebar:
+  order: 6
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+The **Integrations** view shows, for each workspace folder, whether the suggested Entire plugins are installed and whether the Entire MCP server is available to the editor and listed in the project's MCP configuration. Rows that need action have a button.
+
+Open it from the Entirely activity bar container. It is collapsed by default.
+
+<Aside type="caution" title="Live `entire mcp` is untested">
+The extension reads the CLI's help for `entire mcp`, works out the launch line, and hands it to the editor. It has not been checked against a live `entire mcp` session in a running editor. `entire mcp` is a hidden CLI command: `entire agent-help mcp` fails, but `entire mcp --help` works. It is a stdio server speaking newline-delimited JSON-RPC 2.0 and is read-only.
+</Aside>
+
+## What the rows show
+
+With one workspace folder the rows sit at the top level. With several, they are grouped by folder. Status is read per folder, with the CLI run from that folder, so a per-folder `PATH`, `ENTIRE_PLUGIN_DIR` or workspace value of `entirely.mcpServerEnabled` shows up in that folder's rows.
+
+The view is read when it first opens, when you press **Refresh Integrations**, after an install or change, and when the workspace folders, `entirely.suggestedPlugins` or `entirely.mcpServerEnabled` change. It never polls.
+
+### Plugin rows
+
+There is one row per name in `entirely.suggestedPlugins` (default `graph`, `investigate`, `brain`), then every other plugin `entire plugin list` holds.
+
+| State | Shown as | Meaning |
+|---|---|---|
+| installed | `installed` | `entire plugin list` holds it. |
+| on PATH | `available on PATH` | Not listed, but the CLI answers for it, for example an `entire-NAME` binary on your `PATH`. |
+| not installed | `not installed` | The CLI says no such plugin is installed. Only this state gets an **Install** button. |
+| unknown | `unknown · reason` | The CLI could not say. A plain failure is never read as "not installed". |
+
+A name can also read `unknown · also an Entire CLI command`. That happens for hidden built-in commands such as `mcp` and `completion`: the CLI answers `--help` for them, so they cannot be told apart from a plugin on your `PATH`. The tooltip says so. Remove such a name from `entirely.suggestedPlugins`.
+
+If the plugin list cannot be read at all, a **Plugins** row says "could not be listed" with the reason in its tooltip.
+
+### MCP server row
+
+The **MCP server** row has two children.
+
+| Child | States |
+|---|---|
+| In the editor | `offered to the editor`, `off in this workspace`, or the reason it is unavailable (`the CLI lacks mcp`, or the CLI problem). |
+| In the project | `in .mcp.json`, `not in .mcp.json`, or `.mcp.json is not plain JSON`. |
+
+When the CLI is missing or too old, the whole view shows a message with the way out and a link to the install instructions. When no folder is open, it says to open one.
+
+## Install a missing plugin
+
+Click **Install** on a `not installed` row. This runs the same flow as **Entirely: Install Plugin**: a dialog names what will be downloaded and the login it runs as, and nothing runs until you agree. After the install, the view detects again. See [Plugins](/entirely/guides/plugins/).
+
+## Turn on the editor's MCP server
+
+Click **Turn On** on "In the editor" when it reads `off in this workspace`.
+
+The confirmation names the setting it will change. Entirely picks the narrowest scope that will actually take effect:
+
+1. The folder's own `entirely.mcpServerEnabled`, when that value is `false`.
+2. Otherwise the workspace value, when that is `false`.
+3. Otherwise your user setting.
+
+The dialog reads, for example, "This changes your user setting "entirely.mcpServerEnabled" to true. No MCP configuration file is written; the editor starts the server itself." Choosing **Turn On** writes the setting. Cancelling changes nothing.
+
+## Add the server to the project's `.mcp.json`
+
+Click **Add** on "In the project". The dialog names the file and the folder and says what will be written. Choosing it writes the entry. The "In the project" row only offers **Add** when the Entire server is not already configured.
+
+### What is written
+
+The default target is `.mcp.json` at the folder root, which agents other than the editor read. The entry is:
+
+```json
+{
+  "mcpServers": {
+    "entire": {
+      "command": "entire",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+- `command` is the word `entire`, never the path Entirely found. The file is usually committed, and your CLI path is yours alone.
+- `args` are the CLI's own `mcp` launch arguments. A `--context NAME` pair that the launch line starts with when a login is pinned is dropped. There is no `ENTIRE_CONTEXT` and no login name in the file.
+- If the file exists, the `entire` entry is added last. Every other server and key stays where it is, with the file's indentation, line endings and final newline kept.
+- If the file does not exist, it is created.
+
+`.vscode/mcp.json` is used only when it already exists and `.mcp.json` does not. Its entry uses the editor's shape:
+
+```json
+{
+  "servers": {
+    "entire": {
+      "type": "stdio",
+      "command": "entire",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+The dialog adds a note in that case: VS Code already gets the server from this extension, so the entry may show twice.
+
+### When the file is left alone
+
+Entirely does not rewrite a file it cannot change safely. It shows a message with the text to add by hand and a **Copy** button.
+
+- The file is not plain JSON. No JSON-with-comments parser is used, so a file with comments or a trailing comma is never rewritten.
+- The top level is not an object, or `mcpServers` / `servers` is not an object.
+- The file is a link, is not a regular file, is larger than 1 MB, or sits behind a `.vscode` directory that leads outside the folder.
+
+If the file already lists the Entire server under any name (the key `entire`, or a command named `entire` with `mcp` in its arguments), the row shows `in .mcp.json` and nothing is added. The file is replaced by writing a temporary file next to it and renaming, so a failed write leaves the original as it was.
+
+## The editor's own MCP provider
+
+Separately from `.mcp.json`, Entirely registers `entire mcp` with the editor as an MCP server definition provider. This writes no configuration file. The editor lists a server named "Entire", starts the process as a child of the extension host, and stops it when you turn it off or the host exits. The launch line is worked out again each time, so a moved CLI or changed login is followed. When you pin a login with `entirely.cliContext`, the launch line starts with `--context NAME` and the environment carries `ENTIRE_CONTEXT`. Those are for the editor's own process only and never go into `.mcp.json`.
+
+| Command | What it does |
+|---|---|
+| **Entirely: Start MCP Server** (`entirely.startMcpServer`) | Offers the server to the editor and opens the editor's MCP server list, where you start "Entire". If the setting is off, it first asks to turn it on, naming the scope. |
+| **Entirely: Copy MCP Server Configuration** (`entirely.copyMcpConfig`) | Copies a `mcpServers.entire` entry for an agent you configure by hand. Nothing is written to disk. Unlike the project file, this copy uses the launch line Entirely worked out for your machine, and can include an `env` block. Check it before pasting it anywhere shared. |
+
+Opening the editor's server list uses an editor command whose id has not been verified in a live host. If it fails, a message tells you to open the MCP servers list yourself and start "Entire".
+
+## The two one-time offers
+
+When the view first detects a usable CLI, Entirely can ask two questions. They are independent and can be on screen together.
+
+| Offer | Asked | Text |
+|---|---|---|
+| Install missing plugins | Once per machine | "These Entire plugins are not installed: … Install them once and every project can use them." Choosing **Install…** opens a multi-select of the missing suggested plugins, all ticked. Each selected plugin goes through the normal install confirmation. |
+| Add the MCP server to the project | Once per project | "Add the Entire MCP server to .mcp.json in FOLDER, so other agents can use it?" with **Add to .mcp.json**, **Not now** and **Don't ask for this project**. |
+
+Each is recorded when it is shown, before you answer, so dismissing the notification counts as declining and it does not return. The project offer is only shown when the CLI can offer the server at all and the project does not already list it. Neither offer appears when the CLI is missing or too old.
+
+The Integrations view always shows the same actions, so declining an offer loses nothing.
+
+## Settings
+
+| Setting | Default | Scope | What it does |
+|---|---|---|---|
+| `entirely.suggestedPlugins` | `["graph", "investigate", "brain"]` | window | Plugin names the view shows a status for, and the plugin picker offers when none is installed. Each is the part after `entire-`. A name that cannot name a plugin is ignored; at most 24 are read. |
+| `entirely.mcpServerEnabled` | `true` | resource (folder, workspace, user) | Offer `entire mcp` to the editor as an MCP server. |
+| `entirely.offerIntegrationInstall` | `true` | window | Set to `false` to never be asked either one-time question. The view still shows status. |
+
+## Related
+
+- [Plugins](/entirely/guides/plugins/)
+- [Manage agent integrations](/entirely/guides/agent-integrations/)
+- [How Entirely works](/entirely/concepts/how-entirely-works/)
+- [Accounts and contexts](/entirely/concepts/accounts-and-contexts/)
+- [Views reference](/entirely/reference/views/)
+- [Settings reference](/entirely/reference/settings/)
+- [Commands reference](/entirely/reference/commands/)

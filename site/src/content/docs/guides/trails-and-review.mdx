@@ -1,0 +1,79 @@
+---
+title: Trails and review
+description: Read, approve, comment on and merge Entire trails.
+sidebar:
+  order: 2
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+A trail groups the changes (one branch per repository) that make up a piece of work. The **Trails** view lists them, and six commands review them from the editor. Entirely calls the CLI for each action, and reads the result back before it says anything landed.
+
+## The Trails view
+
+The view lists the trails of the project the open repository belongs to, filtered to this repository. The project comes from `entire repo view`. It needs a signed-in login that can see that project.
+
+A trail row shows `#number title`, its status, how many changes it has, and how many are awaiting approval. Its changes are listed underneath. A change row shows the repository and number, and the state of its gate:
+
+| Gate text | Icon | Meaning |
+|---|---|---|
+| ready to merge · *N* approvals | check | The CLI says the change can merge. |
+| awaiting approval | bell | The CLI's blockers include an approval requirement. |
+| blocked · *reason* | error | The CLI reports a blocker that is not an approval. |
+| gate unknown | question | The CLI did not answer, or the trail is closed. The tooltip says why. |
+
+The gate comes from `entire trail merge --dry-run`, which is the one place the CLI reports its merge conditions. Entirely reads the blockers, not an approval count. A gate can require more than one approval, a named reviewer, or none, and only the CLI knows which. The approval count on a ready change is for display only. Hover a blocked change to see the CLI's blockers.
+
+### The approvals badge
+
+Changes awaiting approval are counted in the Trails view's badge, with the tooltip "*N* not yet approved". The badge clears when none are waiting.
+
+The view re-reads on the `entirely.refreshInterval` timer (default `30` seconds) and drops a tick that arrives while the previous read is still running. A listing costs several CLI calls per change, so on a large project set a longer interval.
+
+An empty view reads "No trails to show", or gives the reason it couldn't list them, such as the CLI's refusal.
+
+<Aside type="note">
+Access to a project is per login, not just per repository. On a personal account, a login that can see the repository may still be unable to see its project, and then it can't list or review the project's trails. Entirely says so and names `entirely.cliContext` instead of showing an empty list. See [Accounts and contexts](/entirely/concepts/accounts-and-contexts/).
+</Aside>
+
+## Review commands
+
+Each command lists the trails of this repository from the CLI, in the CLI's order, and asks you to pick one. Changes are picked for approve, comment, merge and check out. Trails are picked for link and unlink. If there are none, you're told so.
+
+| Command | Picks | Asks | What you see after |
+|---|---|---|---|
+| **Entirely: Approve a Change on a Trail** | a change | Nothing further. | The approval is read back. "Approved … as *author*" if it is under the login Entirely acts as. A warning if the CLI recorded it under someone else, or didn't record one. |
+| **Entirely: Comment on a Change on a Trail** | a change | The comment text. | "Commented … as *author*" once the comment is read back under the acting login. A warning if it isn't there. |
+| **Entirely: Merge a Change on a Trail** | a change | A modal naming the branch, its base and the head commit: "Merging *branch* into *base* at *sha* … Merge it?" | "Merged …" on success. |
+| **Entirely: Check Out a Change on a Trail** | a change | "Check out …? This moves the working tree to that branch." | "Checked out …". |
+| **Entirely: Link a Branch to a Trail** | a trail | The branch, then "Link *branch* to trail #*n*?" | "Linked …". |
+| **Entirely: Unlink a Branch from a Trail** | a trail | The branch, then "Unlink … ? The branch and its code are kept." | "Unlinked …". |
+
+Details that matter:
+
+- **Approve and comment** act as the login Entirely is using. The status bar and Account view say which. Pinning a different login is covered in [Accounts and contexts](/entirely/concepts/accounts-and-contexts/).
+- **Merge** first runs the CLI's dry run. If the change isn't mergeable, nothing is asked. You get "Entirely did not merge the trail:" followed by the CLI's own reasons. Each change of a trail merges on its own.
+- **Check out** is refused while any workspace file has unsaved changes. The message names the files: "Save the files, or stash them, and try again." Untitled buffers and files outside the workspace don't count.
+- **Comment from an agent session.** The CLI refuses discussion comments from inside an agent session and points at its finding command. When that happens, Entirely posts the note as a finding instead, and tells you: "The CLI refuses discussions from an agent session, so the note was posted as a finding instead."
+- A failure of any command shows "Entirely could not … : *the CLI's reason*". Comment bodies and titles are redacted from the logged command line.
+
+Write actions are tested against a fake CLI. They are not verified against a live Entire server in every case, so check the result on the trail itself the first time you use them. See [Coverage](/entirely/reference/coverage/).
+
+## Limits
+
+- `trail resume` is not offered. It is interactive in the CLI. Resuming a session on a branch is covered by **Entirely: Resume Session** in [Sessions and checkpoints](/entirely/guides/sessions-and-checkpoints/).
+- The view lists only this repository's changes within the project. Other repositories' changes on the same trail are dropped.
+
+## Settings
+
+| Setting | Default | Effect |
+|---|---|---|
+| `entirely.trailActionTimeout` | `60` | Seconds a review action may run before Entirely stops waiting. A check out that has to fetch can take longer than a read. |
+| `entirely.refreshInterval` | `30` | Seconds between Trails view refreshes. `0` refreshes only on command. |
+| `entirely.cliContext` | empty | The saved login to act as. Machine scope. |
+
+## Related
+
+- [Sign in](/entirely/getting-started/sign-in/)
+- [Views reference](/entirely/reference/views/), [Commands reference](/entirely/reference/commands/)
+- [CLI commands used](/entirely/reference/cli-commands-used/)

@@ -1,0 +1,112 @@
+---
+title: Manage Agent Integrations
+description: List, install and remove the agent integrations the Entire CLI supports, and see which ones receive the editor's own events.
+sidebar:
+  order: 5
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+An agent integration is the set of hooks that lets a coding agent report its work to Entire. **Entirely: Set Up Agent Integrations** lists the integrations your Entire CLI supports, shows which are installed in the current workspace, and installs or removes one after you confirm.
+
+The extension keeps no list of agents. The names come from `entire agent list`, so an agent your CLI knows about appears without an extension update.
+
+## Where it appears
+
+Run **Entirely: Set Up Agent Integrations** (`entirely.manageAgents`) from the Command Palette. The first-run setup flow (**Entirely: Set Up Entire**) shows the same list when it asks which agent to enable.
+
+## Install or remove an integration
+
+<Steps>
+
+1. Run **Entirely: Set Up Agent Integrations**.
+
+   A picker titled "Agent integrations the Entire CLI supports" lists every agent. Each row says `installed` or `not installed`, and `bridged` or `not bridged` where that applies (see below).
+
+2. Pick an agent.
+
+   If it is not installed, the next step is the install confirmation. If it is installed, a second picker offers **Remove**, and **Reinstall** when your CLI describes a way to rewrite hooks that already exist.
+
+3. Read the confirmation and agree.
+
+   Nothing runs until you choose the button in the dialog. Dismissing it runs nothing.
+
+4. Wait for the result.
+
+   The extension runs the CLI's `agent add` or `agent remove`, then reads `entire agent list` again. The result is what the CLI reports now. If the CLI exits successfully but the list does not show the change, the extension reports a failure and says so.
+
+</Steps>
+
+### What the confirmations say
+
+**Install** names the agent and says Entire will write its hook configuration into this repository and may create or update Entire's own settings in `.entire/`. It cannot list the files in advance, because `entire agent add` has no preview. The dialog says so rather than guessing. When the command finishes, Entirely shows the list of files the CLI says you should commit so the integration works across clones. Nothing is committed for you.
+
+**Remove** names the agent and, when the extension can see where its hooks live, lists those files. It says the CLI has no preview, so other files may change too. Sessions already recorded stay in the history.
+
+Both dialogs name the other installed agents and say they are not touched. You can have more than one integration installed, and installing one never removes another.
+
+<Aside type="note">
+A reinstall rewrites the files that already hold the agent's hooks. The extension finds those files by scanning dot-directories in the workspace for `entire hooks <agent>` commands: three directories deep, up to 300 files, each under 256 KB.
+</Aside>
+
+## Bridged and not bridged
+
+Installing an integration and bridging it are two separate things.
+
+Every integration runs its own hooks, and those hooks call `entire hooks <agent> <verb>` with that agent's own payload. The editor's own agent activity (for example Copilot Chat in VS Code) arrives in a different layout. Entirely runs a hook bridge that forwards those editor events to the CLI, and it forwards them to one agent only: the one whose payload layout matches the editor's.
+
+Sending the editor's payload to another agent would not fail loudly. The CLI exits 0 for a payload it cannot read and records nothing, so the extension would have no way to tell. It does not send them.
+
+| Label in the picker | Meaning |
+|---|---|
+| bridged | Entirely forwards the editor's own agent events to this agent. |
+| not bridged | The editor's events are not sent to this agent. Its own hooks report its activity to Entire. |
+
+"Not bridged" is not a fault. For Claude Code, Cursor, Codex and the other integrations, the agent's own hooks do the recording.
+
+If the bridged agent's hook file lives in `.github/hooks/`, the editor loads that file and fires the hooks itself. The bridge then skips sending, to avoid reporting the same event twice.
+
+### `entirely.editorHookAgent`
+
+This setting names the agent the bridge addresses. The default is `copilot-cli`, and today it is the only value that can be bridged, because editor events use the Copilot CLI payload format.
+
+The setting is validated on every lookup:
+
+- A value that is not a valid agent name is reported as invalid.
+- A name that `entire agent list` does not list is reported as unknown.
+- A valid, listed name other than `copilot-cli` is reported, and events are not forwarded to it.
+
+Each misconfiguration is reported once per session, as a warning in the `Entire` output channel and not as a popup. Changing the setting takes effect without a reload.
+
+## Settings
+
+| Setting | Default | Range | What it does |
+|---|---|---|---|
+| `entirely.editorHookAgent` | `copilot-cli` | agent name | The integration the editor's own agent events are forwarded to. Other values are reported and not forwarded. |
+| `entirely.agentLookupCacheSeconds` | `30` | 5 to 600 | How long the agent list and hook-file scan are reused when the bridge handles editor events. An install or removal clears it immediately. The list in the picker is always read fresh. |
+| `entirely.lifecycleActionTimeout` | `60` | 5 to 600 | How long an install or removal may take before it is given up on. |
+
+A failed lookup is never cached, so a CLI you install a moment later is picked up on the next event.
+
+## Limits and failure messages
+
+| Message | Cause |
+|---|---|
+| "the Entire CLI is not installed; install it to manage agents" | No CLI was found. Set `entirely.cliPath` or install it. |
+| "the Entire CLI lists no agents" | `agent list` returned nothing. |
+| "the output of 'entire agent list' was not in a form Entirely understands" | The CLI output changed. Update the extension or the CLI. |
+| "'NAME' is not an agent this version of the Entire CLI supports" | The name is not in the list the CLI just printed. Only listed names are passed on. |
+| "NAME is not installed in this repository" | You tried to remove an agent that is not installed. |
+| "this version of the Entire CLI does not describe a way to reinstall hooks" | Reinstall needs a flag the CLI's `agent add` help does not describe. Update the CLI. |
+| "An agent change is already running." | Only one change runs at a time. |
+
+The reinstall flag is read from `entire agent-help agent add` at the time you ask, never hardcoded.
+
+## Related
+
+- [How Entirely works](/entirely/concepts/how-entirely-works/)
+- [Remote windows](/entirely/concepts/remote-windows/)
+- [Commands reference](/entirely/reference/commands/)
+- [Settings reference](/entirely/reference/settings/)
+- [CLI commands used](/entirely/reference/cli-commands-used/)
+- [Doctor and diagnostics](/entirely/guides/doctor-and-diagnostics/)

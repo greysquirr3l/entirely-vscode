@@ -1,0 +1,58 @@
+---
+title: Blame and why this line
+description: Find which agent edit introduced a line, and why.
+sidebar:
+  order: 10
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Two commands connect a line of code to the agent work behind it. **Entirely: Why Does This Line Exist?** answers for one line. **Entirely: Blame This File** marks every line of the open file. Both read the CLI's answer. Nothing runs while you type or on a timer.
+
+## Why does this line exist?
+
+Put the cursor on a line and run **Entirely: Why Does This Line Exist?** from the palette, or from the editor context menu. Entirely asks `entire why` about that file and line, and opens the answer in a panel.
+
+The panel shows the line's text and facts: author, when, commit, checkpoint, session and agent. For an agent edit it also shows "What the agent was asked to do" (the prompt). If more than one checkpoint could own the line, they're listed as candidates. **Explain this checkpoint** opens the checkpoint's story: strategy, branch, prompt, files touched and sessions.
+
+When nothing is known, the panel says so plainly:
+
+- **Not attributed to any recorded change.** "Entire has no recorded change that accounts for this line." This is how a line the CLI reports as uncommitted reads.
+- **Recorded change, not synced yet.** A change is recorded, but its checkpoint hasn't reached this machine. The panel says the checkpoint's own record isn't available here, with the CLI's reason when given.
+
+## Blame this file
+
+Run **Entirely: Blame This File** from the palette or the editor context menu. Each line gets a coloured bar and a short note at the end of the line:
+
+| Colour | Meaning | Note |
+|---|---|---|
+| Purple | A recorded change (agent or commit) accounts for the line. | The agent and short commit hash |
+| Orange | A change is recorded, but its checkpoint hasn't synced yet. | "not synced yet" |
+| Grey | No recorded change accounts for the line. | "not attributed" |
+
+Hover a mark for the facts and a link to **Why Does This Line Exist?** for that line. The whole-file answer also opens in the same panel as the single-line answer.
+
+**Entirely: Clear Blame** removes the marks. They also disappear when you edit the file, because the line numbers would no longer match, and when you close it.
+
+### Limits and messages
+
+- The CLI blames the saved file. With unsaved changes you're asked to **Save and Blame**. Declining does nothing.
+- If the file changes while blame runs, the marks aren't drawn. Save and blame again.
+- Only files inside the workspace can be blamed or explained. Other files get "Entirely can only blame files in the workspace…".
+- A file longer than `entirely.blameMaxDecoratedLines` (default `5000`) is blamed and shown in the panel, but nothing is drawn beside its lines. The message says how to raise the limit.
+- With no CLI, you get "the Entire CLI is not installed". Other failures show the CLI's reason.
+
+<Aside type="note">
+`entire blame` is a labs command in the CLI and its output may change. Entirely refuses an answer that names a different file from the one you asked about.
+</Aside>
+
+## Settings
+
+| Setting | Default | Effect |
+|---|---|---|
+| `entirely.blameMaxDecoratedLines` | `5000` | The longest file, in lines, that is drawn in the editor. |
+
+## Related
+
+- [Sessions and checkpoints](/entirely/guides/sessions-and-checkpoints/)
+- [Commands reference](/entirely/reference/commands/), [CLI commands used](/entirely/reference/cli-commands-used/)

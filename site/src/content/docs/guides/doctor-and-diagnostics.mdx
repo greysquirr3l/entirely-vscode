@@ -1,0 +1,155 @@
+---
+title: Diagnose problems
+description: Produce a diagnostic report, read the CLI's own doctor findings, use the output channel, and fix the common causes.
+sidebar:
+  order: 11
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import output from '../../../assets/output.png';
+
+When something does not work, start with the diagnostic report. It answers "why is this not working?" in one block of text meant to be pasted into an issue.
+
+## Copy a diagnostic report
+
+<Steps>
+
+1. Run **Entirely: Doctor: Copy a Diagnostic Report** (`entirely.doctor`).
+
+   The report is written to the `Entire` output channel, and a notification says it is ready.
+
+2. Choose **Copy to Clipboard** in the notification.
+
+   A second message confirms the copy.
+
+</Steps>
+
+The report is Markdown. It has these sections:
+
+| Section | What it holds |
+|---|---|
+| Header | Time generated, extension version, editor version, platform. |
+| Entire CLI | State (`available`, `broken`, `absent`), path, version, where it was found, the configured `entirely.cliPath`, the version the extension expects, and a problem line for a missing, broken or too-old CLI. |
+| Workspace | The folder, whether it is a git repository, whether Entire is enabled, the agents the CLI reports, active session count. |
+| Account | The acting login, whether `entirely.cliContext` or the CLI chose it, the number of saved logins, and how the login reaches the CLI (the `--context` flag, and `ENTIRE_CONTEXT` for hooks and plugins). |
+| Checkpoint destination | Where checkpoints are uploaded, the provider, whether Entire can reach the destination, a problem and a remedy. |
+| Capture pipeline | The CLI's own `entire doctor` findings (below). |
+| Effective settings | The Entire settings in effect for the workspace. |
+| Extension settings | Log level and debug. |
+| Last CLI error | The command line, directory, reason and detail of the last failed CLI call. |
+
+Every reading is allowed to fail. A missing CLI or an unreadable status is a line in the report, not an error.
+
+### The CLI's own findings
+
+The "Capture pipeline" section comes from running `entire doctor` with no flags. Without a terminal, `entire doctor` reports each problem and points at `--force` instead of fixing anything. Entirely never passes `--force`. Repairs are yours to run.
+
+| Result in the report | Meaning |
+|---|---|
+| `healthy` | Every check passed. |
+| `N problems found (M checks passed)` | Each problem is listed as a finding: its headline, then up to three detail lines that give a reason or a fix. At most 20 findings are listed, and "N more not listed" covers the rest. |
+| `the CLI's doctor did not complete` | The command failed or timed out. This is never read as healthy. |
+| "this Entire CLI has no doctor command" | The CLI is too old. Entirely checks `entire agent-help doctor` first. |
+| "the Entire CLI is not installed" | No usable CLI. |
+
+Only the headline, reason and fix lines reach the report. The rest of the CLI's output can name files and sessions, and it stays out of a text you may paste publicly. To read all of it, run **Entirely: Doctor: Show the CLI's Full Diagnostic Output** (`entirely.showCliDoctorOutput`). It writes the last run's raw text to the output channel. If the report has not been run yet, it tells you to run that first. The raw text is held in memory only.
+
+`entirely.cliDoctorTimeout` (default `30`, range 5 to 300) sets how long the report waits for `entire doctor`.
+
+## The output channel
+
+Everything the extension does is written to one output channel named **Entire**. Open it from the Output panel.
+
+<Image src={output} alt="The Entire output channel in VS Code showing three CLI invocations with their working directory and exit status." />
+
+Each CLI call is recorded with the exact command line, the working directory, and the exit status, enough to reproduce it by hand:
+
+```text
+[info] entire: /usr/local/bin/entire status --json
+[info]   cwd: /work/entirely
+[info]   exit: 0 (ok, 14ms); stdout 1.2 kB, stderr 0 B, stdin 0 B
+```
+
+A failed call adds a `[warn]   failed: …` line.
+
+### Log levels
+
+| Level | Says |
+|---|---|
+| `error` | Errors only. |
+| `warn` | Plus warnings, such as an `entirely.editorHookAgent` misconfiguration. |
+| `info` (default) | Plus every CLI invocation with its size summary. |
+| `debug` | Plus an excerpt of stdout, stderr and stdin of each call. |
+| `trace` | Everything above, and the loudest. |
+
+`entirely.logLevel` sets the level and takes effect immediately, without a reload. It does not change the CLI's own log level. `entirely.debug` (default `false`) is the same as `debug`, and does not add a second channel.
+
+<Aside type="note">
+Even at `debug`, transcripts, prompts, checkpoint payloads, search queries and API responses are not written in full. The channel records byte counts, excerpts are bounded, and operands that carry such content are shown as `<redacted>`. See [Privacy and redaction](/entirely/concepts/privacy-and-redaction/).
+</Aside>
+
+### The content of the last call
+
+Run **Entirely: Doctor: Show the Last Entire CLI Output** (`entirely.dumpCliOutput`) to write the stdin, stdout and stderr of the most recent CLI invocation to the channel. This is the one place payload content is shown, and only when you ask. Calls made for plugins, agent changes, dispatches and API requests keep their bodies out of this record.
+
+The extension remembers the last 25 invocations (command line, directory, outcome and timing) and the bodies of the latest one only. They live in memory and are never saved to disk.
+
+## Common problems
+
+### The CLI is missing
+
+The status bar and views say the Entire CLI is not installed and link to the install instructions. In the report: "State: absent". Install the CLI, then run **Entirely: Refresh**.
+
+### The CLI is installed but not found
+
+The extension looks on `PATH`, then the documented install locations. If it is elsewhere, set `entirely.cliPath` to an absolute path. That setting is user or remote-machine scoped, never workspace scoped. The report shows "Found at" and "Configured path". In a remote window the CLI must be installed on the remote machine. See [Remote windows](/entirely/concepts/remote-windows/).
+
+### `entire` does not work in the integrated terminal
+
+The CLI installs to `~/.local/bin`, which the integrated terminal does not inherit. The extension runs the CLI by absolute path, so it is not affected. Run **Entirely: Add the Entire CLI to the Terminal PATH** to fix the terminal. It asks which scope to write, and changes only an editor terminal setting. It touches no shell profile.
+
+### The CLI is too old
+
+The report's CLI section includes a problem line and the version it expects (`entirely.minimumCliVersion`, default `0.12.2`). An older CLI still works for what it supports. The commands it lacks say "this version of the Entire CLI has no 'COMMAND' command; update the CLI". Update the CLI.
+
+### The login cannot see the repository
+
+Commands fail with a sign-in hint, lists come back empty, or the checkpoint destination says the login cannot see the repository. The report's Account section names the login and who chose it (`entirely.cliContext` or the CLI's own active login). Check it is the one that has access. See [Accounts and contexts](/entirely/concepts/accounts-and-contexts/) and [Sign in](/entirely/getting-started/sign-in/).
+
+### Checkpoints go somewhere Entire cannot reach
+
+Run **Entirely: Check Where Checkpoints Are Uploaded** (`entirely.checkpointDestination`), or read the "Checkpoint destination" section of the report. It tells you where checkpoints are uploaded and whether Entire can read them there. The cases it distinguishes:
+
+| Report says | Meaning and fix |
+|---|---|
+| Checkpoints are kept on this machine only | Pushing is off (`push_sessions` is `false` in `.entire/settings.local.json`). Set it back to `true` to push. |
+| Uploaded to the `REMOTE` remote, Entire can only read them from a repository the Entire GitHub App can access | The repository is not hosted on Entire. If it is mirrored there, `entire enable --yes --checkpoint-push-remote entire` sends checkpoints through the Entire remote. |
+| Entire cannot reach OWNER/REPO | The Entire GitHub App does not have access to the checkpoint repository, so the checkpoints are never read and the dashboard stays empty. Grant the app access to it, then push. The command offers **Open GitHub App Settings**. |
+| The CLI could not be asked which repositories it can reach | The check itself failed. The detail follows the message. |
+| Entire is not tracking this workspace | Set up Entire first with **Entirely: Set Up Entire**. |
+
+### A trail or session looks wrong
+
+Run the report, then read the "Last CLI error" section. The exact command line is there. Repeat it in a terminal in the same directory. If the problem persists, raise `entirely.logLevel` to `debug` and look at the channel.
+
+## Settings
+
+| Setting | Default | Range | What it does |
+|---|---|---|---|
+| `entirely.cliDoctorTimeout` | `30` | 5 to 300 | Seconds the report waits for `entire doctor`. |
+| `entirely.logLevel` | `info` | `error`, `warn`, `info`, `debug`, `trace` | Verbosity of the `Entire` channel. |
+| `entirely.debug` | `false` | | Same as `debug` level. |
+| `entirely.cliPath` | empty | machine scope | Absolute path to `entire`. |
+| `entirely.minimumCliVersion` | `0.12.2` | machine scope | The oldest CLI whose output is read in full. |
+
+## Related
+
+- [How Entirely works](/entirely/concepts/how-entirely-works/)
+- [Privacy and redaction](/entirely/concepts/privacy-and-redaction/)
+- [Accounts and contexts](/entirely/concepts/accounts-and-contexts/)
+- [Remote windows](/entirely/concepts/remote-windows/)
+- [Commands reference](/entirely/reference/commands/)
+- [Settings reference](/entirely/reference/settings/)
+- [Status bar reference](/entirely/reference/status-bar/)
+- [CLI commands used](/entirely/reference/cli-commands-used/)

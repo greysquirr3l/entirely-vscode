@@ -1,0 +1,80 @@
+---
+title: Quickstart
+description: From a fresh install to the first session in the editor.
+sidebar:
+  order: 3
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import sessions from '../../../assets/sessions.png';
+import output from '../../../assets/output.png';
+
+This takes about five minutes. It assumes you've done [Installation](/entirely/getting-started/installation/).
+
+<Steps>
+
+1. **Open a Git repository.**
+
+   Open a folder in VS Code. The **Entirely for Entire** icon appears in the activity bar, and `Entire` appears in the status bar.
+
+2. **Read the status bar.**
+
+   The item is the Entire logo plus a state icon. Hover for the reason.
+
+   | You see | It means |
+   |---|---|
+   | `Entire $(pulse)` | Tracked, and an agent session is running. |
+   | `Entire` alone | Tracked, no session running right now. |
+   | `Entire $(circle-slash)` | Entire isn't set up for this workspace. Click to set it up. |
+   | `Entire $(circle-outline)` | The folder isn't a Git repository. |
+   | `Entire $(eye-closed)` | Tracked, but the login Entirely is acting as can't see it. |
+   | `Entire $(error)` | `entirely.cliContext` names a login the CLI doesn't have. |
+   | `Entire $(warning)` | A checkpoint problem, or the CLI couldn't be read. |
+
+   A workspace that doesn't use Entire shows nothing. The full list is in [Status bar](/entirely/reference/status-bar/).
+
+3. **Enable Entire for the repository.**
+
+   If the repository isn't set up, Entirely shows "Entire is not set up for this repository." with an **Enable Entire** button. It asks once per folder, whether you accept or ignore it. You can also run **Entirely: Set Up Entire** or click the status bar item later.
+
+   Entirely lists the agents from `entire agent list` and asks which one to set up. It then runs the CLI's non-interactive enable for that agent, without creating a Git repository or a commit. When it finishes, commit the `.entire` and `.github/hooks` files so Entire works across worktrees.
+
+   To choose which agents Entire hooks into, run **Entirely: Set Up Agent Integrations**. See [Agent integrations](/entirely/guides/agent-integrations/).
+
+4. **Run an agent and watch the session.**
+
+   Start your coding agent in the repository as you normally would. Open the **Sessions** view. The CLI records sessions automatically; the view refreshes on `entirely.refreshInterval` (default 30 seconds) and when you press refresh. Select a session to fill the **Session** view with its agent, model, tokens, touched files and tool calls. **Transcript** opens the conversation in a read-only editor.
+
+   <Image src={sessions} alt="The Entirely view, showing the sessions Entire tracks and the details of the selected session" />
+
+   More in [Sessions and checkpoints](/entirely/guides/sessions-and-checkpoints/).
+
+5. **Open a checkpoint diff.**
+
+   A checkpoint is recorded when agent work is committed. Expand one in the **Checkpoints** view and pick a file. It opens in the editor's native diff (**Entirely: Open Checkpoint Diff**). If the view is empty, the repository has no checkpoints yet.
+
+6. **Ask why a line exists.**
+
+   Put the cursor on a line, right-click, and choose **Entirely: Why Does This Line Exist?**. A panel names the agent edit that introduced the line and the reasoning recorded for it. **Entirely: Blame This File** marks every line of the active file. See [Blame and why](/entirely/guides/blame-and-why/).
+
+7. **Check the output channel when something looks wrong.**
+
+   Every CLI call goes to the **Entire** output channel, with its command line, directory and exit code.
+
+   <Image src={output} alt="The Entire output channel, showing each CLI invocation and what it returned" />
+
+   **Entirely: Doctor: Copy a Diagnostic Report** gathers the same facts in one block. See [Doctor and diagnostics](/entirely/guides/doctor-and-diagnostics/).
+
+</Steps>
+
+<Aside>
+Trails, Search, Activity and the Control Plane need a signed-in CLI. Run **Entirely: Sign In to Entire**. See [Sign in](/entirely/getting-started/sign-in/).
+</Aside>
+
+## Where next
+
+- [Trails and review](/entirely/guides/trails-and-review/)
+- [Search](/entirely/guides/search/)
+- [Integrations and MCP](/entirely/guides/integrations-and-mcp/)
+- [How Entirely works](/entirely/concepts/how-entirely-works/)
