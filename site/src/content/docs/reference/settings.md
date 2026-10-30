@@ -45,7 +45,8 @@ In a remote window, the extension runs on the remote host, so set `cliPath` in t
 
 | Setting | Type | Default | Description |
 | --- | --- | --- | --- |
-| `entirely.selectionCacheSeconds` | number | `30` | Seconds the Details view keeps what it loaded for a session, a trail change or an Activity row (0 to 600). `0` reads every time. Ended sessions and Activity rows are kept ten times as long. After the time, the old content stays shown while it is read again. |
+| `entirely.selectionCacheSeconds` | number | `30` | Seconds the detail panel and the Trails view keep what they loaded for a session, a trail, a trail change or an Activity row (0 to 600). `0` reads every time. Ended sessions and Activity rows are kept ten times as long. After the time, the old content stays shown while it is read again. |
+| `entirely.trailBadgeLimit` | number | `10` | How many open trails are read, when you refresh Trails or after an action, to count the changes awaiting approval on the badge (0 to 50). `0` shows no count. The background refresh never reads them. |
 | `entirely.showSessionsInExplorer` | boolean | `false` | Also show the sessions tree in the Explorer as **Entirely Sessions**. |
 | `entirely.searchScope` | string | `"repository"` | `repository` searches this workspace's repository. `all-repositories` searches every repository the acting login can see. The Search view always shows the scope and the login. |
 | `entirely.searchDebounce` | number | `400` | Milliseconds to wait after you stop typing in the checkpoint search box (100 to 3000). |
@@ -58,7 +59,7 @@ The extension never waits forever on the CLI. Each class of call has its own lim
 | Setting | Default | Range | What it limits |
 | --- | --- | --- | --- |
 | `entirely.transcriptTimeout` | `60` | 5 to 600 | Opening a session transcript. |
-| `entirely.trailActionTimeout` | `60` | 5 to 600 | A trail review action: approve, comment, merge, check out, link, unlink. Also the `trail show` the Details view makes. |
+| `entirely.trailActionTimeout` | `60` | 5 to 600 | A trail review action: approve, comment, merge, check out, link, unlink. Also each `trail show` the Trails view and the detail panel make. |
 | `entirely.lifecycleActionTimeout` | `60` | 5 to 600 | `session stop`, `attach` or `adopt`, and agent install and removal. |
 | `entirely.resumeWatchTimeout` | `60` | 5 to 600 | How long **Resume Session** watches for the session to become active. The resume keeps running in its terminal. |
 | `entirely.importTimeout` | `300` | 10 to 3600 | `entire import` and its preview. A timed-out import can be rerun, since imported turns are skipped. |

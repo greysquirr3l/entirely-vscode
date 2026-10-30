@@ -33,11 +33,11 @@ Set `entirely.showSessionsInExplorer` to `true` to show the same tree as **Entir
 
 The view re-reads the CLI every `entirely.refreshInterval` seconds (default `30`). Set it to `0` to refresh only when you run **Entirely: Refresh**. The same interval drives the Checkpoints and Trails views.
 
-## The Details view
+## The Session view and the detail panel
 
-Click a session, or move to it with the arrow keys. The **Details** view (it was named **Session**; its id is unchanged) fills in at once from the list, then adds what `entire session info` reports. The same view shows trails and Activity rows too: see [Trails and review](/entirely/guides/trails-and-review/#the-details-view) and [Activity, dispatch and recap](/entirely/guides/activity-dispatch-recap/#selecting-a-row).
+Click a session, or move to it with the arrow keys. The **Session** view fills in at once from the list, then adds what `entire session info` reports, and the same detail opens in the detail panel beside your code, without taking focus from the row. The panel is one reusable tab shared with trails and Activity rows: see [Trails and review](/entirely/guides/trails-and-review/#the-detail-panel) and [Activity, dispatch and recap](/entirely/guides/activity-dispatch-recap/#selecting-a-row).
 
-Choosing a session again inside `entirely.selectionCacheSeconds` (default `30`) reads nothing and shows when it was read. After that the old content stays on screen while it is read again, and an ended session is kept ten times as long because it no longer changes. **Refresh Details** in the view's title bar reads the selected session again. The view opens if it was collapsed, without taking focus from the row. The Sessions view and its Explorer copy both select this way, and the session's row gets a blue dot; the editor's own row highlight is not something an extension can clear.
+Choosing a session again inside `entirely.selectionCacheSeconds` (default `30`) reads nothing and shows when it was read. After that the old content stays on screen while it is read again, and an ended session is kept ten times as long because it no longer changes. **Refresh** in the panel reads the selected session again. The Sessions view and its Explorer copy both select this way, and the session's row gets a blue dot; the editor's own row highlight is not something an extension can clear.
 
 - Agent, status, branch, worktree, session id, turns (with pending turns), checkpoints, model, started and last-active times.
 - Last prompt, as an expandable block.

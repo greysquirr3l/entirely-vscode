@@ -27,12 +27,13 @@ Entirely (this extension)
 |---|---|
 | **Status bar** | Whether the workspace is tracked by Entire, and whether an agent session is live right now: `$(entire-logo) Entire` followed by a codicon for the state |
 | **Sessions view** | Every session Entire tracks for the repository, across all worktrees, not just the open folder. It can also appear in the Explorer |
-| **Details viewer** | Whatever you select in Sessions, Trails or Activity, by click or by keyboard: a session in full (ended ones included), a trail or a change with its gate, a commit, an activity session line or a repository. It reveals itself without taking focus, caches what it loaded, and opens the same detail in a read-only editor |
+| **Session detail** | The selected session in full, ended ones included: agent, model, tokens, files touched and tool calls, with the transcript opening in a read-only editor |
+| **Detail panel** | Whatever you select in Sessions, Trails or Activity, by click or by keyboard, opens in one panel beside your code without taking focus: a session in full, a trail or a change with its gate, a commit, an activity session line or a repository. It is reused by every selection, caches what it loaded, and opens the same detail as a read-only document |
 | **Session actions** | Stop, attach, adopt and resume a session from the palette or its context menu, each only when you ask |
 | **Checkpoint history** | Recorded checkpoints, opening straight into the native diff editor |
 | **Why this line** | Which agent edit introduced the line under the cursor, and why |
 | **File blame** | `entire blame` for the active file: every line marked as attributed, recorded but not synced, or not attributed to any recorded change |
-| **Trails view** | The trails of the project this repository belongs to, with a badge counting the changes that await an approval |
+| **Trails view** | The trails of the project this repository belongs to. A trail's changes are read when you expand it, and a badge counts the changes that await an approval among the open trails it has read |
 | **Trail review** | Approve, comment on, merge, check out, link and unlink the work on an Entire trail — each action confirmed, and each merge naming what it merges |
 | **Account view** | Who the CLI is signed in as, and which jurisdiction the account belongs to, with sign-in and sign-out |
 | **Activity view** | Recent sessions and commits across your repositories on Entire, a recap, and a generated dispatch you can copy |
@@ -58,9 +59,9 @@ collapsed. Commands that show a collapsed view expand it.
 | View | Default | Holds |
 |---|---|---|
 | Sessions | Open | The sessions Entire tracks for the repository |
-| Details | Open | The item selected in Sessions, Trails or Activity |
+| Session | Open | The selected session in full |
 | Checkpoints | Open | Recorded checkpoints, with search |
-| Trails | Open | Trails of the project, and their changes |
+| Trails | Open | Trails of the project, and their changes once a trail is expanded |
 | Activity | Collapsed | Recent sessions and commits, recap, dispatch |
 | Search | Collapsed | Results of a search of past work and code |
 | Integrations | Collapsed | Plugins and the MCP server, per folder |
@@ -101,58 +102,84 @@ Every CLI invocation the extension made, in the `Entire` output channel:
 
 ![The Entire output channel, showing each CLI invocation and what it returned](images/output.png)
 
-## The Details viewer
+## The detail panel
 
-The **Details** view (its id is still `entirely.sessionDetail`; only the name
-changed from "Session") shows the row you last selected in Sessions, Trails or
-Activity. Click a row, or move to it with the arrow keys; Enter does the same.
+Click a row in Sessions, Trails or Activity, or move to it with the arrow keys
+(Enter does the same), and its detail opens in a panel in the editor area, beside
+the file you are working in. The sidebar lists stay the list; the panel is the
+detail. It is one panel: the first selection opens it, every later selection
+replaces what it shows and renames its tab, and closing it and selecting again
+opens it again. It never takes keyboard focus from the row you chose.
+
 Each selection reads the item once. A click that also changes the selection, or
 the same row chosen twice, does not read twice, and a slow read for an earlier
-row never replaces a later one. If the view is collapsed or hidden it opens
-without taking keyboard focus from the row you chose. Its title bar has
-**Refresh Details**, which skips the cache for the selected item, and **Open
-Details in Editor**, which opens the same detail as a read-only document.
+row never replaces a later one. The panel's own links are **Refresh**, which
+skips the cache for the selected item, and **Open as text**, which opens the
+same detail as a read-only document (also in the editor title bar while the
+panel is active).
 
 What each kind shows, and what it cannot:
 
 | Selected | Shown | Not shown |
 |---|---|---|
 | Session (any group, any state) | The rows below, from `session info`, `session tokens` and the transcript | Nothing is added |
-| Trail change | The listing row (title, `repository/number`, branch, status, gate, approval count, blockers) and, from one `entire trail show`, the parent trail's type, priority, page, whether it has a description, and the other changes | Base branch and head commit, approver handles, comment and finding counts, linked items: each needs a read of its own or is not in the data |
-| Project trail | Its fields, whether it has a description, and its changes with their gates | The same as above |
-| Activity commit | The short hash, title, repository and the CLI's own detail text, whole | A checkpoint id: the CLI's line has none |
+| Trail change | The change (title, `repository/number`, branch, status, gate, approval count, blockers) and, from one `entire trail show`, the parent trail's type, priority, page, whether it has a description, and the other changes | Base branch and head commit, approver handles, comment and finding counts, linked items: each needs a read of its own or is not in the data |
+| Project trail | Its fields, whether it has a description, and its changes (with their gates once the trail has been expanded) | The same as above |
+| Activity commit | The short hash, title, repository and the CLI's own detail text, whole, and **Copy hash** | A checkpoint id: the CLI's line has none, so there is no open-checkpoint link |
 | Activity session line | The text as the CLI printed it | A link to the session: the line carries no session id, and the extension does not guess one |
 | Activity repository | Its name and count, the scope line and the overview figures | A link to the Control Plane: the name carries no forge |
 
-A trail description is not in a row. The viewer says one exists, and **Open
-Details in Editor** writes it to the document; it is never written to the
-`Entire` output channel.
+A trail description is not in the panel. The panel says one exists, and **Open
+as text** writes it to the document; it is never written to the `Entire` output
+channel.
 
-On a change, the Approve, Comment, Merge, Check Out, Link and Unlink actions
-are the same commands the palette has, with the same confirmations. They act on
-the change shown instead of asking which one.
+On a change, Approve, Comment, Merge, Check out, Link branch and Unlink branch
+are links to the same commands the palette has, with the same confirmations.
+They act on the change shown instead of asking which one, and each command checks
+that it was given the item the panel shows before it acts.
+
+The panel is a web page with no script: text and links, a strict
+Content-Security-Policy, every word from the CLI escaped, and colours taken from
+your theme, so light, dark and high-contrast themes all work. The links are
+real links with visible text and a focus outline, so Tab and Enter work.
 
 Selecting costs at most one CLI call, and only a read: a session uses its three
 usual reads, a trail or change one `trail show`, and an Activity row none (it is
 drawn from the text Activity already read). The change's gate comes from the
-listing, so the merge check is not run again. A repeat selection inside
+Trails view, so the merge check is not run again. A repeat selection inside
 `entirely.selectionCacheSeconds` (default 30; `0` reads every time) shows the
 cached content at once with an "as of" time. After that time the old content is
 still shown while it is read again, and a failed re-read leaves it in place with
-a "Could not refresh" row. Ended sessions and Activity rows cannot change, so
-they are kept ten times as long. A failed read is a row in the viewer with a
-Retry button, never a popup. A trail or change that was merged or deleted says
+a "Could not refresh" line. Ended sessions and Activity rows cannot change, so
+they are kept ten times as long. A failed read is a message in the panel with a
+Retry link, never a popup. A trail or change that was merged or deleted says
 so. With no CLI, or one without `trail show`, a trail or change keeps its
-listing fields with a row that says why the rest is missing, and sessions and
+listing fields with a line that says why the rest is missing, and sessions and
 Activity still load. Nothing here polls.
 
 The editor keeps its own highlight on the last row chosen in each view, and an
-extension cannot clear it. Entirely marks the row the viewer shows with a blue
+extension cannot clear it. Entirely marks the row the panel shows with a blue
 dot and label colour, and clears that mark in the other two views.
+
+## Trails and their changes
+
+`entire trail list` does not carry a trail's changes, so the Trails view lists
+the trails first and shows "changes not loaded" beside each. Expanding a trail
+(or selecting it) reads `entire trail show` once and the change rows appear, each
+with its merge gate. A merged change says so, and a change whose branch is gone
+shows "no branch". What was read is kept for `entirely.selectionCacheSeconds`, so
+expanding it again reads nothing.
+
+The badge on the view counts the changes awaiting an approval among the trails
+that have been read. When you refresh the view, or after an action, Entirely
+reads up to `entirely.trailBadgeLimit` (default 10) open trails, three at a time,
+for that count; the tooltip says how many of the open trails it covers. The
+background refresh never reads them, so the badge is the count as of your last
+refresh, and a trail you expand adds to it.
 
 ## Session detail and transcripts
 
-Select a session and the Details view fills in from `entire session info`:
+Select a session and the Session view and the detail panel fill in from `entire session info`:
 when it ended, its last checkpoint, the files it touched and how many times
 each tool was called. A session that has ended is inspected the
 same way as a live one.
@@ -166,7 +193,7 @@ Usage in a shape the extension cannot read says **Not recognised**, and a
 failed CLI call says **Not available**.
 Model names appear exactly as the CLI sends them.
 
-The transcript is not in the tree. **Transcript** in the Details view, or the
+The transcript is not in the tree. **Transcript** in the Session view, or the
 button on a session, opens it in a read-only editor beside its attribution
 and a tool call summary. It is read from `entire session info --transcript`,
 which streams the agent's own format; Claude Code, Cursor, Codex and Copilot
@@ -527,8 +554,9 @@ remote-machine settings, never workspace settings.
 | `searchDebounce` | `400` | Milliseconds to wait after you stop typing in checkpoint search |
 | `blameMaxDecoratedLines` | `5000` | Longest file marked in the editor by Blame |
 | `transcriptTimeout` | `60` | Opening a transcript |
-| `trailActionTimeout` | `60` | A trail review action, and the one `trail show` the Details viewer makes |
-| `selectionCacheSeconds` | `30` | How long the Details viewer keeps what it loaded. `0` reads every time; ended sessions and Activity rows keep ten times as long |
+| `trailActionTimeout` | `60` | A trail review action, and each `trail show` the Trails view and the detail panel make |
+| `selectionCacheSeconds` | `30` | How long the detail panel and the Trails view keep what they loaded. `0` reads every time; ended sessions and Activity rows keep ten times as long |
+| `trailBadgeLimit` | `10` | How many open trails are read, on a refresh you ask for, to count the changes awaiting approval. `0` shows no count |
 | `lifecycleActionTimeout` | `60` | Stop, attach, adopt, and agent install and removal |
 | `resumeWatchTimeout` | `60` | How long Resume watches for the session to become active |
 | `importTimeout` | `300` | Importing past agent history |

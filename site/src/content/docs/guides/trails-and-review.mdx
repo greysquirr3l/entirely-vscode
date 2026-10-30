@@ -13,22 +13,24 @@ A trail groups the changes (one branch per repository) that make up a piece of w
 
 The view lists the trails of the project the open repository belongs to, filtered to this repository. The project comes from `entire repo view`. It needs a signed-in login that can see that project.
 
-A trail row shows `#number title`, its status, how many changes it has, and how many are awaiting approval. Its changes are listed underneath. A change row shows the repository and number, and the state of its gate:
+A trail row shows `#number title` and its status. `entire trail list` does not carry a trail's changes, so the row says **changes not loaded** until you expand it (or select it). Expanding reads `entire trail show <n>` once and lists the changes underneath, each with the state of its merge gate; the row then says how many changes it has and how many are awaiting approval. Expanding it again, or selecting it, inside `entirely.selectionCacheSeconds` (default `30`) reads nothing. If the read fails, a line under the trail says why, and expanding it again tries again. A change row shows the repository and number and the gate:
 
 | Gate text | Icon | Meaning |
 |---|---|---|
 | ready to merge · *N* approvals | check | The CLI says the change can merge. |
 | awaiting approval | bell | The CLI's blockers include an approval requirement. |
 | blocked · *reason* | error | The CLI reports a blocker that is not an approval. |
-| gate unknown | question | The CLI did not answer, or the trail is closed. The tooltip says why. |
+| merged | question | The change has been merged, so there is no gate left to read. The merge check is skipped. |
+| trail closed | question | The trail is closed, so its changes are not checked. |
+| gate unknown | question | The CLI did not answer. The tooltip says why. |
 
 The gate comes from `entire trail merge --dry-run`, which is the one place the CLI reports its merge conditions. Entirely reads the blockers, not an approval count. A gate can require more than one approval, a named reviewer, or none, and only the CLI knows which. The approval count on a ready change is for display only. Hover a blocked change to see the CLI's blockers.
 
 ### The approvals badge
 
-Changes awaiting approval are counted in the Trails view's badge, with the tooltip "*N* not yet approved". The badge clears when none are waiting.
+Changes awaiting approval are counted in the Trails view's badge. The list carries no changes, so the count comes from reads, and the tooltip says what it covers: for example "2 changes not yet approved, counted from 10 of 12 open trails; 2 open trails not read, expand one to read it". When you refresh the view, or after an approve, merge, link or unlink, Entirely reads up to `entirely.trailBadgeLimit` open trails (default `10`, `0` shows no count), three at a time, once. Closed trails are not read. A trail you expand adds to the count. The badge clears when none of the trails read are waiting, and there is no badge before anything has been read.
 
-The view re-reads on the `entirely.refreshInterval` timer (default `30` seconds) and drops a tick that arrives while the previous read is still running. A listing costs several CLI calls per change, so on a large project set a longer interval.
+The view re-reads its list on the `entirely.refreshInterval` timer (default `30` seconds) and drops a tick that arrives while the previous read is still running. That background refresh reads only the list and keeps the changes already read, so the badge is the count as of your last refresh; refresh the view to read again.
 
 An empty view reads "No trails to show", or gives the reason it couldn't list them, such as the CLI's refusal.
 
@@ -36,26 +38,28 @@ An empty view reads "No trails to show", or gives the reason it couldn't list th
 Access to a project is per login, not just per repository. On a personal account, a login that can see the repository may still be unable to see its project, and then it can't list or review the project's trails. Entirely says so and names `entirely.cliContext` instead of showing an empty list. See [Accounts and contexts](/entirely/concepts/accounts-and-contexts/).
 </Aside>
 
-## The Details view
+## The detail panel
 
-Select a trail or a change, by click or by keyboard, and the **Details** view shows it. A change row paints at once from the listing: title, `repository/number`, branch, status, whether it carries code, and the gate with its approval count and blockers. One `entire trail show <repo>/<n> --json` then adds the parent trail's number, title, status, type, priority, page, whether it has a description, and the other changes on it. The gate is the listing's. The merge check is not run again, so it is as fresh as the last Trails refresh.
+Select a trail or a change, by click or by keyboard, and its detail opens in the detail panel beside your code, without taking focus. It is one panel for every selection: the next row you select replaces what it shows.
 
-A project trail row shows its own fields and its changes with their gates, read with one `entire trail show <n>`.
+A change shows the change's title, `repository/number`, branch (or "no branch"), status, whether it carries code, and the gate with its approval count and blockers. One `entire trail show <n> --json` of its parent trail adds the trail's number, title, status, type, priority, page, whether it has a description, and the other changes on it. The gate is the one the Trails view read, so it is as fresh as the last read of that trail.
 
-What it does not show, because each needs a read of its own or is not in the data: base branch and head commit, who approved, comment and finding counts, and linked items. A description appears only as "Has a description"; **Open Details in Editor** writes it to a read-only document, and it is never written to the output channel.
+A project trail shows its own fields and its changes, from the same single `entire trail show <n>`. The panel and the Trails view share that read: expanding a trail and then selecting it reads it once.
 
-- **Merged or deleted.** If `trail show` fails with the CLI's not-found wording, or the answer leaves the change out of the trail's change list, the view says "… is no longer available. It may have been merged or deleted." with a Refresh row.
-- **Failed read.** A row names the item and the CLI's reason, with a Retry button. No popup.
-- **CLI missing, or without `trail show`.** You keep the listing's fields and one row, "Trail details need a newer Entire CLI", which opens **Set Up Entire**. Sessions and Activity are not affected.
-- **Cache.** The answer is kept for `entirely.selectionCacheSeconds` (default `30`). Approving, merging, linking or unlinking drops it for that change and its trail and refreshes the Trails view. The `trail show` read uses `entirely.trailActionTimeout`.
+What it does not show, because each needs a read of its own or is not in the data: base branch and head commit, who approved, comment and finding counts, and linked items. A description appears only as "Has a description"; **Open as text** writes it to a read-only document, and it is never written to the output channel.
 
-The change's header row has the review actions: **Approve** inline, and Comment, Merge, Check Out, Link and Unlink in its menu. They are the commands below, with the same confirmations, acting on the change shown instead of asking you to pick. Link and Unlink act on its parent trail.
+- **Merged or deleted.** If `trail show` fails with the CLI's not-found wording, or the answer leaves the change out of the trail's change list, the panel says "… is no longer available. It may have been merged or deleted." with a Refresh link.
+- **Failed read.** The panel names the item and the CLI's reason, with a Retry link. No popup.
+- **CLI missing, or without `trail show`.** You keep the listing's fields and one line, "Trail details need a newer Entire CLI", which links to **Set Up Entire**. Sessions and Activity are not affected.
+- **Cache.** The answer is kept for `entirely.selectionCacheSeconds` (default `30`). Approving, merging, linking or unlinking drops it for that change and its trail and refreshes the Trails view. Each `trail show` read uses `entirely.trailActionTimeout`.
 
-The reads were checked against a fake CLI. `trail show` for a change that has since been merged or deleted was not seen against a live server, so the not-found wording is read from the CLI's error text and may need adjusting.
+A change's panel has the review actions as links: **Approve**, **Comment**, **Merge**, **Check out**, **Link branch** and **Unlink branch**. They are the commands below, with the same confirmations, acting on the change shown instead of asking you to pick. Link and Unlink act on its parent trail. Each command checks that it was given the item the panel shows, and asks which one you mean if it was not.
+
+The reads were checked against a fake CLI that mirrors the shapes of the real one (`trail list` without changes, `trail show` with them and with an empty `branch` for a merged change). `trail show` for a change that has since been deleted was not seen against a live server, so the not-found wording is read from the CLI's error text and may need adjusting.
 
 ## Review commands
 
-Run from the palette, each command lists the trails of this repository from the CLI, in the CLI's order, and asks you to pick one. Run from the Details view or with a row from the Trails view, it acts on that row and does not ask. Changes are picked for approve, comment, merge and check out. Trails are picked for link and unlink. If there are none, you're told so.
+Run from the palette, each command lists the trails of this repository from the CLI, in the CLI's order, and asks you to pick one. Run from the detail panel or with a row from the Trails view, it acts on that row and does not ask. The CLI's list carries no changes, so before you pick a change Entirely reads the changes of the listed trails (at most 50, three at a time). Changes are picked for approve, comment, merge and check out. Trails are picked for link and unlink. If there are none, you're told so.
 
 | Command | Picks | Asks | What you see after |
 |---|---|---|---|
