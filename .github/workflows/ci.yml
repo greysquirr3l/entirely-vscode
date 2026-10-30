@@ -95,7 +95,7 @@ jobs:
       - name: Install the Entire CLI
         run: |
           curl -sSfL https://entire.com/install.sh -o /tmp/entire-install.sh
-          sh /tmp/entire-install.sh --version 0.12.2
+          bash /tmp/entire-install.sh --version 0.12.2
           entire version
 
       - name: Check the CLI contract
