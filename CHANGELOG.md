@@ -1,8 +1,7 @@
 # Change Log
 
-All notable changes to the "greysquirr3l.entirely" extension will be documented in this file.
-
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+All notable changes to the Entirely extension are documented in this file. The format follows
+[Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
