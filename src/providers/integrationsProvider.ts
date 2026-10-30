@@ -12,6 +12,7 @@ import {
 	type PluginRow,
 } from '../lib/entire';
 import type { IntegrationSource } from '../services/integrationDetection';
+import { BUILT_IN_DETAIL } from '../services/plugins';
 
 export type IntegrationNode =
 	| {
@@ -45,7 +46,9 @@ function pluginNode(folder: FolderIntegrations, row: PluginRow): IntegrationNode
 		description: describePluginState(row.state),
 		tooltip: installable
 			? `The "${row.name}" plugin is not installed for ${folder.name}. Use Install to run "entire plugin install ${row.name}" after a question.`
-			: `${row.name}: ${describePluginState(row.state)}`,
+			: row.state.kind === 'unknown' && row.state.detail === BUILT_IN_DETAIL
+				? `"${row.name}" is also an Entire CLI command, so it cannot be told apart from a plugin on the PATH.`
+				: `${row.name}: ${describePluginState(row.state)}`,
 		icon: icons[row.state.kind],
 		contextValue: installable ? PLUGIN_MISSING : undefined,
 		target: installable ? { kind: 'plugin', name: row.name, folder: folder.path } : undefined,

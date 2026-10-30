@@ -495,7 +495,7 @@ suite('Entire integration detection', () => {
 		for (const name of ['mcp', 'completion']) {
 			const state = row(folders[0], name).state;
 			assert.strictEqual(state.kind, 'unknown', name);
-			assert.match(state.kind === 'unknown' ? state.detail : '', /also an Entire CLI command/);
+			assert.match(state.kind === 'unknown' ? state.detail : '', /^also an Entire CLI command$/);
 		}
 		assert.strictEqual(row(folders[0], 'graph').state.kind, 'on-path');
 		assert.strictEqual(row(folders[0], 'brain').state.kind, 'missing');

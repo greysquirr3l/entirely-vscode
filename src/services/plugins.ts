@@ -21,6 +21,9 @@ import type { HelpFlag } from '../lib/entire/search';
 import type { CliRunner } from './cli';
 import type { Read } from './controlPlane';
 
+/** Short row text for a hidden built-in; the tree tooltip carries the full reason. */
+export const BUILT_IN_DETAIL = 'also an Entire CLI command';
+
 /** What a plugin's own help says it accepts. */
 export interface PluginUsage {
 	readonly subcommands: readonly string[];
@@ -164,7 +167,7 @@ export class PluginService implements PluginSource {
 		// agent-help, so a name answering only --help cannot be called a plugin.
 		const answered = await this.options.runner.help(name, { cwd: this.cwd });
 		if (answered.ok) {
-			return { kind: 'unknown', detail: `"${name}" is also an Entire CLI command, so it cannot be told apart from a plugin on the PATH` };
+			return { kind: 'unknown', detail: BUILT_IN_DETAIL };
 		}
 		if (isMissingPlugin(`${guide.stderr}\n${guide.stdout}`, name)) {
 			return { kind: 'missing' };
