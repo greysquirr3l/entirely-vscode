@@ -57,7 +57,7 @@ const forbidden = [
 	{ pattern: /\.vsix$/, reason: 'a package built earlier' },
 	{ pattern: /(^|\/)docs\//, reason: 'documentation, which the README links to in the repository' },
 	{ pattern: /(^|\/)site\//, reason: 'the documentation site' },
-	{ pattern: /(^|\/)\.demo(\/|$)/, reason: 'the scratch repository used for screenshots' },
+	{ pattern: /(^|\/)\.local(\/|$)/, reason: 'local scratch: research, source artwork and the screenshot repository' },
 	{ pattern: /(^|\/)(AGENTS|BUDGET|IMPLEMENTATION_PLAN|PROGRESS|RUN_LOG)\.md$/, reason: 'local planning artefacts' },
 	{ pattern: /(^|\/)(features\.json|plan\.toml)$/, reason: 'local planning artefacts' },
 	{ pattern: /(^|\/)(capabilities|research|tasks)\//, reason: 'local planning artefacts' },

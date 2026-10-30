@@ -4,7 +4,6 @@ node_modules
 .vscode-test/
 *.vsix
 .vscode/
-research/
 
 # Local planning artifacts. They drive the build on this machine and are not
 # part of the published extension.
@@ -18,12 +17,9 @@ RUN_LOG.md
 features.json
 plan.toml
 
-# The source artwork is large and is not needed at runtime.
-entirely_logo_raw.jpeg
-
-# A scratch copy of the repository, used to drive the editor while taking
-# the marketplace screenshots.
-.demo/
+# Local scratch: research notes, the source artwork and the scratch copy of
+# the repository used to drive the editor while taking screenshots.
+.local/
 
 # Development documents
 docs/dev/
@@ -39,7 +35,8 @@ docs/dev/
 __MACOSX/
 .AppleDouble
 .LSOverride
-Icon[]
+Icon[
+]
 ._*
 .DocumentRevisions-V100
 .fseventsd
@@ -56,7 +53,8 @@ Icon[]
 .file
 .disk_label*
 lost+found
-.HFS+ Private Directory Data[]
+.HFS+ Private Directory Data[
+]
 .AppleDB
 .AppleDesktop
 Network Trash Folder
