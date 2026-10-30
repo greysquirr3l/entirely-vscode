@@ -23,6 +23,14 @@ import {
 import { importHistory, type ImportDependencies } from './historyImport';
 import { manageAgents, type AgentDependencies } from './agentIntegrations';
 import { openTranscript, selectSession, setOwnSessionFilter } from './sessionDetail';
+import {
+	approveChange,
+	checkoutChange,
+	commentOnChange,
+	linkBranch,
+	mergeChange,
+	unlinkBranch,
+} from './trailReview';
 import type { CheckpointFileNode, CheckpointsProvider } from '../providers/checkpointsProvider';
 import type { SessionDetailProvider } from '../providers/sessionDetailProvider';
 import type { TranscriptContentProvider } from '../providers/transcriptDocument';
@@ -30,6 +38,7 @@ import type { TokenUsageSource } from '../services/tokenUsage';
 import type { SessionDetailSource } from '../services/sessionDetail';
 import type { SessionItemNode, SessionsProvider } from '../providers/sessionsProvider';
 import type { CheckpointFilter } from '../services/checkpointFilter';
+import type { TrailsProvider } from '../providers/trailsProvider';
 import type { CheckpointDetail } from '../lib/entire';
 import type { GitService } from '../services/gitService';
 import type { StatusController } from '../services/statusController';
@@ -40,6 +49,7 @@ import type { CliRunner } from '../services/cli';
 import type { CliInvocationRecorder } from '../services/cli/recorder';
 import type { BlameDecorations } from '../providers/blameDecorations';
 import type { BlameService } from '../services/blameService';
+import type { TrailService } from '../services/trailService';
 import type { WhyService } from '../services/whyService';
 
 /** The surfaces the command handlers act on. */
@@ -74,6 +84,10 @@ export interface CommandDependencies {
 	readonly agentIntegrations: AgentDependencies;
 	/** Imports past agent history as read-only checkpoints. */
 	readonly historyImport: ImportDependencies;
+	/** The trails of the workspace, as the CLI knows them. */
+	readonly trails: TrailService;
+	/** The trails section of the view. */
+	readonly trailsProvider: TrailsProvider;
 	/** The CLI the extension talks to. */
 	readonly runner: CliRunner;
 	/** Which login the CLI is acting as. */
@@ -148,6 +162,7 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 			await deps.statusController.refresh();
 			await deps.sessions.refresh();
 			await deps.checkpoints.refresh();
+			await deps.trailsProvider.refresh();
 			await deps.authenticationProvider.refresh();
 		}),
 
@@ -275,6 +290,52 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 
 		vscode.commands.registerCommand('entirely.clearBlame', () => {
 			clearBlame(deps.blameDecorations);
+		}),
+
+		// The review actions on a trail. Each one is a command rather
+		// than part of a tree, because each one asks the reviewer to
+		// choose what they are acting on and then confirms what they
+		// are about to do.
+		vscode.commands.registerCommand('entirely.trailApprove', async () => {
+			await approveChange({
+				trails: deps.trails,
+				actingHandle: () => deps.accounts.current.acting?.handle,
+			});
+		}),
+
+		vscode.commands.registerCommand('entirely.trailComment', async () => {
+			await commentOnChange({
+				trails: deps.trails,
+				actingHandle: () => deps.accounts.current.acting?.handle,
+			});
+		}),
+
+		vscode.commands.registerCommand('entirely.trailMerge', async () => {
+			await mergeChange({
+				trails: deps.trails,
+				actingHandle: () => deps.accounts.current.acting?.handle,
+			});
+		}),
+
+		vscode.commands.registerCommand('entirely.trailCheckout', async () => {
+			await checkoutChange({
+				trails: deps.trails,
+				actingHandle: () => deps.accounts.current.acting?.handle,
+			});
+		}),
+
+		vscode.commands.registerCommand('entirely.trailLink', async () => {
+			await linkBranch({
+				trails: deps.trails,
+				actingHandle: () => deps.accounts.current.acting?.handle,
+			});
+		}),
+
+		vscode.commands.registerCommand('entirely.trailUnlink', async () => {
+			await unlinkBranch({
+				trails: deps.trails,
+				actingHandle: () => deps.accounts.current.acting?.handle,
+			});
 		}),
 
 		// The drill-down from a line that a checkpoint owns. It is reached

@@ -17,23 +17,15 @@ adds the commands the CLI hides or ships as plugins (`why`, `blame`, `import`,
 **How the extension's side was established.** By reading `src/`, not the
 README. Every CLI invocation the extension can make is in section 1.
 
-**Branch note.** Trails (`entire trail`) are implemented and passed evaluation
-on the branch `feat/trail-actions`, which is separate from the branch stack
-this document lives on. Those rows say `Supported (trail branch)`. They are
-not reachable from a build of this stack until the two stacks are merged.
-Accounts (`entire login`, `logout`, `auth status`, `auth contexts`, `--context`)
-are on `main` and in this stack.
-
 **Marks.**
 
 | Mark | Meaning |
 | --- | --- |
 | Supported | The extension calls it, a user can reach it from the editor, and a test in this repository covers it. The evidence column names the command id or source file and the test. |
-| Supported (trail branch) | Implemented and tested on `feat/trail-actions`, and not in this stack. |
 | Excluded | A decision: the extension deliberately does not do it. The notes say why. |
 | Gap | Not done, and no decision to leave it out. Listed in section 3. |
 
-**Totals.** Rows: 133 (supported 62, supported on the trail branch 12, excluded 7, gap 52).
+**Totals.** Rows: 133 (supported 74, excluded 7, gap 52).
 
 The totals line is read by `src/test/coverage.test.ts`, which fails when it
 disagrees with the table.
@@ -57,6 +49,18 @@ row names a command its callers never build.
 | `entire agent list` | `src/services/agentIntegrations.ts` | Installed agent integrations |
 | `entire agent add` | `src/lib/entire/agents.ts` | Installing an agent integration |
 | `entire agent remove` | `src/lib/entire/agents.ts` | Removing an agent integration |
+| `entire trail list` | `src/services/trailService.ts` | The Trails view |
+| `entire trail show` | `src/services/trailService.ts` | One trail and its changes |
+| `entire trail approvals` | `src/services/trailService.ts` | Who approved a change |
+| `entire trail approve` | `src/services/trailService.ts` | Approving a change |
+| `entire trail comment add` | `src/services/trailService.ts` | Commenting on a change |
+| `entire trail comment list` | `src/services/trailService.ts` | Reading a change's comments |
+| `entire trail finding add` | `src/services/trailService.ts` | Posting a finding from an agent session |
+| `entire trail finding list` | `src/services/trailService.ts` | Reading a change's findings |
+| `entire trail merge` | `src/services/trailService.ts` | A dry run, then the merge |
+| `entire trail checkout` | `src/services/trailService.ts` | Checking out a change's branch |
+| `entire trail link` | `src/services/trailService.ts` | Linking a branch to a trail |
+| `entire trail unlink` | `src/services/trailService.ts` | Unlinking a branch from a trail |
 | `entire session list` | `src/services/sessionSource.ts`, `src/services/checkpointSource.ts` | The session tree |
 | `entire session current` | `src/services/sessionSource.ts` | The workspace's own session |
 | `entire session info` | `src/services/sessionDetail.ts` | Session detail and transcript |
@@ -237,19 +241,19 @@ The three rows below are the plugins the documentation names.
 
 | Command | Status | Evidence | Notes |
 | --- | --- | --- | --- |
-| `entire trail list` | Supported (trail branch) | `feat/trail-actions`: `src/services/trailListing.ts`, `src/test/trailSurface.test.ts` | The Trails view. |
-| `entire trail show` | Supported (trail branch) | `feat/trail-actions`: `src/services/trailService.ts`, `src/test/trailSurface.test.ts` | |
-| `entire trail approvals` | Supported (trail branch) | `feat/trail-actions`: `src/services/trailService.ts`, `src/test/trailSurface.test.ts` | |
-| `entire trail approve` | Supported (trail branch) | `feat/trail-actions`: `entirely.trailApprove`, `src/test/trailActions.test.ts` | |
-| `entire trail checkout` | Supported (trail branch) | `feat/trail-actions`: `entirely.trailCheckout`, `src/test/trailActions.test.ts` | |
-| `entire trail comment add` | Supported (trail branch) | `feat/trail-actions`: `entirely.trailComment`, `src/test/trailActions.test.ts` | |
-| `entire trail comment list` | Supported (trail branch) | `feat/trail-actions`: `src/services/trailService.ts`, `src/test/trailSurface.test.ts` | |
-| `entire trail finding add` | Supported (trail branch) | `feat/trail-actions`: `entirely.trailComment`, `src/test/trailActions.test.ts` | |
-| `entire trail finding list` | Supported (trail branch) | `feat/trail-actions`: `src/services/trailService.ts`, `src/test/trailSurface.test.ts` | |
-| `entire trail link` | Supported (trail branch) | `feat/trail-actions`: `entirely.trailLink`, `src/test/trailActions.test.ts` | |
-| `entire trail unlink` | Supported (trail branch) | `feat/trail-actions`: `entirely.trailUnlink`, `src/test/trailActions.test.ts` | |
-| `entire trail merge` | Supported (trail branch) | `feat/trail-actions`: `entirely.trailMerge`, `src/test/trailActions.test.ts` | A dry run first; the gate is read from it. |
-| `entire trail create` | Gap | | Not on either branch. |
+| `entire trail list` | Supported | `src/services/trailListing.ts`, `src/test/trailSurface.test.ts` | The Trails view. |
+| `entire trail show` | Supported | `src/services/trailService.ts`, `src/test/trailSurface.test.ts`, `src/test/support/trailCli.ts` | |
+| `entire trail approvals` | Supported | `src/services/trailService.ts`, `src/test/trailSurface.test.ts`, `src/test/support/trailCli.ts` | |
+| `entire trail approve` | Supported | `entirely.trailApprove`, `src/test/trailActions.test.ts` | |
+| `entire trail checkout` | Supported | `entirely.trailCheckout`, `src/test/trailActions.test.ts`, `src/test/trailReviewFlow.test.ts` | |
+| `entire trail comment add` | Supported | `entirely.trailComment`, `src/test/trailActions.test.ts` | |
+| `entire trail comment list` | Supported | `src/services/trailService.ts`, `src/test/trailSurface.test.ts`, `src/test/support/trailCli.ts` | |
+| `entire trail finding add` | Supported | `entirely.trailComment`, `src/test/trailActions.test.ts` | |
+| `entire trail finding list` | Supported | `src/services/trailService.ts`, `src/test/trailSurface.test.ts`, `src/test/support/trailCli.ts` | |
+| `entire trail link` | Supported | `entirely.trailLink`, `src/test/trailActions.test.ts`, `src/test/trailReviewFlow.test.ts` | |
+| `entire trail unlink` | Supported | `entirely.trailUnlink`, `src/test/trailActions.test.ts`, `src/test/trailReviewFlow.test.ts` | |
+| `entire trail merge` | Supported | `entirely.trailMerge`, `src/test/trailActions.test.ts`, `src/test/trailReviewFlow.test.ts` | A dry run first; the gate is read from it. |
+| `entire trail create` | Gap | | |
 | `entire trail update` | Gap | | |
 | `entire trail watch` | Gap | | A streaming view. |
 | `entire trail resume` | Excluded | | Entire's documentation says a non-interactive run shows the same context and prints the resume commands, so interactivity is only the default, not the reason. The reason is that `entire session resume` already covers the editor use case: `entirely.resumeSession` (`src/services/sessionResume.ts`) resumes a branch's session in an editor terminal. |
@@ -301,15 +305,14 @@ The three rows below are the plugins the documentation names.
 
 Nothing below is excluded. Each is a capability the CLI has and the editor does not.
 
-1. **Trails are not in this stack.** Twelve trail rows are supported only on `feat/trail-actions`. The two stacks still need merging. Until then a build of this branch shows no Trails view.
-2. **Setup and teardown.** `disable`, `configure`, `clean`, `runner setup`. Nothing in the editor stops capture or edits repository settings.
-3. **Diagnostics beyond the report.** `doctor bundle`, `doctor logs`, `doctor trace`, `doctor migrate-checkpoints`.
-4. **Review and expertise.** `review`, `experts`.
-5. **Token analysis across history.** `tokens`, `tokens profile`.
-6. **Checkpoint deletion.** `checkpoint delete`.
-7. **Control plane breadth.** Create and read for organisations and projects (`org create`, `org get`, `project create`, `project get`), organisation invitations (`org invite list`, `revoke`, `send`), and the repository commands `clone`, `mirror add`, `mirror detach`, `mirror remove`, `mirror resync`, `protection add`, `protection list`, `protection remove`, `remote add`, `visibility get`.
-8. **Plugin management.** `plugin browse`, `doctor`, `index update`, `info`, `remove`, `search`, `upgrade`. Only `list` and `install` are wired.
-9. **Trail depth, beyond the trail branch.** `trail create`, `update`, `watch`, and the comment and finding commands that edit, reply, resolve or dismiss.
+1. **Setup and teardown.** `disable`, `configure`, `clean`, `runner setup`. Nothing in the editor stops capture or edits repository settings.
+2. **Diagnostics beyond the report.** `doctor bundle`, `doctor logs`, `doctor trace`, `doctor migrate-checkpoints`.
+3. **Review and expertise.** `review`, `experts`.
+4. **Token analysis across history.** `tokens`, `tokens profile`.
+5. **Checkpoint deletion.** `checkpoint delete`.
+6. **Control plane breadth.** Create and read for organisations and projects (`org create`, `org get`, `project create`, `project get`), organisation invitations (`org invite list`, `revoke`, `send`), and the repository commands `clone`, `mirror add`, `mirror detach`, `mirror remove`, `mirror resync`, `protection add`, `protection list`, `protection remove`, `remote add`, `visibility get`.
+7. **Plugin management.** `plugin browse`, `doctor`, `index update`, `info`, `remove`, `search`, `upgrade`. Only `list` and `install` are wired.
+8. **Trail depth.** `trail create`, `update`, `watch`, and the comment and finding commands that edit, reply, resolve or dismiss.
 
 ---
 

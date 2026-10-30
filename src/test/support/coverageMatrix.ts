@@ -1,6 +1,6 @@
 /** Reads docs/coverage.md into rows the coverage tests can check. */
 
-export const STATUSES = ['Supported', 'Supported (trail branch)', 'Excluded', 'Gap'] as const;
+export const STATUSES = ['Supported', 'Excluded', 'Gap'] as const;
 export type CoverageStatus = (typeof STATUSES)[number];
 
 export interface MatrixRow {
@@ -18,7 +18,7 @@ export interface SurfaceRow {
 }
 
 export interface Coverage {
-	readonly totals: { readonly rows: number; readonly supported: number; readonly branch: number; readonly excluded: number; readonly gap: number } | undefined;
+	readonly totals: { readonly rows: number; readonly supported: number; readonly excluded: number; readonly gap: number } | undefined;
 	readonly surface: readonly SurfaceRow[];
 	readonly matrix: readonly MatrixRow[];
 }
@@ -51,14 +51,13 @@ function sectionStarting(text: string, heading: string): string {
 
 /** Parses the totals line, the CLI surface table and the matrix tables. */
 export function parseCoverage(text: string): Coverage {
-	const totalsLine = /\*\*Totals\.\*\* Rows: (\d+) \(supported (\d+), supported on the trail branch (\d+), excluded (\d+), gap (\d+)\)/.exec(text);
+	const totalsLine = /\*\*Totals\.\*\* Rows: (\d+) \(supported (\d+), excluded (\d+), gap (\d+)\)/.exec(text);
 	const totals = totalsLine
 		? {
 				rows: Number(totalsLine[1]),
 				supported: Number(totalsLine[2]),
-				branch: Number(totalsLine[3]),
-				excluded: Number(totalsLine[4]),
-				gap: Number(totalsLine[5]),
+				excluded: Number(totalsLine[3]),
+				gap: Number(totalsLine[4]),
 			}
 		: undefined;
 
@@ -78,11 +77,10 @@ export function parseCoverage(text: string): Coverage {
 }
 
 /** Counts matrix rows by status. */
-export function countStatuses(rows: readonly MatrixRow[]): { supported: number; branch: number; excluded: number; gap: number } {
+export function countStatuses(rows: readonly MatrixRow[]): { supported: number; excluded: number; gap: number } {
 	const count = (status: CoverageStatus): number => rows.filter(row => row.status === status).length;
 	return {
 		supported: count('Supported'),
-		branch: count('Supported (trail branch)'),
 		excluded: count('Excluded'),
 		gap: count('Gap'),
 	};

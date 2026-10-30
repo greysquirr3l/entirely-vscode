@@ -39,6 +39,10 @@ export interface RunOptions {
 	 * The CLI marks the login it is acting as, so the command that lists
 	 * the saved logins has to ask without the override in order to learn
 	 * which login the CLI would use on its own.
+	 *
+	 * This leaves the *pin* off. A login named in `context` still applies,
+	 * because naming one is a deliberate request rather than a leftover
+	 * from the pin.
 	 */
 	readonly ignoreContext?: boolean;
 	/**
@@ -72,6 +76,14 @@ export interface RunOptions {
 	 * that cannot follow a `--`, such as the words handed to a plugin.
 	 */
 	readonly redactFrom?: number;
+	/**
+	 * Flags whose values are left out of the reported command line.
+	 *
+	 * A comment body or an approval message is review text, not something
+	 * the output channel shows by default. The command still runs with the
+	 * real value; only the invocation record is redacted.
+	 */
+	readonly redactFlags?: readonly string[];
 	/** Aborting kills the process and the result is a `cancelled` failure. */
 	readonly signal?: AbortSignal;
 }
@@ -85,6 +97,23 @@ function redactOperands(args: readonly string[]): readonly string[] {
 	return separator === -1
 		? args
 		: [...args.slice(0, separator + 1), ...args.slice(separator + 1).map(() => REDACTED_OPERAND)];
+}
+
+/** What stands in for a redacted value in a reported command line. */
+export const REDACTED_ARGUMENT = '<redacted>';
+
+/** The arguments with the value after each named flag replaced. */
+export function redactArguments(
+	args: readonly string[],
+	flags: readonly string[] | undefined,
+): string[] {
+	if (!flags || flags.length === 0) {
+		return [...args];
+	}
+
+	return args.map((argument, index) =>
+		index > 0 && flags.includes(args[index - 1]) ? REDACTED_ARGUMENT : argument,
+	);
 }
 
 /** One invocation, and the bodies it produced. */
@@ -149,6 +178,23 @@ export class CliRunner {
 	/** The saved login every command acts as, when one is pinned. */
 	get context(): string | undefined {
 		return this.pinnedContext;
+	}
+
+	/**
+	 * The saved login one command acts as.
+	 *
+	 * A login named for the command wins over the pin, because naming
+	 * one is a deliberate request for that command alone. The pin is
+	 * left off entirely when the command asks for the CLI's own login.
+	 */
+	private resolveContext(options: RunOptions): string | undefined {
+		const named = options.context?.trim();
+
+		if (named && named.length > 0) {
+			return named;
+		}
+
+		return options.ignoreContext ? undefined : this.pinnedContext;
 	}
 
 	/** The discovery result for the CLI, running a lookup if it is stale. */
@@ -346,10 +392,11 @@ export class CliRunner {
 	): Promise<PerformedInvocation> {
 		const discovery = await this.locator.current();
 
-		// The pinned login is worked out once, here, so that the command
-		// line that is recorded is the command line that was run.
-		const context = options.ignoreContext ? undefined : (options.context ?? this.pinnedContext);
+		// The login is worked out once, here, so that the command line
+		// that is recorded is the command line that was run.
+		const context = this.resolveContext(options);
 		const effectiveArgs = context ? ['--context', context, ...args] : [...args];
+		const reportedArgs = redactArguments(effectiveArgs, options.redactFlags);
 
 		if (discovery.state === 'absent') {
 			const detail = 'the Entire CLI is not installed';
@@ -365,7 +412,7 @@ export class CliRunner {
 				},
 				invocation: {
 					binary: 'entire',
-					args: effectiveArgs,
+					args: reportedArgs,
 					cwd: options.cwd,
 					outcome: 'absent',
 					exitCode: undefined,
@@ -393,7 +440,7 @@ export class CliRunner {
 				},
 				invocation: {
 					binary: discovery.path,
-					args: effectiveArgs,
+					args: reportedArgs,
 					cwd: options.cwd,
 					outcome: 'broken',
 					exitCode: undefined,
@@ -443,7 +490,7 @@ export class CliRunner {
 				},
 				invocation: {
 					binary: discovery.path,
-					args: effectiveArgs,
+					args: reportedArgs,
 					cwd: options.cwd,
 					outcome: outcome.reason,
 					exitCode: outcome.exitCode,
@@ -467,7 +514,7 @@ export class CliRunner {
 			},
 			invocation: {
 				binary: discovery.path,
-				args: effectiveArgs,
+				args: reportedArgs,
 				cwd: options.cwd,
 				outcome: 'ok',
 				exitCode: outcome.exitCode,

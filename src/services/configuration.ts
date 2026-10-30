@@ -56,6 +56,8 @@ export interface ExtensionSettings {
 	readonly searchScope: SearchScopeSetting;
 	/** The most lines of a file that blame is drawn on in the editor. */
 	readonly blameMaxDecoratedLines: number;
+	/** How long, in seconds, a trail review action may run before it is killed. */
+	readonly trailActionTimeout: number;
 	/** Whether the sessions tree is also shown in the Explorer. */
 	readonly showSessionsInExplorer: boolean;
 	/** How much the extension says. */
@@ -266,6 +268,19 @@ export function clampRefreshInterval(seconds: number): number {
 	);
 }
 
+/** The bounds of the trail action timeout, in seconds. */
+export const DEFAULT_TRAIL_ACTION_TIMEOUT_SECONDS = 60;
+export const MAX_TRAIL_ACTION_TIMEOUT_SECONDS = 600;
+
+/** Puts the trail action timeout inside a range that still bounds a hung command. */
+export function clampTrailActionTimeout(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return DEFAULT_TRAIL_ACTION_TIMEOUT_SECONDS;
+	}
+
+	return Math.min(MAX_TRAIL_ACTION_TIMEOUT_SECONDS, Math.max(5, Math.floor(seconds)));
+}
+
 /**
  * Reads the extension's settings.
  *
@@ -310,6 +325,9 @@ export function readExtensionSettings(): ExtensionSettings {
 		searchDebounce: clampSearchDebounce(configuration.get<number>('searchDebounce', 400)),
 		searchScope: readSearchScope(configuration.get<string>('searchScope', 'repository')),
 		blameMaxDecoratedLines: clampBlameMaxLines(configuration.get<number>('blameMaxDecoratedLines', 5000)),
+		trailActionTimeout: clampTrailActionTimeout(
+			configuration.get<number>('trailActionTimeout', DEFAULT_TRAIL_ACTION_TIMEOUT_SECONDS),
+		),
 		showSessionsInExplorer: configuration.get<boolean>('showSessionsInExplorer', false),
 		logLevel: readLogLevel(configuration.get<string>('logLevel', 'info')),
 		debug: configuration.get<boolean>('debug', false),

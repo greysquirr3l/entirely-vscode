@@ -32,6 +32,8 @@ Entirely (this extension)
 | **Checkpoint history** | Recorded checkpoints, opening straight into the native diff editor |
 | **Why this line** | Which agent edit introduced the line under the cursor, and why |
 | **File blame** | `entire blame` for the active file: every line marked as attributed, recorded but not synced, or not attributed to any recorded change |
+| **Trails view** | The trails of the project this repository belongs to, with a badge counting the changes that await an approval |
+| **Trail review** | Approve, comment on, merge, check out, link and unlink the work on an Entire trail — each action confirmed, and each merge naming what it merges |
 | **Account view** | Who the CLI is signed in as, and which jurisdiction the account belongs to — with sign-in and sign-out |
 | **Integrations view** | Whether each suggested Entire plugin and the Entire MCP server is available in each workspace folder, with click-to-install and click-to-add |
 | **Agent integrations** | Lists the agents the CLI supports, and installs or removes one after you confirm what it will touch; more than one can be installed |
@@ -362,6 +364,21 @@ The pin changes what the extension does. The CLI keeps the login it would have
 used in your terminal, and a workspace the pinned login cannot see is said to
 be invisible to that login rather than to be untracked.
 
+A project is per-login too, not just a repository. A trail belongs to the
+project, so a login that cannot see the project cannot review its trails:
+the extension says so and names the setting to change, rather than showing
+an empty list that looks like there is no work.
+
+Who can see a project is the CLI's business, and it differs by where the
+project came from. A project you made in Entire is shared with the people
+you grant it to, and each of them sees it under their own login — so a
+reviewer approves under their own name, and the trail records who did what.
+A project that mirrors a GitHub owner is not granted like that: its
+membership follows GitHub, so a collaborator on the repository can see the
+repository without being able to see the project that holds its trails.
+That is a GitHub-shaped rule, and the extension reports it as the login it
+is rather than as an empty list.
+
 ## Signing in and out
 
 The Account view reads `entire auth status --json` and shows the handle the
@@ -443,6 +460,25 @@ No extra configuration is needed: `sourceMap` is on in `tsconfig.json` and
 `.vscodeignore` excludes `**/*.map`, so stack traces point back at the
 original TypeScript. On a remote without a display, set
 `extension-test-runner.wrapper` to `xvfb-run`.
+
+### The CLI contract
+
+The extension does not re-implement the CLI: it asks the CLI how a command
+is invoked and decodes the JSON the CLI prints. Both are contracts, and a
+contract that changes without the extension noticing shows up later as a
+mysterious failure in someone's editor rather than as a failed build.
+
+`npm run check:cli` checks the installed CLI against the commands and flags
+the extension uses:
+
+```sh
+npm run check:cli   # needs the Entire CLI on PATH
+```
+
+It needs no account and no network — `entire agent-help` describes a command
+from the binary itself. The same check runs in CI, against a pinned CLI
+version, so a change in the CLI is a deliberate bump rather than a surprise
+for the people using the extension.
 
 ### Releasing
 

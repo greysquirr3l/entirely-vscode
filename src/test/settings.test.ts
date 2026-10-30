@@ -12,7 +12,8 @@ import {
 } from '../lib/entire';
 import { readLogLevel, shouldLog, type LogLevel } from '../services/logger';
 import { makeTempDir } from './support/tempDir';
-import { clampAgentLookupCacheSeconds, effectiveLogLevel } from '../services/configuration';
+import { clampAgentLookupCacheSeconds, clampTrailActionTimeout, effectiveLogLevel } from '../services/configuration';
+import { REDACTED_ARGUMENT, redactArguments } from '../services/cli/runner';
 import { readEntireSettings, settingsLayers } from '../services/settingsSource';
 
 suite('Entire settings decoding', () => {
@@ -258,6 +259,7 @@ suite('Entire extension settings', () => {
 		for (const key of [
 			'entirely.cliPath',
 			'entirely.refreshInterval',
+			'entirely.trailActionTimeout',
 			'entirely.showSessionsInExplorer',
 			'entirely.minimumCliVersion',
 			'entirely.logLevel',
@@ -301,6 +303,7 @@ suite('Entire effective log level', () => {
 				resumeWatchTimeout: 60,
 				blameMaxDecoratedLines: 5000,
 				showSessionsInExplorer: false,
+				trailActionTimeout: 60,
 				minimumCliVersion: '0.12.2',
 				logLevel: 'warn',
 				debug: false,
@@ -332,6 +335,7 @@ suite('Entire effective log level', () => {
 				resumeWatchTimeout: 60,
 				blameMaxDecoratedLines: 5000,
 				showSessionsInExplorer: false,
+				trailActionTimeout: 60,
 				minimumCliVersion: '0.12.2',
 				logLevel: 'info',
 				debug: true,
@@ -363,11 +367,71 @@ suite('Entire effective log level', () => {
 				resumeWatchTimeout: 60,
 				blameMaxDecoratedLines: 5000,
 				showSessionsInExplorer: false,
+				trailActionTimeout: 60,
 				minimumCliVersion: '0.12.2',
 				logLevel: 'trace',
 				debug: true,
 			}),
 			'trace',
+		);
+	});
+});
+
+suite('Trail action timeout', () => {
+	test('a value that is not a number falls back to the default', () => {
+		assert.strictEqual(clampTrailActionTimeout(Number.NaN), 60);
+		assert.strictEqual(clampTrailActionTimeout(Number.POSITIVE_INFINITY), 60);
+		assert.strictEqual(clampTrailActionTimeout(Number.NEGATIVE_INFINITY), 60);
+	});
+
+	test('a value is held inside the lower and upper bounds', () => {
+		assert.strictEqual(clampTrailActionTimeout(1), 5);
+		assert.strictEqual(clampTrailActionTimeout(-30), 5);
+		assert.strictEqual(clampTrailActionTimeout(9999), 600);
+	});
+
+	test('a fractional value is rounded down to whole seconds', () => {
+		assert.strictEqual(clampTrailActionTimeout(90.7), 90);
+	});
+
+	test('a value in range is kept', () => {
+		assert.strictEqual(clampTrailActionTimeout(60), 60);
+		assert.strictEqual(clampTrailActionTimeout(5), 5);
+		assert.strictEqual(clampTrailActionTimeout(600), 600);
+	});
+});
+
+suite('Redacting a reported command line', () => {
+	test('with no flags the arguments are returned unchanged as a copy', () => {
+		const args = ['trail', 'comment', '--body', 'secret'];
+		const result = redactArguments(args, []);
+
+		assert.deepStrictEqual(result, args);
+		assert.notStrictEqual(result, args);
+		assert.deepStrictEqual(redactArguments(args, undefined), args);
+	});
+
+	test('the value after a named flag is replaced', () => {
+		assert.deepStrictEqual(redactArguments(['trail', 'comment', '--body', 'secret'], ['--body']), [
+			'trail',
+			'comment',
+			'--body',
+			REDACTED_ARGUMENT,
+		]);
+	});
+
+	test('a flag that is the last argument has no value to redact', () => {
+		assert.deepStrictEqual(redactArguments(['trail', 'comment', '--body'], ['--body']), [
+			'trail',
+			'comment',
+			'--body',
+		]);
+	});
+
+	test('a flag given twice has both values redacted', () => {
+		assert.deepStrictEqual(
+			redactArguments(['approve', '--message', 'one', '--message', 'two'], ['--message']),
+			['approve', '--message', REDACTED_ARGUMENT, '--message', REDACTED_ARGUMENT],
 		);
 	});
 });

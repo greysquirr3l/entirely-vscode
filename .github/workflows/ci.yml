@@ -59,3 +59,44 @@ jobs:
 
       - name: Check the package contents
         run: npm run package:check
+
+  # The extension reads the CLI rather than re-implementing it, so the
+  # CLI's shape is the extension's contract. This job installs the CLI
+  # and checks that it still answers the way the extension expects —
+  # before a user finds out that it does not.
+  #
+  # It needs no account and no network: `entire agent-help` describes a
+  # command from the binary itself. The version is pinned so that a
+  # change in the CLI is a deliberate bump rather than a surprise.
+  cli-contract:
+    name: Check the Entire CLI contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The CLI is installed from its own release, at the version the
+      # extension declares it expects. The install script is fetched
+      # over HTTPS and run, so what is installed is what the release
+      # published.
+      - name: Install the Entire CLI
+        run: |
+          curl -sSfL https://entire.com/install.sh -o /tmp/entire-install.sh
+          bash /tmp/entire-install.sh --version 0.12.2
+          entire version
+
+      - name: Check the CLI contract
+        run: npm run check:cli
