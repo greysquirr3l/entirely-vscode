@@ -61,11 +61,11 @@ export function describeBundleOutcome(outcome: BundleOutcome): string {
 				: `The bundle was written to ${outcome.file} (${size}). Secrets are redacted by pattern; other content is not.`;
 		}
 		case 'unconfirmed':
-			return `The bundle is unconfirmed: ${outcome.detail}.`;
+			return `The bundle is unconfirmed: ${outcome.detail}. Nothing was written to ${outcome.file}, and nothing there was changed.`;
 		case 'failed':
 			return `The bundle was not written: ${outcome.detail}.`;
 		case 'cancelled':
-			return `The bundle was cancelled. A partial file may remain at ${outcome.file}.`;
+			return `The bundle was cancelled. Nothing was written to ${outcome.file}, and nothing there was changed.`;
 	}
 }
 
@@ -83,12 +83,12 @@ export function bundleOutcomeFromReadback(file: string, readback: BundleReadback
 		case 'zip':
 			return { kind: 'written', file, bytes: readback.bytes, raw };
 		case 'missing':
-			return { kind: 'unconfirmed', file, detail: `the CLI finished but no archive was found at ${file}` };
+			return { kind: 'unconfirmed', file, detail: 'the CLI finished but no archive was found where it was asked to write it' };
 		case 'not-a-file':
-			return { kind: 'unconfirmed', file, detail: `the CLI finished but what is at ${file} is not a regular file` };
+			return { kind: 'unconfirmed', file, detail: 'the CLI finished but what it wrote is not a regular file' };
 		case 'empty':
-			return { kind: 'unconfirmed', file, detail: `the CLI finished but the file at ${file} is empty` };
+			return { kind: 'unconfirmed', file, detail: 'the CLI finished but the file it wrote is empty' };
 		case 'not-a-zip':
-			return { kind: 'unconfirmed', file, detail: `the CLI finished but the file at ${file} is not a zip archive` };
+			return { kind: 'unconfirmed', file, detail: 'the CLI finished but the file it wrote is not a zip archive' };
 	}
 }

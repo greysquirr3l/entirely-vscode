@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import { spawnSync } from 'child_process';
 
 import {
 	CHECKPOINT_REF_PREFIX,
@@ -14,7 +15,7 @@ import { harness } from './support/depthHarness';
 import type { DepthScript } from './support/depthUi';
 
 const BOB: AccountContext = { name: 'bob@eu.auth.entire.io', handle: 'bob', server: 'https://eu.auth.entire.io', active: true };
-const DRY_RUN_CALL = 'none|doctor migrate-checkpoints --dry-run';
+const DRY_RUN_CALL = 'alice@us.auth.entire.io|doctor migrate-checkpoints --dry-run';
 const APPLY_CALL = `${ALICE.name}|doctor migrate-checkpoints`;
 
 function setup(options: FakeDoctorOptions = {}, script: DepthScript = {}, acting: () => Promise<AccountContext | undefined> = () => Promise.resolve(ALICE)) {
@@ -90,11 +91,31 @@ suite('Checkpoint migration: the report and the apply', () => {
 		assert.match(question.detail, /nothing is pushed/);
 		assert.match(question.detail, /Currently 0 refs exist there/);
 
-		assert.deepStrictEqual(cli.callsTo('doctor migrate-checkpoints'), [DRY_RUN_CALL.replace('none', 'pinned@example.invalid'), APPLY_CALL]);
+		assert.deepStrictEqual(cli.callsTo('doctor migrate-checkpoints'), [DRY_RUN_CALL, APPLY_CALL]);
 		assert.deepStrictEqual(applies(cli), [APPLY_CALL], 'exactly one run, with no remote flag and no other flag');
 		assert.strictEqual(cli.refs().length, 3);
 		assert.match(ui.notices.at(-1)?.message ?? '', /Created 3 refs/);
 		assert.ok(!cli.calls().some(line => /remote|push/.test(line)));
+	});
+
+	test('the dry run runs as the login the question names, even when another is pinned', async () => {
+		const { cli, deps } = setup({}, { choose: () => 'Close' });
+		cli.runner.setContext('pinned@example.invalid');
+		await migrateCheckpoints(deps);
+		assert.deepStrictEqual(cli.callsTo('doctor migrate-checkpoints'), [DRY_RUN_CALL]);
+	});
+
+	test('refs another process made while the question was open are not counted as migrated', async () => {
+		const holder: { cli?: FakeDoctorCli } = {};
+		const { cli, deps, ui } = setup({ migrateCreates: 2 }, {
+			onConfirm: () => {
+				spawnSync('git', ['update-ref', 'refs/entire/checkpoints/zz/foreign', 'HEAD'], { cwd: holder.cli?.repo });
+			},
+		});
+		holder.cli = cli;
+		assert.strictEqual(await migrateCheckpoints(deps), 'migrated');
+		assert.match(ui.notices.at(-1)?.message ?? '', /Created 2 refs/);
+		assert.strictEqual(cli.refs().length, 3);
 	});
 
 	test('the CLI output is behind a button, not inline', async () => {

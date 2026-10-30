@@ -13,6 +13,8 @@ export interface DepthScript {
 	choose?: (message: string, actions: readonly string[]) => string | undefined;
 	/** Aborts the progress signal after this many milliseconds. */
 	cancelAfterMs?: number;
+	/** Runs when a confirmation modal is shown, before it is answered. */
+	onConfirm?: (prompt: ControlConfirmation) => void;
 }
 
 /** A person at the keyboard, scripted. Records everything the flows ask of the editor. */
@@ -39,6 +41,7 @@ export class ScriptedUi implements DoctorDepthUi {
 	confirm(prompt: ControlConfirmation): Promise<boolean> {
 		this.confirmations.push(prompt);
 		this.events.push(`confirm:${prompt.message}`);
+		this.script.onConfirm?.(prompt);
 		return Promise.resolve(this.script.confirms?.shift() ?? true);
 	}
 

@@ -493,6 +493,15 @@ suite('Doctor depth: a CLI that lacks a subcommand, or is missing', () => {
 		assert.deepStrictEqual(ui.documents, []);
 	});
 
+	test('a help lookup that fails without saying the command is unknown is a failure, not "update the CLI"', async () => {
+		const cli = fakeDoctorCli({ helpCrash: true });
+		const { service } = harness(cli);
+		const check = await service.checkTrace();
+		assert.ok(!check.ok && check.reason === 'failed');
+		assert.match(check.detail, /could not read the help for doctor trace: panic: boom/);
+		assert.doesNotMatch(check.detail, /Update the CLI/);
+	});
+
 	test('a timeout on the help lookup is a failure, not a missing command', async function () {
 		this.timeout(15_000);
 		const cli = fakeDoctorCli({ slowHelp: 4 });

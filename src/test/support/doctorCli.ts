@@ -62,7 +62,7 @@ Inherited flags:
 `,
 };
 
-export type BundleMode = 'zip' | 'empty-zip' | 'none' | 'junk' | 'empty-file';
+export type BundleMode = 'zip' | 'empty-zip' | 'none' | 'junk' | 'empty-file' | 'junk-fail' | 'zip-then-sleep';
 
 export interface FakeDoctorOptions {
 	/** Help texts to replace or add, by `doctor_<sub>`. A null value means the CLI has no such subcommand. */
@@ -80,6 +80,10 @@ export interface FakeDoctorOptions {
 	slow?: Record<string, number>;
 	/** After a real migration, the repository's git directory is moved away so the refs cannot be counted. */
 	breakGit?: boolean;
+	/** While the bundle runs, something appears at this path (a file, or a link to a decoy), as if made by another process. */
+	plant?: { path: string; kind: 'file' | 'link' };
+	/** The help lookup for the doctor subcommands crashes with exit code 2 and no mention of an unknown command. */
+	helpCrash?: boolean;
 	/** The help lookup sleeps for this many seconds before it answers. */
 	slowHelp?: number;
 	noCli?: boolean;
@@ -138,6 +142,8 @@ export function fakeDoctorCli(options: FakeDoctorOptions = {}): FakeDoctorCli {
 		dryrun: options.dryRunText ?? 'Would migrate 2 checkpoints:\n  ab/cd1234\n  ef/gh5678\n',
 		bundlemode: options.bundle ?? 'zip',
 		creates: String(options.migrateCreates ?? 2),
+		plantpath: options.plant?.path ?? '',
+		plantkind: options.plant?.kind ?? '',
 	};
 	for (const [key, text] of Object.entries(outputs)) {
 		fs.writeFileSync(path.join(state, 'out', key), text);
@@ -156,6 +162,7 @@ export function fakeDoctorCli(options: FakeDoctorOptions = {}): FakeDoctorCli {
 		`S='${state}'`,
 		'case "$1" in',
 		'\tversion) echo "entire 0.12.2"; exit 0 ;;',
+		...(options.helpCrash ? ['\tagent-help) echo "panic: boom" >&2; exit 2 ;;'] : []),
 		`\tagent-help) ${options.slowHelp ? `sleep ${options.slowHelp}; ` : ''}shift; k=$(echo "$*" | tr " " "_"); if [ -f "$S/help/$k" ]; then cat "$S/help/$k"; exit 0; fi; echo "Error: Invalid usage: unknown command" >&2; exit 1 ;;`,
 		'esac',
 		`echo "$CTX|$*" >> '${log}'`,
@@ -178,7 +185,10 @@ export function fakeDoctorCli(options: FakeDoctorOptions = {}): FakeDoctorCli {
 		'\tbundle)',
 		'\t\tmode=$(cat "$S/out/bundlemode")',
 		'\t\tcase "$mode" in',
-		'\t\t\tzip) printf \'PK\\003\\004fake archive\' > "$out"; echo "$out" ;;',
+		'\t\t\tzip) printf \'PK\\003\\004fake archive\' > "$out"; echo "$out"',
+		'\t\t\t\tpp=$(cat "$S/out/plantpath"); if [ -n "$pp" ]; then if [ "$(cat "$S/out/plantkind")" = link ]; then ln -sf "$S/out/plantpath" "$pp"; else echo planted > "$pp"; fi; fi ;;',
+		'\t\t\tjunk-fail) printf \'junk\' > "$out"; echo "boom: could not finish" >&2; exit 1 ;;',
+		'\t\t\tzip-then-sleep) printf \'PK\\003\\004fake archive\' > "$out"; sleep 5 ;;',
 		'\t\t\tempty-zip) printf \'PK\\005\\006\' > "$out"; echo "$out" ;;',
 		'\t\t\tjunk) printf \'not a zip\' > "$out"; echo "$out" ;;',
 		'\t\t\tempty-file) : > "$out"; echo "$out" ;;',

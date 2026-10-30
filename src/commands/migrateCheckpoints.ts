@@ -33,6 +33,8 @@ const NO_LOGIN = 'No Entire login is available, so Entirely cannot say who the m
  */
 export async function migrateCheckpoints(deps: MigrationDependencies): Promise<MigrationFlowResult> {
 	const { ui } = deps;
+	// The login is read once, so the dry run, the question and the run all name the same one.
+	const acting = await deps.acting();
 
 	const report = await whileIdle<{ result: MigrationFlowResult; repository?: string; before?: number; dryRunFlag?: string }>(
 		deps.running,
@@ -50,7 +52,7 @@ export async function migrateCheckpoints(deps: MigrationDependencies): Promise<M
 				return { result: 'unavailable' };
 			}
 			const before = await deps.migration.countRefs();
-			const read = await ui.withProgress('Reading the migration report…', signal => deps.migration.dryRun(dryRunFlag, signal));
+			const read = await ui.withProgress('Reading the migration report…', signal => deps.migration.dryRun(dryRunFlag, acting, signal));
 			switch (read.kind) {
 				case 'cancelled':
 					void ui.notify('info', 'The migration report was cancelled. Nothing was written.');
@@ -82,7 +84,6 @@ export async function migrateCheckpoints(deps: MigrationDependencies): Promise<M
 
 	let shownOutput: string | undefined;
 	const applied = await whileIdle<MigrationFlowResult>(deps.running, ui, 'busy', async later => {
-		const acting = await deps.acting();
 		if (!acting) {
 			void ui.notify('warn', NO_LOGIN);
 			return 'no-login';
@@ -92,8 +93,10 @@ export async function migrateCheckpoints(deps: MigrationDependencies): Promise<M
 			return 'declined';
 		}
 
+		// Counted again here, so refs another process made while the question was open are not taken as ours.
+		const before = await deps.migration.countRefs();
 		const { outcome, output } = await ui.withProgress(`Creating checkpoint refs as ${acting.handle}…`, signal =>
-			deps.migration.apply(acting, report.before, signal),
+			deps.migration.apply(acting, before, signal),
 		);
 		shownOutput = output.trim().length > 0 ? output : undefined;
 		const message = describeMigrationOutcome(outcome);

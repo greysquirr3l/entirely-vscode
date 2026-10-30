@@ -77,8 +77,16 @@ export async function writeDiagnosticBundle(deps: BundleDependencies, options: {
 		}
 
 		const acting = await deps.acting();
+
+		// The path is looked at again now, just before the write, because the
+		// questions above took as long as the person did.
+		const again = checkBundlePath(file, await files.inspect(file));
+		if (!again.ok || again.overwrites !== path.overwrites || again.insideWorkspace !== path.insideWorkspace) {
+			void ui.notify('warn', `The bundle was not written: ${again.ok ? 'the path changed while you were deciding' : again.reason}. Nothing was written.`);
+			return 'refused';
+		}
 		const outcome = await ui.withProgress(options.raw ? 'Writing the unredacted bundle…' : 'Writing the bundle…', signal =>
-			deps.service.writeBundle({ out, raw: flags.raw }, file, options.raw, acting, signal),
+			deps.service.writeBundle({ out, raw: flags.raw }, file, options.raw, path.overwrites, acting, signal),
 		);
 
 		const message = describeBundleOutcome(outcome);

@@ -49,10 +49,11 @@ export class CheckpointMigrationService {
 		return countRefs(this.options.workspaceRoot(), CHECKPOINT_REF_PREFIX);
 	}
 
-	async dryRun(dryRunFlag: string, signal?: AbortSignal): Promise<DryRunRead> {
+	async dryRun(dryRunFlag: string, acting: AccountContext | undefined, signal?: AbortSignal): Promise<DryRunRead> {
 		const result = await this.options.runner.run(migrateDryRunArguments(dryRunFlag), {
 			cwd: this.options.workspaceRoot(),
 			timeoutMs: this.options.readTimeoutSeconds() * 1000,
+			context: acting?.name,
 			withholdBodies: true,
 			signal,
 		});
@@ -64,7 +65,7 @@ export class CheckpointMigrationService {
 		return result.stdout.trim().length === 0 ? { kind: 'empty' } : { kind: 'report', text: result.stdout, truncated: result.truncated === true };
 	}
 
-	/** Applies the migration once as the confirmed login. `before` is the count taken before the dry run. */
+	/** Applies the migration once as the confirmed login. `before` is the count taken just before this call. */
 	async apply(acting: AccountContext, before: number | undefined, signal?: AbortSignal): Promise<MigrationResult> {
 		const result = await this.options.runner.run(migrateApplyArguments(), {
 			cwd: this.options.workspaceRoot(),

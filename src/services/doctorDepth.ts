@@ -21,7 +21,8 @@ import {
 	type TraceRequest,
 } from '../lib/entire';
 import type { CliRunner } from './cli';
-import { verifyBundle } from './bundleFile';
+import { moveIntoPlace, temporaryBundlePath, verifyBundle } from './bundleFile';
+import { promises as fs } from 'fs';
 
 export interface DoctorDepthOptions {
 	readonly runner: CliRunner;
@@ -82,10 +83,11 @@ export class DoctorDepthService {
 			withholdBodies: true,
 		});
 		if (!usage.ok) {
-			if (usage.reason === 'exit-code') {
+			if (usage.reason === 'exit-code' && /unknown command/i.test(`${usage.stderr}\n${usage.stdout}`)) {
 				return { ok: false, reason: 'unsupported', detail: describeMissingSubcommand(sub, discovery.version), version: discovery.version };
 			}
-			return { ok: false, reason: 'failed', detail: failureDetail(usage.stderr, '', usage.detail) };
+			const said = failureDetail(usage.stderr, '', usage.detail);
+			return { ok: false, reason: 'failed', detail: usage.reason === 'exit-code' ? `could not read the help for doctor ${sub}: ${said}` : said };
 		}
 
 		const picked = pick(usage.value.raw);
@@ -147,32 +149,47 @@ export class DoctorDepthService {
 	}
 
 	/**
-	 * Writes a bundle to the path the person chose, then reads the file back.
+	 * Writes a bundle without ever touching the chosen path until it is good.
 	 *
-	 * The CLI runs once as the given login. What it prints is not trusted: the
-	 * file at the chosen path is what is checked.
+	 * The CLI writes to a hidden temporary file beside the chosen one. It is
+	 * read back, and only a regular zip archive is moved into place: renamed
+	 * over the file when replacing was confirmed, linked (which refuses to
+	 * replace anything) when it was not. The temporary file is removed on
+	 * every failure, cancel, timeout and failed check. The CLI runs once as
+	 * the given login; what it prints is not trusted.
 	 */
 	async writeBundle(
 		flags: { readonly out: string; readonly raw?: string },
 		file: string,
 		raw: boolean,
+		overwrite: boolean,
 		acting: AccountContext | undefined,
 		signal?: AbortSignal,
 	): Promise<BundleOutcome> {
-		const result = await this.options.runner.run(bundleArguments(flags, file, raw), {
-			cwd: this.options.workspaceRoot(),
-			timeoutMs: this.options.bundleTimeoutSeconds() * 1000,
-			context: acting?.name,
-			withholdBodies: true,
-			redactFlags: [flags.out],
-			signal,
-		});
-		if (!result.ok) {
-			if (result.reason === 'cancelled') {
-				return { kind: 'cancelled', file };
+		const temporary = temporaryBundlePath(file);
+		try {
+			const result = await this.options.runner.run(bundleArguments(flags, temporary, raw), {
+				cwd: this.options.workspaceRoot(),
+				timeoutMs: this.options.bundleTimeoutSeconds() * 1000,
+				context: acting?.name,
+				withholdBodies: true,
+				redactFlags: [flags.out],
+				signal,
+			});
+			if (!result.ok) {
+				if (result.reason === 'cancelled') {
+					return { kind: 'cancelled', file };
+				}
+				return { kind: 'failed', detail: failureDetail(result.stderr, result.stdout, result.detail) };
 			}
-			return { kind: 'failed', detail: failureDetail(result.stderr, result.stdout, result.detail) };
+			const outcome = bundleOutcomeFromReadback(file, await verifyBundle(temporary), raw);
+			if (outcome.kind !== 'written') {
+				return outcome;
+			}
+			const moved = await moveIntoPlace(temporary, file, overwrite);
+			return moved.ok ? outcome : { kind: 'failed', detail: moved.detail };
+		} finally {
+			await fs.rm(temporary, { force: true }).catch(() => undefined);
 		}
-		return bundleOutcomeFromReadback(file, await verifyBundle(file), raw);
 	}
 }

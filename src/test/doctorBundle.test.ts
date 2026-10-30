@@ -130,7 +130,10 @@ suite('Doctor bundle: writing to a chosen path', () => {
 		assert.deepStrictEqual(ui.confirmations[0], BUNDLE_NOTICE);
 		assert.match(ui.confirmations[0].detail, /logs, your Entire settings files and a snapshot of git status, history and remotes/);
 		assert.match(ui.confirmations[0].detail, /redacted by pattern; prompts, file paths and commit messages/);
-		assert.deepStrictEqual(bundleCalls(cli), [`${ALICE.name}|doctor bundle --out ${target}`]);
+		const calls = bundleCalls(cli);
+		assert.strictEqual(calls.length, 1);
+		assert.match(calls[0], new RegExp(`^${ALICE.name}\\|doctor bundle --out ${path.dirname(target).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/\\.entirely-[0-9a-f]{16}\\.zip$`));
+		assert.deepStrictEqual(fs.readdirSync(path.dirname(target)), ['diag.zip'], 'no temporary file remains');
 		assert.ok(fs.readFileSync(target).subarray(0, 4).equals(Buffer.from('PK\x03\x04', 'latin1')));
 
 		const done = ui.notices.at(-1);
@@ -172,6 +175,7 @@ suite('Doctor bundle: writing to a chosen path', () => {
 		assert.ok(run);
 		assert.deepStrictEqual(run.invocation.args.slice(-3), ['bundle', '--out', '<redacted>']);
 		assert.ok(!JSON.stringify(run.invocation).includes('private-name'));
+		assert.ok(!JSON.stringify(run.invocation).includes('.entirely-'), 'the temporary path is hidden too');
 		assert.strictEqual(run.bodies.stdout, undefined);
 	});
 
@@ -243,7 +247,7 @@ suite('Doctor bundle: reading the file back', () => {
 		const file = target();
 		const { deps, ui } = setup({ bundle: 'none' }, { paths: [file] });
 		assert.strictEqual(await writeDiagnosticBundle(deps, { raw: false }), 'unconfirmed');
-		assert.match(ui.notices.at(-1)?.message ?? '', /unconfirmed: the CLI finished but no archive was found at /);
+		assert.match(ui.notices.at(-1)?.message ?? '', /unconfirmed: the CLI finished but no archive was found where it was asked to write it/);
 		assert.deepStrictEqual(ui.notices.at(-1)?.actions, []);
 	});
 
@@ -282,7 +286,7 @@ suite('Doctor bundle: reading the file back', () => {
 	test('cancelling kills the run and is reported as cancelled', async () => {
 		const { cli, deps, ui } = setup({ slow: { bundle: 5 } }, { paths: [target()], cancelAfterMs: 400 });
 		assert.strictEqual(await writeDiagnosticBundle(deps, { raw: false }), 'cancelled');
-		assert.match(ui.notices.at(-1)?.message ?? '', /was cancelled\. A partial file may remain/);
+		assert.match(ui.notices.at(-1)?.message ?? '', /was cancelled\. Nothing was written/);
 		assert.strictEqual(bundleCalls(cli).length, 1);
 	});
 
@@ -318,7 +322,7 @@ suite('Doctor bundle: the unredacted bundle', () => {
 		assert.match(ui.confirmations[0].message, /UNREDACTED/);
 		assert.match(ui.confirmations[0].detail, /raw log lines, settings and git output, including any API keys, tokens or credentials/);
 		assert.strictEqual(ui.confirmations[0].action, 'Write unredacted bundle');
-		assert.deepStrictEqual(bundleCalls(cli), [`${ALICE.name}|doctor bundle --out ${target} --raw`]);
+		assert.match(bundleCalls(cli)[0], /doctor bundle --out \S+\.entirely-[0-9a-f]{16}\.zip --raw$/);
 		assert.match(ui.notices.at(-1)?.message ?? '', /unredacted bundle was written/);
 	});
 
@@ -333,5 +337,118 @@ suite('Doctor bundle: the unredacted bundle', () => {
 		const { cli, deps } = setup({}, { paths: [path.join(makeTempDir('entire-bundle-'), 'a.zip')] });
 		await writeDiagnosticBundle(deps, { raw: false });
 		assert.ok(!bundleCalls(cli).some(line => line.includes('raw')));
+	});
+});
+
+suite('Doctor bundle: the chosen path is only touched by a finished archive', () => {
+	const setupIn = (options: FakeDoctorOptions, name = 'diag.zip', existing?: string) => {
+		const folder = makeTempDir('entire-bundle-');
+		const target = path.join(folder, name);
+		if (existing !== undefined) {
+			fs.writeFileSync(target, existing);
+		}
+		return { ...setup(options, { paths: [target, target], confirms: [true, true] }), folder, target };
+	};
+
+	test('a CLI that writes junk and then fails leaves the folder empty and an existing file byte for byte', async () => {
+		const fresh = setupIn({ bundle: 'junk-fail' });
+		assert.strictEqual(await writeDiagnosticBundle(fresh.deps, { raw: false }), 'failed');
+		assert.deepStrictEqual(fs.readdirSync(fresh.folder), []);
+
+		const existing = setupIn({ bundle: 'junk-fail' }, 'diag.zip', 'precious');
+		assert.strictEqual(await writeDiagnosticBundle(existing.deps, { raw: false }), 'failed');
+		assert.strictEqual(fs.readFileSync(existing.target, 'utf8'), 'precious');
+		assert.deepStrictEqual(fs.readdirSync(existing.folder), ['diag.zip']);
+	});
+
+	test('cancelling mid-run removes what the CLI had written and leaves the target alone', async () => {
+		const folder = makeTempDir('entire-bundle-');
+		const target = path.join(folder, 'diag.zip');
+		fs.writeFileSync(target, 'precious');
+		const cli = fakeDoctorCli({ bundle: 'zip-then-sleep' });
+		const built = harness(cli, { paths: [target], cancelAfterMs: 600 });
+		const deps: BundleDependencies = { service: built.service, files: built.files, ui: built.ui, acting: () => Promise.resolve(ALICE) };
+		assert.strictEqual(await writeDiagnosticBundle(deps, { raw: false }), 'cancelled');
+		assert.strictEqual(fs.readFileSync(target, 'utf8'), 'precious');
+		assert.deepStrictEqual(fs.readdirSync(folder), ['diag.zip']);
+	});
+
+	test('a confirmed replacement swaps the file in one rename', async () => {
+		const run = setupIn({}, 'diag.zip', 'old');
+		assert.strictEqual(await writeDiagnosticBundle(run.deps, { raw: false }), 'written');
+		assert.strictEqual(fs.readFileSync(run.target).subarray(0, 2).toString(), 'PK');
+		assert.deepStrictEqual(fs.readdirSync(run.folder), ['diag.zip']);
+	});
+
+	test('a file that appears at the target meanwhile is not clobbered when replacing was not confirmed', async () => {
+		const folder = makeTempDir('entire-bundle-');
+		const target = path.join(folder, 'diag.zip');
+		const cli = fakeDoctorCli({ plant: { path: target, kind: 'file' } });
+		const built = harness(cli, { paths: [target] });
+		const deps: BundleDependencies = { service: built.service, files: built.files, ui: built.ui, acting: () => Promise.resolve(ALICE) };
+		assert.strictEqual(await writeDiagnosticBundle(deps, { raw: false }), 'failed');
+		assert.strictEqual(fs.readFileSync(target, 'utf8').trim(), 'planted');
+		assert.deepStrictEqual(fs.readdirSync(folder), ['diag.zip']);
+		assert.match(built.ui.notices.at(-1)?.message ?? '', /a file appeared at .* so it was not replaced/);
+	});
+
+	test('a link planted at the target between the check and the move is replaced, not followed', async () => {
+		const folder = makeTempDir('entire-bundle-');
+		const target = path.join(folder, 'diag.zip');
+		fs.writeFileSync(target, 'old');
+		const cli = fakeDoctorCli({ plant: { path: target, kind: 'link' } });
+		const decoy = path.join(cli.dir, 'state', 'out', 'plantpath');
+		const decoyBefore = fs.readFileSync(decoy, 'utf8');
+		const built = harness(cli, { paths: [target], confirms: [true, true] });
+		const deps: BundleDependencies = { service: built.service, files: built.files, ui: built.ui, acting: () => Promise.resolve(ALICE) };
+		assert.strictEqual(await writeDiagnosticBundle(deps, { raw: false }), 'written');
+		assert.ok(fs.lstatSync(target).isFile() && !fs.lstatSync(target).isSymbolicLink());
+		assert.strictEqual(fs.readFileSync(target).subarray(0, 2).toString(), 'PK');
+		assert.strictEqual(fs.readFileSync(decoy, 'utf8'), decoyBefore, 'what the link pointed at was not written through');
+	});
+
+	test('a link at the target with replacing not confirmed is never followed either', async () => {
+		const folder = makeTempDir('entire-bundle-');
+		const target = path.join(folder, 'diag.zip');
+		const cli = fakeDoctorCli({ plant: { path: target, kind: 'link' } });
+		const stateFile = path.join(cli.dir, 'state', 'out', 'plantpath');
+		const before = fs.readFileSync(stateFile, 'utf8');
+		const built = harness(cli, { paths: [target] });
+		const deps: BundleDependencies = { service: built.service, files: built.files, ui: built.ui, acting: () => Promise.resolve(ALICE) };
+		assert.strictEqual(await writeDiagnosticBundle(deps, { raw: false }), 'failed');
+		assert.ok(fs.lstatSync(target).isSymbolicLink());
+		assert.strictEqual(fs.readFileSync(stateFile, 'utf8'), before, 'what the link points at was not written through');
+	});
+
+	test('an archive that fails the check is removed and the target is untouched', async () => {
+		const run = setupIn({ bundle: 'junk' }, 'diag.zip', 'precious');
+		assert.strictEqual(await writeDiagnosticBundle(run.deps, { raw: false }), 'unconfirmed');
+		assert.strictEqual(fs.readFileSync(run.target, 'utf8'), 'precious');
+		assert.deepStrictEqual(fs.readdirSync(run.folder), ['diag.zip']);
+		assert.match(run.ui.notices.at(-1)?.message ?? '', /Nothing was written to .*diag\.zip, and nothing there was changed/);
+	});
+
+	test('the path is checked again just before the write, and a change aborts it', async () => {
+		const cli = fakeDoctorCli();
+		const second = makeTempDir('entire-bundle-');
+		const target2 = path.join(second, 'diag.zip');
+		const built2 = harness(cli, { paths: [target2] });
+		let reads = 0;
+		const deps2: BundleDependencies = {
+			service: built2.service,
+			files: built2.files,
+			ui: built2.ui,
+			// the login lookup is the last await before the re-check, so the file appears there
+			acting: () => {
+				reads++;
+				fs.writeFileSync(target2, 'appeared late');
+				return Promise.resolve(ALICE);
+			},
+		};
+		assert.strictEqual(await writeDiagnosticBundle(deps2, { raw: false }), 'refused');
+		assert.strictEqual(reads, 1);
+		assert.strictEqual(fs.readFileSync(target2, 'utf8'), 'appeared late');
+		assert.strictEqual(bundleCalls(cli).length, 0);
+		assert.match(built2.ui.notices.at(-1)?.message ?? '', /path changed while you were deciding/);
 	});
 });
