@@ -192,6 +192,21 @@ export async function approveChange(
 		return;
 	}
 
+	// Choosing the change in the picker was the confirmation. A change that
+	// arrived with the command, from a row or a link in the detail panel,
+	// was not chosen here, so one click must not approve it on its own.
+	if (asChangePick(target)) {
+		const as = deps.actingHandle() ?? 'the login the extension is acting as';
+		const confirmed = await vscode.window.showWarningMessage(
+			`Approve ${describeChange(pick.change)} as ${as}?`,
+			{ modal: true },
+			'Approve',
+		);
+		if (confirmed !== 'Approve') {
+			return;
+		}
+	}
+
 	const result = await deps.trails.approve(pick.selector, undefined);
 
 	if (result.kind === 'failed') {

@@ -29,6 +29,8 @@ export type SelectableView<T> = Pick<vscode.TreeView<T>, 'onDidChangeSelection'>
 export type SelectionCommandDependencies = Pick<SelectionWiring, 'selection' | 'documents' | 'show' | 'inform'> & {
 	/** Puts text on the clipboard. Defaults to the editor's. */
 	readonly copy?: (text: string) => Thenable<void>;
+	/** The detail panel, so a click can bring it back. */
+	readonly panel?: Pick<DetailPanel, 'reveal'>;
 	/** Says something briefly in the status bar. Defaults to the editor's. */
 	readonly say?: (message: string) => void;
 };
@@ -146,6 +148,9 @@ export function registerSelectionCommands(context: { readonly subscriptions: vsc
 	context.subscriptions.push(
 		vscode.commands.registerCommand('entirely.selectItem', async (chosen?: unknown, source?: unknown) => {
 			await selectItem(wiring.selection, chosen, source);
+			// An unchanged item applies nothing, so a click on it must still
+			// bring a hidden panel back.
+			wiring.panel?.reveal();
 		}),
 
 		vscode.commands.registerCommand('entirely.retryDetail', async () => {

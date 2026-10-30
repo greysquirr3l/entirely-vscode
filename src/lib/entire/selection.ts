@@ -216,6 +216,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function isRowNumber(value: unknown): boolean {
+	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
 /**
  * Whether a command argument is a selection.
  *
@@ -230,14 +234,14 @@ export function isSelection(value: unknown): value is Selection {
 		case 'session':
 			return isRecord(value.session) && typeof value.session.id === 'string' && typeof value.session.agent === 'string';
 		case 'trail':
-			return isRecord(value.entry) && isRecord(value.entry.trail) && typeof value.entry.trail.number === 'number';
+			return isRecord(value.entry) && isRecord(value.entry.trail) && isRowNumber(value.entry.trail.number);
 		case 'change':
 			return (
 				isRecord(value.trail) &&
 				isRecord(value.entry) &&
 				isRecord(value.entry.change) &&
 				typeof value.entry.change.repository === 'string' &&
-				typeof value.entry.change.number === 'number'
+				isRowNumber(value.entry.change.number)
 			);
 		case 'commit':
 		case 'activity-session':

@@ -57,6 +57,21 @@ function isSettled(change: TrailChange): boolean {
 	return change.status === 'merged' || change.status === 'closed';
 }
 
+/**
+ * Which trails to read for a choice of change, in order: open trails that
+ * carry no changes yet, as many as `limit` allows. Closed trails are left
+ * out, because their changes are not ones to act on.
+ */
+export function readingOrder(
+	trails: readonly Trail[],
+	limit: number,
+): { readonly trail: Trail; readonly index: number }[] {
+	return trails
+		.map((trail, index) => ({ trail, index }))
+		.filter(({ trail }) => trail.status === 'open' && trail.changes.length === 0)
+		.slice(0, Math.max(0, limit));
+}
+
 interface Held<T> {
 	readonly value: T;
 	readonly loadedAt: number;
@@ -236,13 +251,17 @@ export class TrailChangesService {
 	 * This is for choosing a change to act on: the CLI's list carries no
 	 * changes, so a choice made from the list alone has nothing to choose.
 	 */
-	async withChanges(trails: readonly Trail[], limit: number): Promise<Trail[]> {
+	async withChanges(
+		trails: readonly Trail[],
+		limit: number,
+		isCancelled: () => boolean = () => false,
+	): Promise<Trail[]> {
 		const out = [...trails];
-		const wanted = out.map((trail, index) => ({ trail, index })).filter(({ trail }) => trail.changes.length === 0).slice(0, Math.max(0, limit));
+		const wanted = readingOrder(out, limit);
 
 		let next = 0;
 		const runners = Array.from({ length: Math.min(BADGE_CONCURRENCY, wanted.length) }, async () => {
-			while (next < wanted.length) {
+			while (next < wanted.length && !isCancelled()) {
 				const job = wanted[next++];
 				const shown = await this.read(job.trail.number);
 				if (shown.kind === 'ok') {

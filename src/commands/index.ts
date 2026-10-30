@@ -108,6 +108,18 @@ export interface CommandDependencies {
 	readonly output: vscode.OutputChannel;
 }
 
+function sessionIdOf(target: unknown): string | undefined {
+	if (typeof target !== 'object' || target === null) {
+		return undefined;
+	}
+	const session = (target as { session?: unknown }).session;
+	if (typeof session !== 'object' || session === null) {
+		return undefined;
+	}
+	const id = (session as { id?: unknown }).id;
+	return typeof id === 'string' ? id : undefined;
+}
+
 const EXTENSION_ID = 'greysquirr3l.entirely';
 
 /**
@@ -130,7 +142,15 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 	const trailReview: TrailReviewDependencies = {
 		trails: deps.trails,
 		actingHandle: () => deps.accounts.current.acting?.handle,
-		withChanges: trails => deps.trailChanges.withChanges(trails, MAX_TRAIL_BADGE_LIMIT),
+		// Reading every open trail can take a while, so it shows progress and
+		// can be cancelled. It does not depend on the badge setting.
+		withChanges: trails =>
+			Promise.resolve(
+				vscode.window.withProgress(
+					{ location: vscode.ProgressLocation.Notification, title: 'Reading the changes of the trails…', cancellable: true },
+					(_progress, token) => deps.trailChanges.withChanges(trails, MAX_TRAIL_BADGE_LIMIT, () => token.isCancellationRequested),
+				),
+			),
 		changed: pick => {
 			deps.selection.invalidate(touchedKeys(pick));
 			void deps.trailsProvider.refresh().then(() => deps.selection.reloadFrom(deps.trailsProvider));
@@ -218,8 +238,13 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 
 		// The transcript opens in a read-only editor. It is reached from the
 		// detail view and from a session's context menu.
-		vscode.commands.registerCommand('entirely.openTranscript', async (target?: string | SessionItemNode) => {
-			const id = typeof target === 'string' ? target : target?.session.id;
+		vscode.commands.registerCommand('entirely.openTranscript', async (target?: unknown) => {
+			// A link or any caller can pass anything, so only text and a row
+			// with a session id are followed.
+			const id = typeof target === 'string' ? target : sessionIdOf(target);
+			if (target !== undefined && id === undefined) {
+				return;
+			}
 			await openTranscript(
 				{
 					sessionDetail: deps.sessionDetail,

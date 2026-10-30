@@ -216,7 +216,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		generated,
 		vscode.workspace.registerTextDocumentContentProvider(GENERATED_SCHEME, generated),
 	);
-	registerSelectionCommands(context, { selection, documents: generated });
+	// The detail of the selected row opens in one panel beside the code.
+	const panel = new DetailPanel({ iconPath: vscode.Uri.joinPath(context.extensionUri, 'images', 'entirely-view.svg') });
+	context.subscriptions.push(panel);
+	registerSelectionCommands(context, { selection, documents: generated, panel });
 
 	const checkpoints = new CheckpointsProvider(
 		createCheckpointSource(runner, workspaceRoot),
@@ -511,9 +514,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		}),
 	);
 
-	// The detail of the selected row opens in one panel beside the code.
-	const panel = new DetailPanel({ iconPath: vscode.Uri.joinPath(context.extensionUri, 'images', 'entirely-view.svg') });
-	context.subscriptions.push(panel);
 
 	registerCommands(context, {
 		search,

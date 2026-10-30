@@ -129,6 +129,18 @@ export class DetailPanel implements vscode.Disposable {
 		this.opened.fire(true);
 	}
 
+	/**
+	 * Shows the panel again if another tab is hiding it, without taking focus.
+	 * Choosing the row that is already shown changes nothing to apply, so
+	 * this is what makes that click bring the detail back.
+	 */
+	reveal(): void {
+		const panel = this.panel;
+		if (panel && !panel.visible && panel.viewColumn !== undefined) {
+			panel.reveal(panel.viewColumn, true);
+		}
+	}
+
 	/** Closes the panel, if it is open. */
 	close(): void {
 		this.panel?.dispose();

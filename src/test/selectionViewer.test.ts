@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
-import { approveChange, linkBranch, type TrailReviewDependencies } from '../commands/trailReview';
+import { approveChange, checkoutChange, commentOnChange, linkBranch, mergeChange, unlinkBranch, type TrailReviewDependencies } from '../commands/trailReview';
 import { copyCommitHash, openDetailInEditor, selectItem, wireSelection, type SelectionWiring } from '../commands/selection';
 import { SessionDetailProvider } from '../providers/sessionDetailProvider';
 import { DetailPanel } from '../providers/detailPanel';
@@ -16,6 +16,8 @@ import {
 	DETAIL_COMMANDS,
 	decodeTrail,
 	describeViewerTitle,
+	isSelection,
+	type Trail,
 	parseActivity,
 	renderDetailHtml,
 	selectionKey,
@@ -30,7 +32,7 @@ import { createLogger } from '../services/logger';
 import { SelectionService } from '../services/selection';
 import { createSelectionLoader, type TrailReader } from '../services/selectionLoader';
 import { createTrailListingSource } from '../services/trailListing';
-import { TrailChangesService } from '../services/trailChanges';
+import { TrailChangesService, readingOrder } from '../services/trailChanges';
 import { TrailService } from '../services/trailService';
 import type { ActivityOutcome } from '../services/activity';
 import { COMMITS_OUTPUT, SESSIONS_OUTPUT } from './support/activityCli';
@@ -367,14 +369,29 @@ suite('Entire detail panel: actions', function () {
 				picker += 1;
 				return undefined;
 			};
+			const warning = window.showWarningMessage;
+			const asked: string[] = [];
+			window.showWarningMessage = async (message: string) => {
+				asked.push(message);
+				return 'Approve';
+			};
 			try {
 				await withoutPopups(async () => {
+					window.showWarningMessage = async (message: string) => {
+						if (message.startsWith('Approve ')) {
+							asked.push(message);
+						}
+						return 'Approve';
+					};
 					await approveChange(deps, pick);
 				});
 			} finally {
 				window.showQuickPick = original;
+				window.showWarningMessage = warning;
 			}
 
+			assert.strictEqual(asked.length, 1, 'a change given by a row or link is confirmed once');
+			assert.match(asked[0], /^Approve .*entirely-vscode\/17.* as /);
 			assert.strictEqual(picker, 0, 'the reviewer was asked which change');
 			assert.ok(setup.asked().some(line => line.startsWith('trail approve entirely-vscode/17')));
 			assert.deepStrictEqual(changed, ['trail:40', 'change:entirely-vscode/17']);
@@ -1247,5 +1264,180 @@ suite('Entire detail panel: closing, copying and the Session view', function () 
 			trails.dispose();
 			setup.service.dispose();
 		}
+	});
+});
+
+suite('Entire detail panel: acting from a link, and bringing the panel back', function () {
+	this.timeout(30_000);
+
+	async function withModal(answer: string | undefined, run: () => Promise<void>): Promise<string[]> {
+		const window = vscode.window as unknown as Record<string, unknown>;
+		const names = ['showInformationMessage', 'showWarningMessage', 'showErrorMessage', 'showInputBox'];
+		const originals = names.map(name => window[name]);
+		const modals: string[] = [];
+		window.showInformationMessage = async () => undefined;
+		window.showErrorMessage = async () => undefined;
+		window.showInputBox = async () => undefined;
+		window.showWarningMessage = async (message: string, options?: { modal?: boolean }) => {
+			modals.push(`${options?.modal ? 'modal' : 'plain'}: ${message}`);
+			return answer;
+		};
+		try {
+			await run();
+		} finally {
+			names.forEach((name, index) => {
+				window[name] = originals[index];
+			});
+		}
+		return modals;
+	}
+
+	test('approve from a row or link confirms with a modal naming the change and login: cancel does nothing, confirm approves once', async () => {
+		const setup = await trailSetup();
+		try {
+			await setup.service.select(setup.change, 'trails');
+			const shown = setup.service.state;
+			assert.ok(shown.kind === 'ready' && shown.model.pick);
+			const deps: TrailReviewDependencies = { trails: setup.trails, actingHandle: () => 'reviewer' };
+			const approvals = (): number => setup.asked().filter(line => line.startsWith('trail approve')).length;
+
+			const cancelled = await withModal(undefined, async () => approveChange(deps, shown.model.pick));
+			assert.strictEqual(approvals(), 0, 'cancel approved');
+			assert.strictEqual(cancelled.length, 1);
+			assert.match(cancelled[0], /^modal: Approve .*entirely-vscode\/17.* as reviewer\?$/);
+
+			await withModal('Approve', async () => approveChange(deps, shown.model.pick));
+			assert.strictEqual(approvals(), 1);
+		} finally {
+			setup.service.dispose();
+		}
+	});
+
+	test('merge, check out, link and unlink from a row or link still show their own modals; comment still asks for text', async () => {
+		const setup = await trailSetup();
+		try {
+			await setup.service.select(setup.change, 'trails');
+			const shown = setup.service.state;
+			assert.ok(shown.kind === 'ready' && shown.model.pick);
+			const pick = shown.model.pick;
+			const deps: TrailReviewDependencies = { trails: setup.trails, actingHandle: () => 'reviewer' };
+			const mutating = (): number => setup.asked().filter(line => /^trail (merge(?!.*--dry-run)|checkout|link|unlink|comment)/.test(line)).length;
+
+			const modals = await withModal(undefined, async () => {
+				await mergeChange(deps, pick);
+				await checkoutChange(deps, pick);
+			});
+			assert.strictEqual(modals.length, 2);
+			assert.ok(modals.every(line => line.startsWith('modal:')));
+			assert.strictEqual(mutating(), 0);
+
+			const linkModals = await withModal(undefined, async () => {
+				await linkBranch(deps, pick);
+				await unlinkBranch(deps, pick);
+			});
+			assert.strictEqual(mutating(), 0, 'cancelled link or unlink changed something');
+			assert.ok(linkModals.every(line => line.startsWith('modal:')));
+
+			await withModal(undefined, async () => commentOnChange(deps, pick));
+			assert.strictEqual(mutating(), 0, 'a comment was posted without text');
+		} finally {
+			setup.service.dispose();
+		}
+	});
+
+	test('choosing the same row again brings a hidden panel back without a second read and without focus', async () => {
+		let reads = 0;
+		const service = new SelectionService({
+			loader: async selection => {
+				reads += 1;
+				return { kind: 'ready', model: { key: selectionKey(selection), kind: 'commit', title: 't', rows: [], heading: 'h' } };
+			},
+			ttlSeconds: () => 30,
+		});
+		const fake = fakePanels();
+		const panel = new DetailPanel({ create: fake.create });
+		const selection: Selection = { kind: 'commit', entry: { text: 'a1b2c3d t  acme/app', id: 'a1b2c3d', title: 't', repo: 'acme/app' } };
+		service.onDidChange(state => panel.apply(state));
+		try {
+			await selectItem(service, selection, 'activity');
+			panel.reveal();
+			const made = fake.made[0];
+			made.visible = false;
+			await selectItem(service, selection, 'activity');
+			panel.reveal();
+			assert.strictEqual(reads, 1, 'the second click read again');
+			assert.deepStrictEqual(made.reveals, [{ viewColumn: vscode.ViewColumn.Two, preserveFocus: true }]);
+
+			// A closed panel is not revived by reveal, but the next selection makes a new one.
+			made.dispose();
+			service.release();
+			panel.reveal();
+			assert.strictEqual(fake.made.length, 1);
+			await selectItem(service, selection, 'activity');
+			assert.strictEqual(fake.made.length, 2);
+			assert.strictEqual(reads, 1);
+		} finally {
+			panel.dispose();
+			service.dispose();
+		}
+	});
+
+	test('the select command reveals the panel after selecting', () => {
+		const source = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'commands', 'selection.ts'), 'utf8');
+		assert.match(source, /await selectItem\(wiring\.selection, chosen, source\);\s*[^]*?wiring\.panel\?\.reveal\(\)/);
+		const activation = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'extension.ts'), 'utf8');
+		assert.ok(activation.indexOf('new DetailPanel(') < activation.indexOf('registerSelectionCommands('));
+	});
+
+	test('isSelection takes only whole positive numbers for a trail or change', () => {
+		const trail = (number: unknown): unknown => ({ kind: 'trail', entry: { trail: { number } } });
+		const change = (number: unknown): unknown => ({ kind: 'change', trail: {}, entry: { change: { repository: 'r', number } } });
+		for (const bad of [Number.NaN, 1.5, -1, 0, Number.MAX_VALUE, Infinity, '4', null]) {
+			assert.strictEqual(isSelection(trail(bad)), false, String(bad));
+			assert.strictEqual(isSelection(change(bad)), false, String(bad));
+		}
+		assert.strictEqual(isSelection(trail(40)), true);
+		assert.strictEqual(isSelection(change(17)), true);
+	});
+
+	test('the transcript command ignores a crafted argument instead of throwing', async () => {
+		const extension = vscode.extensions.getExtension('greysquirr3l.entirely');
+		assert.ok(extension);
+		await extension.activate();
+		for (const bad of [{}, { session: null }, { session: { id: 4 } }, 4, null, [], { session: 'x' }]) {
+			await vscode.commands.executeCommand('entirely.openTranscript', bad);
+		}
+	});
+
+	test('the palette reads open trails without changes first, skips closed ones, and honours the limit', () => {
+		const mk = (number: number, status: 'open' | 'closed', changes = 0): Trail => ({
+			id: `t${number}`,
+			number,
+			status,
+			partial: false,
+			changes: Array.from({ length: changes }, (_, index) => ({ id: `c${number}${index}`, repository: 'r', branch: 'b', number: index + 1 })),
+		});
+		const list = [mk(1, 'closed'), mk(2, 'open'), mk(3, 'open', 1), mk(4, 'open'), mk(5, 'open')];
+		assert.deepStrictEqual(readingOrder(list, 50).map(job => job.trail.number), [2, 4, 5]);
+		assert.deepStrictEqual(readingOrder(list, 2).map(job => job.index), [1, 3]);
+		assert.deepStrictEqual(readingOrder(list, 0), []);
+	});
+
+	test('a cancelled palette read stops reading further trails', async () => {
+		const seen: number[] = [];
+		const service = new TrailChangesService({
+			trails: {
+				show: async selector => {
+					seen.push(selector.kind === 'trail' ? selector.number : -1);
+					return { kind: 'failed', detail: 'x' };
+				},
+				mergePlan: async () => ({ kind: 'failed', detail: 'x' }),
+				approvals: async () => ({ kind: 'failed', detail: 'x' }),
+			},
+			ttlSeconds: () => 0,
+		});
+		const trails: Trail[] = [1, 2, 3, 4, 5, 6].map(number => ({ id: `t${number}`, number, status: 'open', partial: false, changes: [] }));
+		await service.withChanges(trails, 50, () => seen.length >= 3);
+		assert.ok(seen.length <= 5, `${seen.length} reads after cancelling`);
 	});
 });

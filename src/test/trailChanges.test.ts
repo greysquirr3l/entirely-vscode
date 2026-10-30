@@ -403,7 +403,7 @@ suite('Entire trail changes: the badge', function () {
 		const service = new TrailChangesService({ trails: source, ttlSeconds: () => 0, now: () => NOW });
 		const listed = [openTrail(1), openTrail(2), { ...openTrail(3), status: 'closed' as const }];
 		const filled = await service.withChanges(listed, 50);
-		assert.deepStrictEqual(filled.map(trail => trail.changes.length), [1, 1, 1]);
+		assert.deepStrictEqual(filled.map(trail => trail.changes.length), [1, 1, 0], 'a closed trail is not read');
 
 		const limited = await service.withChanges(listed, 1);
 		assert.deepStrictEqual(limited.map(trail => trail.changes.length), [1, 0, 0]);
