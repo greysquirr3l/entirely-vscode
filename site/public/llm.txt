@@ -4,9 +4,6 @@
 
 Entirely is a community project and is not affiliated with or endorsed by Entire. It targets Entire CLI 0.12.2. Source: https://github.com/greysquirr3l/entirely-vscode
 
-## Landing
-- [Entirely](https://greysquirr3l.github.io/entirely/): What the extension is, what it shows, and where to start.
-
 ## Getting started
 - [Introduction](https://greysquirr3l.github.io/entirely/getting-started/introduction/): What Entirely is, what it shows, and what it needs.
 - [Installation](https://greysquirr3l.github.io/entirely/getting-started/installation/): Install the extension and the Entire CLI.
@@ -18,21 +15,21 @@ Entirely is a community project and is not affiliated with or endorsed by Entire
 - [Trails and review](https://greysquirr3l.github.io/entirely/guides/trails-and-review/): Read, approve, comment on and merge Entire trails.
 - [Search](https://greysquirr3l.github.io/entirely/guides/search/): Search past agent work, commits and code.
 - [Activity, dispatch and recap](https://greysquirr3l.github.io/entirely/guides/activity-dispatch-recap/): Recent activity across repositories, and the generated dispatch.
-- [Agent integrations](https://greysquirr3l.github.io/entirely/guides/agent-integrations/): List, install and remove the agents the CLI supports.
-- [Integrations and MCP](https://greysquirr3l.github.io/entirely/guides/integrations-and-mcp/): Entire plugins and the Entire MCP server for the editor's agent.
-- [Plugins](https://greysquirr3l.github.io/entirely/guides/plugins/): Suggested Entire plugins and how Entirely installs them.
-- [Control plane](https://greysquirr3l.github.io/entirely/guides/control-plane/): Projects, repositories, organisations and clusters.
+- [Manage Agent Integrations](https://greysquirr3l.github.io/entirely/guides/agent-integrations/): List, install and remove the agent integrations the Entire CLI supports, and see which ones receive the editor's own events.
+- [Integrations and the MCP server](https://greysquirr3l.github.io/entirely/guides/integrations-and-mcp/): See which Entire plugins and the Entire MCP server are available per project, install or turn them on from the view, and add the server to .mcp.json.
+- [Run and install plugins](https://greysquirr3l.github.io/entirely/guides/plugins/): Run an Entire plugin command from the editor, read its output, and install plugins from the plugin index.
+- [Use the control plane](https://greysquirr3l.github.io/entirely/guides/control-plane/): Browse projects, repositories, organisations and clusters, and change them from the editor with confirmations that name the target and the login.
 - [History import](https://greysquirr3l.github.io/entirely/guides/history-import/): Import existing agent history into Entire.
 - [Blame and why this line](https://greysquirr3l.github.io/entirely/guides/blame-and-why/): Find which agent edit introduced a line, and why.
-- [Doctor and diagnostics](https://greysquirr3l.github.io/entirely/guides/doctor-and-diagnostics/): Produce a diagnostic report and read the output channel.
+- [Diagnose problems](https://greysquirr3l.github.io/entirely/guides/doctor-and-diagnostics/): Produce a diagnostic report, read the CLI's own doctor findings, use the output channel, and fix the common causes.
 
 ## Reference
-- [Commands](https://greysquirr3l.github.io/entirely/reference/commands/): Every command the extension contributes.
-- [Settings](https://greysquirr3l.github.io/entirely/reference/settings/): Every setting, its default and what it changes.
-- [Views](https://greysquirr3l.github.io/entirely/reference/views/): The views Entirely adds and what each holds.
-- [Status bar](https://greysquirr3l.github.io/entirely/reference/status-bar/): The status bar item and what each state means.
-- [CLI commands used](https://greysquirr3l.github.io/entirely/reference/cli-commands-used/): The Entire CLI commands the extension runs.
-- [CLI coverage](https://greysquirr3l.github.io/entirely/reference/coverage/): Which parts of the Entire CLI the extension covers.
+- [Commands](https://greysquirr3l.github.io/entirely/reference/commands/): Every command the extension contributes, where it appears, and whether it changes anything on Entire.
+- [Settings](https://greysquirr3l.github.io/entirely/reference/settings/): Every setting, its default, scope and range, and what it changes.
+- [Views](https://greysquirr3l.github.io/entirely/reference/views/): Every view the extension adds, with its default visibility, when-clause, welcome text and toolbar.
+- [Status bar](https://greysquirr3l.github.io/entirely/reference/status-bar/): The status bar item, every state it can show, its tooltip and what a click does.
+- [CLI commands used](https://greysquirr3l.github.io/entirely/reference/cli-commands-used/): The entire commands the extension runs, which feature uses each, and which ones change something.
+- [CLI coverage](https://greysquirr3l.github.io/entirely/reference/coverage/): Which parts of the Entire CLI the extension covers, what it leaves out on purpose, and the gaps.
 
 ## Concepts
 - [How Entirely works](https://greysquirr3l.github.io/entirely/concepts/how-entirely-works/): The extension reads the CLI and never re-implements it.
@@ -41,8 +38,8 @@ Entirely is a community project and is not affiliated with or endorsed by Entire
 - [Remote windows](https://greysquirr3l.github.io/entirely/concepts/remote-windows/): Using Entirely in SSH, container and WSL windows.
 
 ## Contributing
-- [Development](https://greysquirr3l.github.io/entirely/contributing/development/): Set up the repository and run the extension from source.
-- [Testing](https://greysquirr3l.github.io/entirely/contributing/testing/): Run the extension-host tests and the CLI contract check.
-- [Architecture](https://greysquirr3l.github.io/entirely/contributing/architecture/): Layers, boundaries and where code lives.
-- [Release](https://greysquirr3l.github.io/entirely/contributing/release/): How a version is built, checked and published.
-- [Security](https://greysquirr3l.github.io/entirely/contributing/security/): Reporting a vulnerability and the extension's threat model.
+- [Development](https://greysquirr3l.github.io/entirely/contributing/development/): Clone, build and run Entirely in an Extension Development Host, and the rules the code follows.
+- [Testing](https://greysquirr3l.github.io/entirely/contributing/testing/): How the test suite runs, the fake CLIs it uses, the coverage tests, and the CI checks.
+- [Architecture](https://greysquirr3l.github.io/entirely/contributing/architecture/): The layers, the one CLI runner, and how a feature flows from a command to a view.
+- [Release](https://greysquirr3l.github.io/entirely/contributing/release/): Versioning, the tag-driven release workflow, branch protection, the Entire trail gate and the docs deploy.
+- [Security](https://greysquirr3l.github.io/entirely/contributing/security/): How to report a vulnerability, what is in scope, and what the extension does to protect you.
