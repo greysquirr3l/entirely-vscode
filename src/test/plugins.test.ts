@@ -119,6 +119,13 @@ suite('Entire plugin help and list text', () => {
 		assert.deepStrictEqual(parseInstalledPlugins('NAME\n'), []);
 	});
 
+	test('reads a long adversarial line quickly', () => {
+		const started = Date.now();
+		parseInstalledPlugins(`NAME${' A'.repeat(50000)}!`);
+		assert.deepStrictEqual(parseInstalledPlugins(`NAME${' A'.repeat(50000)}`), []);
+		assert.ok(Date.now() - started < 1000);
+	});
+
 	test('says which plugin is missing and how to install it', () => {
 		const message = describeMissingPlugin('graph');
 		assert.match(message, /"graph" plugin is not installed/);

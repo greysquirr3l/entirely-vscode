@@ -50,7 +50,10 @@ export interface InstalledPlugin {
  * row with lower-case words after it, which is not a heading.
  */
 function isListHeader(line: string): boolean {
-	return /^NAME(\s+[A-Z][A-Z_/ -]*)*$/.test(line);
+	// Split on whitespace and test each word on its own: no repetition is nested
+	// inside another, so the cost stays linear in the length of the line.
+	const [first, ...rest] = line.split(/\s+/);
+	return first === 'NAME' && rest.every(word => /^[A-Z][A-Z_/-]*$/.test(word));
 }
 
 /**

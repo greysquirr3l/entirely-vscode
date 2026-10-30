@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import * as childProcess from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
@@ -57,6 +58,7 @@ import {
 } from '../services/integrationOffers';
 import { McpServerService } from '../services/mcpServer';
 import { PluginService } from '../services/plugins';
+import { openRegularFile } from '../services/openRegularFile';
 import { ProjectMcpConfig } from '../services/projectMcpConfig';
 import { ALICE } from './support/activityCli';
 import { fakePluginCli, type FakePluginCli } from './support/pluginCli';
@@ -392,6 +394,42 @@ suite('Entire project MCP configuration files', () => {
 		assert.strictEqual(outcome.kind, 'refused');
 		assert.strictEqual(fs.readFileSync(victim, 'utf8'), '{}');
 		assert.strictEqual((await config.inspect(folder.path)).kind, 'unreadable');
+	});
+
+	test('refuses a directory or a named pipe at the file, without opening it for good', async function () {
+		const folder = makeFolder();
+		fs.mkdirSync(path.join(folder.path, '.mcp.json'));
+		const directory = await config.add(folder.path, ARGS);
+		assert.strictEqual(directory.kind, 'refused');
+		assert.match(directory.kind === 'refused' ? directory.detail : '', /not a file/);
+		if (process.platform !== 'win32') {
+			const piped = makeFolder();
+			childProcess.execFileSync('mkfifo', [path.join(piped.path, '.mcp.json')]);
+			const outcome = await config.add(piped.path, ARGS);
+			assert.strictEqual(outcome.kind, 'refused');
+			assert.match(outcome.kind === 'refused' ? outcome.detail : '', /not a file/);
+		}
+	});
+
+	test('openRegularFile reads from the handle it checked, and names a link, a directory and a missing file', async function () {
+		const folder = makeFolder();
+		const file = path.join(folder.path, 'a.json');
+		fs.writeFileSync(file, 'hello');
+		const opened = await openRegularFile(file);
+		assert.strictEqual(opened.kind, 'ok');
+		if (opened.kind === 'ok') {
+			// Replacing the name after the open does not change what the handle reads.
+			fs.rmSync(file);
+			fs.writeFileSync(file, 'other');
+			assert.strictEqual(await opened.handle.readFile({ encoding: 'utf8' }), 'hello');
+			await opened.handle.close();
+		}
+		assert.strictEqual((await openRegularFile(path.join(folder.path, 'none'))).kind, 'absent');
+		assert.strictEqual((await openRegularFile(folder.path)).kind, 'not-file');
+		if (process.platform !== 'win32') {
+			fs.symlinkSync(file, path.join(folder.path, 'link.json'));
+			assert.strictEqual((await openRegularFile(path.join(folder.path, 'link.json'))).kind, 'link');
+		}
 	});
 
 	test('does not write through a .vscode directory that leads outside the folder', async () => {

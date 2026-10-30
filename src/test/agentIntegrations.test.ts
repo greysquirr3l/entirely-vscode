@@ -365,6 +365,19 @@ suite('Hook configuration scan', () => {
 		});
 	});
 
+	test('does not read through a link at a configuration file, or a directory named like one', async function () {
+		if (process.platform === 'win32') {
+			this.skip();
+		}
+		const dir = makeTempDir('entire-scan-');
+		const outside = makeTempDir('entire-scan-outside-');
+		fs.mkdirSync(path.join(dir, '.one', 'dir.json'), { recursive: true });
+		fs.writeFileSync(path.join(outside, 'secret.json'), 'entire hooks one stop');
+		fs.symlinkSync(path.join(outside, 'secret.json'), path.join(dir, '.one', 'link.json'));
+		fs.writeFileSync(path.join(dir, '.one', 'real.json'), 'entire hooks one stop');
+		assert.deepStrictEqual((await scanHookConfig(dir)).map(file => file.file), ['.one/real.json']);
+	});
+
 	test('skips a file larger than the limit and a missing workspace', async () => {
 		const dir = makeTempDir('entire-scan-');
 		fs.mkdirSync(path.join(dir, '.big'));

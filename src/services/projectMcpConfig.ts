@@ -15,6 +15,7 @@ import {
 	type McpConfigState,
 	type McpConfigTarget,
 } from '../lib/entire';
+import { openRegularFile } from './openRegularFile';
 
 export type AddOutcome =
 	| { readonly kind: 'added'; readonly file: McpConfigFile; readonly created: boolean }
@@ -62,30 +63,31 @@ export class ProjectMcpConfig implements ProjectMcpSource {
 
 	private async read(folder: string, target: McpConfigTarget): Promise<Read> {
 		const file = path.join(folder, ...target.file.split('/'));
-		let info;
-		try {
-			info = await fs.lstat(file);
-		} catch (error) {
-			return (error as NodeJS.ErrnoException).code === 'ENOENT' || (error as NodeJS.ErrnoException).code === 'ENOTDIR'
-				? { kind: 'absent' }
-				: { kind: 'refused', detail: message(error) };
-		}
-		if (info.isSymbolicLink()) {
-			return { kind: 'refused', detail: `${target.file} is a link, so it is left alone` };
-		}
-		if (!info.isFile()) {
-			return { kind: 'refused', detail: `${target.file} is not a file` };
-		}
-		if (info.size > MAX_CONFIG_BYTES) {
-			return { kind: 'refused', detail: `${target.file} is larger than ${MAX_CONFIG_BYTES} bytes` };
-		}
-		if (!(await this.insideFolder(folder, file))) {
-			return { kind: 'refused', detail: `${target.file} is not inside the workspace folder` };
+		const opened = await openRegularFile(file);
+		switch (opened.kind) {
+			case 'absent':
+				return { kind: 'absent' };
+			case 'link':
+				return { kind: 'refused', detail: `${target.file} is a link, so it is left alone` };
+			case 'not-file':
+				return { kind: 'refused', detail: `${target.file} is not a file` };
+			case 'error':
+				return { kind: 'refused', detail: opened.detail };
+			case 'ok':
+				break;
 		}
 		try {
-			return { kind: 'text', text: await fs.readFile(file, 'utf8'), mode: info.mode & 0o777 };
+			if (opened.info.size > MAX_CONFIG_BYTES) {
+				return { kind: 'refused', detail: `${target.file} is larger than ${MAX_CONFIG_BYTES} bytes` };
+			}
+			if (!(await this.insideFolder(folder, file))) {
+				return { kind: 'refused', detail: `${target.file} is not inside the workspace folder` };
+			}
+			return { kind: 'text', text: await opened.handle.readFile({ encoding: 'utf8' }), mode: opened.info.mode & 0o777 };
 		} catch (error) {
 			return { kind: 'refused', detail: message(error) };
+		} finally {
+			await opened.handle.close().catch(() => undefined);
 		}
 	}
 

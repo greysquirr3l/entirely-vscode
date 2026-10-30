@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { findHookVerbs } from '../lib/entire';
+import { openRegularFile } from './openRegularFile';
 
 /** A configuration file that holds `entire hooks` commands. */
 export interface HookConfigFile {
@@ -78,14 +79,16 @@ export async function scanHookConfig(root: string): Promise<readonly HookConfigF
 }
 
 async function readSmall(file: string): Promise<string | undefined> {
+	const opened = await openRegularFile(file);
+	if (opened.kind !== 'ok') {
+		return undefined;
+	}
 	try {
-		const stat = await fs.promises.stat(file);
-		if (stat.size > SCAN_LIMITS.bytes) {
-			return undefined;
-		}
-		return await fs.promises.readFile(file, 'utf8');
+		return opened.info.size > SCAN_LIMITS.bytes ? undefined : await opened.handle.readFile({ encoding: 'utf8' });
 	} catch {
 		return undefined;
+	} finally {
+		await opened.handle.close().catch(() => undefined);
 	}
 }
 
