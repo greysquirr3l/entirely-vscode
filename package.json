@@ -52,7 +52,7 @@
         {
           "id": "entirely",
           "title": "Entirely",
-          "icon": "$(git-branch)"
+          "icon": "$(robot)"
         }
       ]
     },
