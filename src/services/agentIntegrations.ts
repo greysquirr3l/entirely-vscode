@@ -8,6 +8,7 @@ import {
 	parseAgentList,
 	planAgentAddFlags,
 	readWrittenFiles,
+	DEFAULT_EDITOR_HOOK_AGENT,
 	type AgentEntry,
 	type HookBridging,
 } from '../lib/entire';
@@ -20,6 +21,8 @@ export interface AgentIntegrationOptions {
 	readonly workspaceRoot: () => string | undefined;
 	/** How long, in seconds, an install or removal may take. */
 	readonly timeoutSeconds: () => number;
+	/** How long, in milliseconds, an agent lookup may be reused. */
+	readonly cacheTtlMs: () => number;
 	/**
 	 * The integration whose hook payload layout matches the editor's.
 	 *
@@ -74,8 +77,9 @@ export type AgentHookTargets =
 			/** The editor's agent, when the CLI lists it. */
 			readonly bridged?: Extract<HookBridging, { kind: 'bridged' }>;
 			readonly notBridged: readonly Extract<HookBridging, { kind: 'not-bridged' }>[];
+			readonly editorAgentIssue?: string;
 	  }
-	| { readonly ok: false; readonly detail: string };
+	| { readonly ok: false; readonly detail: string; readonly editorAgentIssue?: string };
 
 /** Where the hook bridge learns which agents to address. */
 export interface AgentHookSource {
@@ -86,18 +90,18 @@ export interface AgentHookSource {
  * Lists, installs and removes the CLI's agent integrations.
  *
  * The agents are whatever `entire agent list` prints. The hook bridge asks
- * for them on every editor event, so the lookup (the list plus a scan of
- * the hook files) is remembered, and forgotten when an install or removal
- * runs, when a hook file changes (`invalidate`), when the workspace or the
- * editor-agent setting changes, and when it failed. The list shown to the
- * person is always read fresh. Names go after the end-of-options marker,
+ * for them on editor events, so the lookup (the list plus a scan of the
+ * hook files) is remembered for a bounded time and forgotten when an
+ * install or removal runs. The workspace root and editor-agent setting are
+ * part of the cache key. The list shown to the person is always read fresh.
+ * Names go after the end-of-options marker,
  * and only a name the CLI just listed is passed on. More than one
  * integration can be installed: installing one never touches another.
  * After a change the list is read again, so "installed" is what the CLI
  * reports and not what its exit status implied.
  */
 export class AgentIntegrationService implements AgentIntegrationSource, AgentHookSource {
-	private remembered: { readonly key: string; readonly lookup: Promise<AgentListResult> } | undefined;
+	private remembered: { readonly key: string; readonly lookup: Promise<AgentListResult>; expiresAt: number } | undefined;
 
 	constructor(private readonly options: AgentIntegrationOptions) {}
 
@@ -111,32 +115,47 @@ export class AgentIntegrationService implements AgentIntegrationSource, AgentHoo
 	}
 
 	async targets(): Promise<AgentHookTargets> {
+		const editorAgent = this.options.editorAgent();
 		const listed = await this.remember(false);
+		const editorAgentIssue = describeEditorAgentIssue(editorAgent, listed.ok ? listed.agents : undefined);
 		if (!listed.ok) {
-			return listed;
+			return editorAgentIssue ? { ...listed, editorAgentIssue } : listed;
 		}
 		const bridgings = listed.agents.flatMap(agent => (agent.bridging ? [agent.bridging] : []));
 		return {
 			ok: true,
 			bridged: bridgings.find((bridging): bridging is Extract<HookBridging, { kind: 'bridged' }> => bridging.kind === 'bridged'),
 			notBridged: bridgings.filter((bridging): bridging is Extract<HookBridging, { kind: 'not-bridged' }> => bridging.kind === 'not-bridged'),
+			...(editorAgentIssue ? { editorAgentIssue } : {}),
 		};
 	}
 
 	private remember(fresh: boolean): Promise<AgentListResult> {
-		const key = `${this.options.workspaceRoot() ?? ''}\n${this.options.editorAgent()}`;
-		if (!fresh && this.remembered?.key === key) {
+		const ttlMs = Math.max(0, this.options.cacheTtlMs());
+		const key = `${this.options.workspaceRoot() ?? ''}\n${this.options.editorAgent()}\n${ttlMs}`;
+		if (!fresh && this.remembered?.key === key && Date.now() < this.remembered.expiresAt) {
 			return this.remembered.lookup;
 		}
 		const lookup = this.lookUp();
-		this.remembered = { key, lookup };
-		// A failure is not kept: the CLI may be installed a moment later.
-		const forgetFailure = (failed: boolean): void => {
-			if (failed && this.remembered?.lookup === lookup) {
-				this.remembered = undefined;
+		// A lookup that is still running is always reused: two editor
+		// events arriving together must not start two CLI processes.
+		const entry = { key, lookup, expiresAt: Number.POSITIVE_INFINITY };
+		this.remembered = entry;
+		// The lifetime is counted from the moment the list was read, not
+		// from the moment the read began, so a slow CLI does not hand back
+		// an expired lookup.
+		const settle = (failed: boolean): void => {
+			if (this.remembered !== entry) {
+				return;
 			}
+			if (failed) {
+				// A failure is not kept: the CLI may be installed a moment later.
+				this.remembered = undefined;
+				return;
+			}
+			entry.expiresAt = Date.now() + ttlMs;
 		};
-		void lookup.then(result => forgetFailure(!result.ok), () => forgetFailure(true));
+		void lookup.then(result => settle(!result.ok), () => settle(true));
 		return lookup;
 	}
 
@@ -277,4 +296,17 @@ export class AgentIntegrationService implements AgentIntegrationSource, AgentHoo
 
 function explain(result: { readonly reason: string; readonly detail: string; readonly stdout: string; readonly stderr: string }): string {
 	return result.reason === 'exit-code' ? failureDetail(result.stderr, result.stdout, result.detail) : result.detail;
+}
+
+function describeEditorAgentIssue(editorAgent: string, agents?: readonly AgentEntry[]): string | undefined {
+	if (!isAgentName(editorAgent)) {
+		return `entirely.editorHookAgent is invalid; use an agent name from 'entire agent list'`;
+	}
+	if (agents && !agents.some(agent => agent.name === editorAgent)) {
+		return `entirely.editorHookAgent names '${editorAgent}', which 'entire agent list' does not list`;
+	}
+	if (editorAgent !== DEFAULT_EDITOR_HOOK_AGENT) {
+		return `entirely.editorHookAgent names '${editorAgent}', but editor events currently use the '${DEFAULT_EDITOR_HOOK_AGENT}' payload format`;
+	}
+	return undefined;
 }

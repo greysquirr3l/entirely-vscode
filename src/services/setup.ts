@@ -14,6 +14,7 @@ import { readExtensionSettings } from './configuration';
  */
 async function chooseSetupAgent(runner: CliRunner, cwd: string | undefined): Promise<string | undefined> {
 	const service = new AgentIntegrationService({ runner, workspaceRoot: () => cwd, timeoutSeconds: () => 60,
+		cacheTtlMs: () => readExtensionSettings().agentLookupCacheSeconds * 1000,
 		editorAgent: () => readExtensionSettings().editorHookAgent,
 	});
 	const listed = await service.list();

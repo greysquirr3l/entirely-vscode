@@ -188,5 +188,5 @@ export {
 	readWrittenFiles,
 } from './agents';
 export type { AgentAddFlags, AgentEntry } from './agents';
-export { classifyAgent, describeBridging, findHookVerbs } from './agentHooks';
+export { DEFAULT_EDITOR_HOOK_AGENT, classifyAgent, describeBridging, findHookVerbs } from './agentHooks';
 export type { HookBridging } from './agentHooks';

@@ -12,7 +12,7 @@ import {
 } from '../lib/entire';
 import { readLogLevel, shouldLog, type LogLevel } from '../services/logger';
 import { makeTempDir } from './support/tempDir';
-import { effectiveLogLevel } from '../services/configuration';
+import { clampAgentLookupCacheSeconds, effectiveLogLevel } from '../services/configuration';
 import { readEntireSettings, settingsLayers } from '../services/settingsSource';
 
 suite('Entire settings decoding', () => {
@@ -263,6 +263,7 @@ suite('Entire extension settings', () => {
 			'entirely.logLevel',
 			'entirely.debug',
 			'entirely.editorHookAgent',
+			'entirely.agentLookupCacheSeconds',
 		]) {
 			assert.ok(properties[key], `the setting '${key}' is not declared`);
 		}
@@ -270,6 +271,13 @@ suite('Entire extension settings', () => {
 });
 
 suite('Entire effective log level', () => {
+	test('bounds the agent lookup cache lifetime', () => {
+		assert.strictEqual(clampAgentLookupCacheSeconds(30), 30);
+		assert.strictEqual(clampAgentLookupCacheSeconds(1), 5);
+		assert.strictEqual(clampAgentLookupCacheSeconds(99999), 600);
+		assert.strictEqual(clampAgentLookupCacheSeconds(Number.NaN), 30);
+	});
+
 	test('is the level the user chose when the debug setting is off', () => {
 		assert.strictEqual(
 			effectiveLogLevel({
@@ -279,6 +287,7 @@ suite('Entire effective log level', () => {
 				searchDebounce: 400,
 				lifecycleActionTimeout: 60,
 				editorHookAgent: 'copilot-cli',
+				agentLookupCacheSeconds: 30,
 				importTimeout: 300,
 				resumeWatchTimeout: 60,
 				blameMaxDecoratedLines: 5000,
@@ -300,6 +309,7 @@ suite('Entire effective log level', () => {
 				searchDebounce: 400,
 				lifecycleActionTimeout: 60,
 				editorHookAgent: 'copilot-cli',
+				agentLookupCacheSeconds: 30,
 				importTimeout: 300,
 				resumeWatchTimeout: 60,
 				blameMaxDecoratedLines: 5000,
@@ -321,6 +331,7 @@ suite('Entire effective log level', () => {
 				searchDebounce: 400,
 				lifecycleActionTimeout: 60,
 				editorHookAgent: 'copilot-cli',
+				agentLookupCacheSeconds: 30,
 				importTimeout: 300,
 				resumeWatchTimeout: 60,
 				blameMaxDecoratedLines: 5000,

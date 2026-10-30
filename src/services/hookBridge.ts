@@ -131,6 +131,8 @@ export interface HookBridgeOptions {
 	readonly homeDir?: string;
 	/** Records a delivery, for the output channel. */
 	readonly log?: (line: string) => void;
+	/** Reports a configuration problem that can prevent editor events from being delivered. */
+	readonly warn?: (line: string) => void;
 }
 
 /**
@@ -145,6 +147,7 @@ export interface HookBridgeOptions {
 export class HookBridge {
 	private readonly sessionIds = new Map<string, string>();
 	private readonly notBridgedNoted = new Set<string>();
+	private readonly editorAgentIssuesNoted = new Set<string>();
 
 	constructor(private readonly options: HookBridgeOptions) {}
 
@@ -224,6 +227,9 @@ export class HookBridge {
 		}
 
 		const targets = await this.options.agents.targets();
+		if (targets.editorAgentIssue) {
+			this.noteEditorAgentIssue(targets.editorAgentIssue);
+		}
 		if (!targets.ok) {
 			return [];
 		}
@@ -256,6 +262,14 @@ export class HookBridge {
 		}
 		this.notBridgedNoted.add(agent);
 		this.options.log?.(`not bridged ${agent}: ${reason}`);
+	}
+
+	private noteEditorAgentIssue(issue: string): void {
+		if (this.editorAgentIssuesNoted.has(issue)) {
+			return;
+		}
+		this.editorAgentIssuesNoted.add(issue);
+		this.options.warn?.(issue);
 	}
 
 	/** Delivers one event to one agent. */

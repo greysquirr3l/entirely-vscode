@@ -1,4 +1,9 @@
 {
+    /* Only the extension's own sources are compiled, so a scratch file
+       left in the repository root cannot break the build. */
+    "include": [
+        "src/**/*.ts"
+    ],
     "compilerOptions": {
         "module": "Node16",
         "target": "ES2022",

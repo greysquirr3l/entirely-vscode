@@ -316,7 +316,14 @@
           "type": "string",
           "default": "copilot-cli",
           "pattern": "^[a-z0-9][a-z0-9._-]*$",
-          "markdownDescription": "The agent integration whose hook payload layout matches the editor's own agent events (the name `entire agent list` prints). Entirely forwards the editor's events to this agent and to no other: every other integration runs its own hooks and is installed, listed and removed here but not bridged."
+          "markdownDescription": "The agent integration whose hook payload layout matches the editor's own agent events (the name `entire agent list` prints). Editor events currently use the Copilot CLI payload format, so only `copilot-cli` can be bridged; other values are reported and not forwarded."
+        },
+        "entirely.agentLookupCacheSeconds": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 600,
+          "markdownDescription": "How long, in seconds, to reuse the Entire agent list and hook-file scan for editor events. Install and remove actions refresh it immediately."
         },
         "entirely.lifecycleActionTimeout": {
           "type": "number",

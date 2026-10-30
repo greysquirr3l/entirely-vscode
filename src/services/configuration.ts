@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import { DEFAULT_MINIMUM_CLI_VERSION, isAgentName } from '../lib/entire';
+import { DEFAULT_EDITOR_HOOK_AGENT, DEFAULT_MINIMUM_CLI_VERSION } from '../lib/entire';
 import { readLogLevel, shouldLog, type LogLevel } from './logger';
 
 /** The extension's own settings. */
@@ -22,6 +22,8 @@ export interface ExtensionSettings {
 	 * and to no other.
 	 */
 	readonly editorHookAgent: string;
+	/** How long, in seconds, the agent integration lookup stays cached. */
+	readonly agentLookupCacheSeconds: number;
 	/** How often, in seconds, the extension re-reads the CLI. */
 	readonly refreshInterval: number;
 	/** How long, in seconds, the CLI may take to hand over a session transcript. */
@@ -75,6 +77,17 @@ export const MAX_REFRESH_INTERVAL_SECONDS = 3600;
  */
 export const MIN_TRANSCRIPT_TIMEOUT_SECONDS = 5;
 export const MAX_TRANSCRIPT_TIMEOUT_SECONDS = 600;
+export const DEFAULT_AGENT_LOOKUP_CACHE_SECONDS = 30;
+export const MIN_AGENT_LOOKUP_CACHE_SECONDS = 5;
+export const MAX_AGENT_LOOKUP_CACHE_SECONDS = 600;
+
+/** Puts the agent lookup cache lifetime inside a useful range. */
+export function clampAgentLookupCacheSeconds(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return DEFAULT_AGENT_LOOKUP_CACHE_SECONDS;
+	}
+	return Math.min(MAX_AGENT_LOOKUP_CACHE_SECONDS, Math.max(MIN_AGENT_LOOKUP_CACHE_SECONDS, Math.floor(seconds)));
+}
 
 /** Puts the transcript timeout inside the range the extension will wait for. */
 export function clampTranscriptTimeout(seconds: number): number {
@@ -183,10 +196,14 @@ export function readExtensionSettings(): ExtensionSettings {
 		.get<string>('minimumCliVersion', DEFAULT_MINIMUM_CLI_VERSION)
 		.trim();
 
-	const editorHookAgent = configuration.get<string>('editorHookAgent', 'copilot-cli').trim();
+	const editorHookAgentValue = configuration.get<unknown>('editorHookAgent', DEFAULT_EDITOR_HOOK_AGENT);
+	const editorHookAgent = typeof editorHookAgentValue === 'string' ? editorHookAgentValue.trim() : '';
 
 	return {
-		editorHookAgent: isAgentName(editorHookAgent) ? editorHookAgent : 'copilot-cli',
+		editorHookAgent,
+		agentLookupCacheSeconds: clampAgentLookupCacheSeconds(
+			configuration.get<number>('agentLookupCacheSeconds', DEFAULT_AGENT_LOOKUP_CACHE_SECONDS),
+		),
 		cliPath: cliPath.length > 0 ? cliPath : undefined,
 		cliContext: cliContext.length > 0 ? cliContext : undefined,
 		refreshInterval: clampRefreshInterval(configuration.get<number>('refreshInterval', 30)),

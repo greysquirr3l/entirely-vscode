@@ -47,11 +47,12 @@ suite('Entire hook bridge against the real CLI', function () {
 		return new CliRunner(locator);
 	}
 
-	test('records the model the transcript reports, untouched', async () => {
+	test('records the model the transcript reports, untouched', async function () {
 		const runner = await realCli();
 		if (!runner) {
 			// The extension is tested against a CLI that is not there all
 			// the time, and there is nothing to check without one.
+			this.skip();
 			return;
 		}
 
@@ -110,6 +111,7 @@ suite('Entire hook bridge against the real CLI', function () {
 				runner,
 				workspaceRoot: () => workspace,
 				timeoutSeconds: () => 60,
+				cacheTtlMs: () => 30_000,
 				editorAgent: () => 'copilot-cli',
 			}),
 			env,

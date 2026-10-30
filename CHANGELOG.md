@@ -20,13 +20,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
   choosing Copilot CLI.
 - **The hook bridge forwards editor events to one agent, and says so.** Installing an
   agent and bridging it are separate: every integration runs its own hooks, so the bridge
-  sends the editor's own events only to the integration whose payload layout matches the
-  editor's, named by the new `entirely.editorHookAgent` setting (default `copilot-cli`,
-  the agent the bridge always addressed). Other installed agents are listed as "not
-  bridged" and are never sent an `entire hooks` call, so a hook that exits 0 and records
-  nothing cannot be counted as captured. The Copilot stand-down for hook files the editor
-  loads itself is unchanged. The install confirmation states that `agent add` cannot
-  preview the files it writes, and the agent lookup is remembered between editor events.
+  sends the editor's own events only to the compatible `copilot-cli` payload format.
+  A different `entirely.editorHookAgent` value is reported and never receives a Copilot
+  payload. Other installed agents are listed as "not bridged" and are never sent an
+  `entire hooks` call, so a hook that exits 0 and records nothing cannot be counted as
+  captured. The Copilot stand-down for hook files the editor loads itself is unchanged.
+  The install confirmation states that `agent add` cannot preview the files it writes.
+  Agent lookups are cached for `entirely.agentLookupCacheSeconds` (30 seconds by default),
+  with install and removal refreshing immediately.
   `entire agent list` output with an unrecognised or trailing line is still read.
 
 - **Import past agent history.** **Entirely: Import Past Agent History as Read-Only

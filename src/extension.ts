@@ -109,20 +109,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		runner,
 		workspaceRoot,
 		timeoutSeconds: () => readExtensionSettings().lifecycleActionTimeout,
+		cacheTtlMs: () => readExtensionSettings().agentLookupCacheSeconds * 1000,
 		editorAgent: () => readExtensionSettings().editorHookAgent,
 	});
-	// The lookup is remembered between editor events, so a hook file written
-	// or removed outside the extension has to make it forget.
-	const hookFiles = vscode.workspace.createFileSystemWatcher('**/.*/**');
-	const forgetAgents = (uri: vscode.Uri): void => {
-		if (!uri.path.includes('/.git/')) {
-			agentIntegrations.invalidate();
-		}
-	};
-	hookFiles.onDidCreate(forgetAgents, undefined, context.subscriptions);
-	hookFiles.onDidChange(forgetAgents, undefined, context.subscriptions);
-	hookFiles.onDidDelete(forgetAgents, undefined, context.subscriptions);
-	context.subscriptions.push(hookFiles);
 
 	const hooks = new HookBridge({
 		runner,
@@ -132,6 +121,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		// hook is told which login to act as through the environment.
 		context: () => accounts.context,
 		log: line => log.debug(`hook ${line}`),
+		warn: line => log.warn(`hook ${line}`),
 	});
 
 	const statusController = new StatusController({

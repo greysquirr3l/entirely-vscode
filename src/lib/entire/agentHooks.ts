@@ -1,3 +1,5 @@
+export const DEFAULT_EDITOR_HOOK_AGENT = 'copilot-cli';
+
 /**
  * The verbs an agent's hook configuration calls.
  *
@@ -42,9 +44,8 @@ export type HookBridging =
 /**
  * Decides whether an agent is the one the editor's events belong to.
  *
- * `editorAgent` is the integration whose hook payload layout matches the
- * editor's. Any other agent is not bridged, whatever verbs its hook file
- * names.
+ * The editor currently emits the Copilot CLI payload format. A configured
+ * agent with another format is never called, even if its hook names match.
  */
 export function classifyAgent(
 	agent: string,
@@ -55,7 +56,14 @@ export function classifyAgent(
 		return {
 			kind: 'not-bridged',
 			agent,
-			reason: `${agent} runs its own hooks; Entirely does not forward editor events to it`,
+			reason: `the editor's events are not forwarded to ${agent}`,
+		};
+	}
+	if (editorAgent !== DEFAULT_EDITOR_HOOK_AGENT) {
+		return {
+			kind: 'not-bridged',
+			agent,
+			reason: `the editor's event payload uses the ${DEFAULT_EDITOR_HOOK_AGENT} format`,
 		};
 	}
 	return { kind: 'bridged', agent, installed: found.installed, files: found.files };
@@ -64,7 +72,7 @@ export function classifyAgent(
 /** One line saying what Entirely does, or does not do, for an agent. */
 export function describeBridging(bridging: HookBridging): string {
 	if (bridging.kind === 'not-bridged') {
-		return `Not bridged: ${bridging.reason}. Its own hooks report to Entire.`;
+		return `Not bridged: ${bridging.reason}. The integration's own hooks report its activity to Entire.`;
 	}
 	return `Bridged: Entirely forwards this editor's own agent events to ${bridging.agent}.`;
 }
