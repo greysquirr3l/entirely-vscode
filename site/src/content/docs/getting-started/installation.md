@@ -30,11 +30,11 @@ The CLI installs to `~/.local/bin`, which many shells and the editor's integrate
 
 ## Install the extension
 
-Entirely isn't on the Visual Studio Marketplace yet. Until it is:
-
-1. Download the `.vsix` from the [GitHub releases](https://github.com/greysquirr3l/entirely-vscode/releases).
-2. In VS Code, run **Extensions: Install from VSIX** and pick the file.
-3. Open a folder that uses Entire.
+Entirely is on the Visual Studio Marketplace. Search for **Entirely** in the
+Extensions view and install it, or download the `.vsix` from the
+[GitHub releases](https://github.com/greysquirr3l/entirely-vscode/releases)
+and run **Extensions: Install from VSIX**. Then open a folder that uses
+Entire.
 
 ## When the CLI isn't on PATH
 

@@ -5,6 +5,13 @@ All notable changes to the Entirely extension are documented in this file. The f
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-30
+
+The first release on the Visual Studio Marketplace. It carries everything in
+0.2.0, which was never published, and adds the doctor depth, the capture
+controls, the token profile, the code provenance and the multi-agent review
+described below.
+
 ### Changed
 
 - **Releases publish to the Visual Studio Marketplace and GitHub only.** The Open VSX job is removed from the release workflow, because the project does not publish there; the GitHub release now waits for the Marketplace job alone.

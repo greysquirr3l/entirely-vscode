@@ -51,7 +51,7 @@ Three consequences follow:
 
 ## Status
 
-Version 0.2.0. Before 1.0, minor versions may change commands and setting names. [Coverage](/entirely/reference/coverage/) lists, command by command, what the extension supports, what it leaves out on purpose, and what is still a gap.
+Version 0.3.0. Before 1.0, minor versions may change commands and setting names. [Coverage](/entirely/reference/coverage/) lists, command by command, what the extension supports, what it leaves out on purpose, and what is still a gap.
 
 ## Next
 
