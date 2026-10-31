@@ -7,6 +7,14 @@ All notable changes to the Entirely extension are documented in this file. The f
 
 ### Added
 
+- **Token profile, experts and multi-agent review from the editor.**
+  - **Entirely: Show Token Profile** (palette, and a button on the Checkpoints view) opens `entire tokens profile --json` in a read-only document: totals, repeated signals, recommendations and the CLI's limitations in its words. A count the CLI left out reads "Not reported", never zero. A signal's checkpoint ids are links that open the checkpoint. An empty history says so, and a failure is named with no profile shown. It reads checkpoint metadata only and spends no tokens.
+  - **Who has touched this code**: **Who Has Touched This Path?** (Explorer, editor and palette, and a link in the blame panel), **Ask Entire Who Knows About a Topic** and **Who Has Touched the Staged Files?** run `entire experts`. The path or question is sent to Entire's servers, and the result names the repository, branch and acting login. A ranking, nothing found, a repository that is not on Entire and a failure are told apart. The question is passed after `--` and kept out of the output channel. **Show Raw Experts Reply** opens the reply as received when its shape is not recognised.
+  - **Review**: **List Review Profiles**, **Show What a Review Would Run** and **Show Saved Review Findings** start no agent and ask nothing. **Run Multi-Agent Review** asks for a profile, a branch and optional instructions, then confirms in a modal that names the profile, the branch, the login "on Entire", the CLI's own description, that agents run on your machine and spend your tokens, and the time limit. Only then does it open one terminal running the CLI as the confirmed login. It is never started again. **Set Up Review in a Terminal** asks first and opens the CLI's own wizard. Entirely never passes `--trust-target` or any `--set-*` flag.
+  - Flags are read from each command's `--help` at run time, and a CLI without the command gets a message that names it and says to update the CLI.
+  - Settings: `entirely.tokenProfileCheckpoints`, `entirely.tokenProfileTimeout`, `entirely.expertsLimit`, `entirely.expertsTimeout`, `entirely.reviewReadTimeout` and `entirely.reviewReviewerTimeoutMinutes` (default `0`, no limit).
+  - Tested against a fake CLI for `experts` and the review run, which the real CLI could not safely be asked to do. `tokens profile --json` and `review --show-config --json` were observed against the real CLI.
+
 - **Clicking a row opens its detail in a panel beside the editor.** Selecting a session, a
   trail, a trail change or an Activity commit, session line or repository, by click or
   with the arrow keys, opens its detail in one panel in the editor area, next to the file

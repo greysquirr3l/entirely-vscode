@@ -1,0 +1,110 @@
+---
+title: Token profile, experts and review
+description: See where tokens went across checkpoint history, ask Entire which agents and tools have touched code, and run the CLI's multi-agent review with a confirmation first.
+sidebar:
+  order: 12
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+These three features sit on commands the Entire CLI marks as experimental. Their flags are read from each command's own `--help` every time, because `entire agent-help` does not know them. A CLI that lacks one gets a message that names the command and says to update the CLI, and nothing runs.
+
+<Aside type="caution">
+`experts` and the review run were tested against a fake CLI only. The real `experts` sends your query to Entire's servers, and a real review starts agents that spend tokens, so neither was run while the extension was built. See [CLI coverage](/entirely/reference/coverage/) for what was observed against the real CLI and what was not.
+</Aside>
+
+## Token profile
+
+**Entirely: Show Token Profile** (palette, or the chart button in the title bar of the **Checkpoints** view) opens the CLI's token profile over committed checkpoint history.
+
+<Steps>
+1. Pick how much history to cover: the CLI's default, the latest *N* checkpoints (`entirely.tokenProfileCheckpoints`, default 50), or all checkpoints.
+2. Entirely runs `entire tokens profile --json` once and opens the result in a read-only Markdown document.
+</Steps>
+
+The command reads committed checkpoint metadata only. It opens no transcript, calls no model and spends no tokens, so there is no confirmation. It runs only when you ask, and again each time you ask.
+
+The document has:
+
+- **Checkpoints**: how many are available, analysed, with token data and without.
+- **Token usage**: total, input, output, cache read, cache write, API calls and subagent tokens. A count the CLI left out reads **Not reported**. It is never shown as zero.
+- **Repeated signals**: each with its share of the analysed checkpoints and the checkpoint ids behind it. In the editor an id is a link. Clicking it opens the checkpoint with **Explain Checkpoint**, as from the history view.
+- **Recommendations** with their severity, and **Limitations**, both in the CLI's own words. One limitation says the totals may include overlapping checkpoint history, so read them as checkpoint-observed volume, not unique spend. The CLI reports tokens only, and Entirely does not turn them into money.
+
+If the CLI analysed no checkpoints, the document says there is no checkpoint history to profile. If the CLI fails, you get "The token profile could not be read: …" and no profile.
+
+## Who has touched this code
+
+`entire experts` ranks the agents, skills and tools that have provenance over a code scope.
+
+| Command | Where | Scope |
+| --- | --- | --- |
+| **Entirely: Who Has Touched This Path?** | Explorer menu on a file or folder, editor menu, palette | The file or folder |
+| **Entirely: Ask Entire Who Knows About a Topic** | palette | A question you type |
+| **Entirely: Who Has Touched the Staged Files?** | palette | The staged files |
+
+The blame panel (**Blame File**) also has a **Who else touched this file** link.
+
+**This sends your path or question to Entire's servers.** The answer does not come from your clone: it comes from the provenance Entire holds for the repository, so the repository must be mirrored on Entire. The progress notification reads "Asking Entire's servers (as *login*)…", and the document names the repository, the branch, the scope and the login it was asked as. A path or question goes after `--`, so one that starts with a dash is still a question. The question is not written to the output channel and does not appear in the document. Because it only reads, there is no confirmation. If no login is available the command stops and tells you to sign in.
+
+Each result is one of:
+
+- **A ranking**, with each entry's name, kind and score when the CLI sent them, and every other field it sent.
+- **Nothing found.** Entire has no provenance for that scope. A recent push can take a couple of minutes to appear.
+- **The repository is not on Entire.** The message says to create it on Entire or mirror it there, then push, and quotes the CLI's text. This is not shown as an empty result.
+- **A failure**, named, and not tried again.
+
+The shape of the answer was never observed, so the reader is tolerant. If Entire answers in a shape it cannot read, the message says so, and **Entirely: Show Raw Experts Reply** opens the reply as received. The reply is kept in memory only and is shown by that command alone. The limit (`entirely.expertsLimit`, 1 to 20) is passed as the CLI's limit flag. The interactive viewer is never used.
+
+## Multi-agent review
+
+`entire review` starts reviewer agents on your machine, then a judge that consolidates their reports. They use your own agent accounts and spend your tokens. Entirely reads the profiles and findings freely, and asks before running one.
+
+### Read-only views
+
+These ask nothing and start no agent.
+
+| Command | Shows |
+| --- | --- |
+| **Entirely: List Review Profiles** | `entire review --list`, as the CLI printed it |
+| **Entirely: Show What a Review Would Run** | `entire review --show-config --json` for the current branch: the hooks, MCP servers and instruction files a reviewer would load, and whether you wrote the code |
+| **Entirely: Show Saved Review Findings** | `entire review --findings`, as the CLI printed it |
+
+They are in the palette and the overflow menu of the **Activity** view title. Hook and MCP commands are shown in the document, never in the output channel. If the findings browser waits for a terminal, Entirely says so after the read timeout (`entirely.reviewReadTimeout`) and offers to open one. With no profile configured, **List Review Profiles** says so and offers **Open Setup in Terminal**.
+
+### Run a review
+
+**Entirely: Run Multi-Agent Review** does this:
+
+<Steps>
+1. Checks that the CLI's help describes the review and its profile flag.
+2. Lists the profiles with `entire review --list` and asks which one. The names are shown as the CLI wrote them.
+3. Asks which branch: the current one, or another local branch, which the CLI checks out in a worktree.
+4. Optionally asks for one-off instructions.
+5. Reads what the review would load with `--show-config --json`.
+6. Asks you to confirm in a modal. It names the profile, the branch, the login the review runs as "on Entire", the CLI's own description, that the reviewer and judge agents run on your machine and spend your tokens, and the time limit. Reviewers have none unless you set `entirely.reviewReviewerTimeoutMinutes`. It gives the number of hooks and MCP servers the reviewer would load. If the CLI says you did not write the code, it warns that the reviewer will load that code's hooks and MCP servers and that the CLI will ask you to approve this in the terminal. The default button is **Cancel**.
+7. Only after **Start Review**, opens one terminal named "Entire: review" that runs the CLI as the login you confirmed.
+</Steps>
+
+Declining runs nothing. The terminal is the CLI's own: you see its progress and prompts, and Ctrl-C stops it. Entirely does not retry, does not watch the review, and does not read the transcript back. If the terminal ends with an error, you get a message saying so and that it was not started again. When it finishes, use **Show Saved Review Findings**.
+
+Entirely never passes `--trust-target` or any `--set-*` flag, and does not use `--agents`, `--models`, `--edit` or `--configure` itself. If the CLI refuses to review a target whose commit you did not write, its message is shown as written. If you decide to trust that code, you do it yourself in a terminal.
+
+**Entirely: Set Up Review in a Terminal** asks first, then opens `entire review --configure` for you to complete. The wizard writes a profile only when you finish it, and it starts no agent.
+
+## Settings
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| `entirely.tokenProfileCheckpoints` | `50` | Checkpoints in the "latest *N*" scope (1 to 1000). |
+| `entirely.tokenProfileTimeout` | `30` | Seconds the token profile waits. |
+| `entirely.expertsLimit` | `8` | Entries asked of Entire (1 to 20). |
+| `entirely.expertsTimeout` | `30` | Seconds Entire's servers may take. Not asked again after a timeout. |
+| `entirely.reviewReadTimeout` | `30` | Seconds the read-only review views wait. |
+| `entirely.reviewReviewerTimeoutMinutes` | `0` | Minutes each reviewer may run, passed only if the help lists a timeout flag. `0` passes nothing, so reviewers have no limit. |
+
+## Related
+
+- [Accounts and contexts](/entirely/concepts/accounts-and-contexts/)
+- [Privacy and redaction](/entirely/concepts/privacy-and-redaction/)
+- [Commands reference](/entirely/reference/commands/), [CLI commands used](/entirely/reference/cli-commands-used/)

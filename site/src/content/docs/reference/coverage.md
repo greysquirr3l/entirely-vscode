@@ -5,7 +5,7 @@ sidebar:
   order: 6
 ---
 
-The extension keeps a written audit of the Entire CLI against what the editor does with it: [docs/coverage.md](https://github.com/greysquirr3l/entirely-vscode/blob/main/docs/coverage.md). This page summarises it. The file has the full 133-row matrix with the evidence for each row.
+The extension keeps a written audit of the Entire CLI against what the editor does with it: [docs/coverage.md](https://github.com/greysquirr3l/entirely-vscode/blob/main/docs/coverage.md). This page summarises it. The file has the full 140-row matrix with the evidence for each row.
 
 The audit was derived against Entire CLI 0.12.2 on 2026-10-30. Its sources are Entire's own LLM documentation (`llms.txt` and `llms-full.txt`) and the command list from the installed CLI. It adds the commands the CLI hides or ships as plugins: `why`, `blame`, `import`, `review`, `tokens`, `experts`, `runner`, `mcp`, `completion`, `graph`, `investigate` and `brain`.
 
@@ -13,10 +13,12 @@ The audit was derived against Entire CLI 0.12.2 on 2026-10-30. Its sources are E
 
 | Mark | Rows | Meaning |
 | --- | --- | --- |
-| Supported | 78 | The extension calls it, you can reach it from the editor, and a test in the repository covers it. |
-| Excluded | 7 | A decision: the extension deliberately does not do it. |
-| Gap | 48 | Not done, and no decision to leave it out. |
-| **Total** | **133** | |
+| Supported | 82 | The extension calls it, you can reach it from the editor, and a test in the repository covers it. |
+| Excluded | 14 | A decision: the extension deliberately does not do it. |
+| Gap | 44 | Not done, and no decision to leave it out. |
+| **Total** | **140** | |
+
+`review`, `experts` and `tokens profile` are supported. `tokens profile --json` and `review --show-config --json` were observed against the real CLI and their fixtures are copied from it. `experts` and the review run were never run for real (one sends a query to Entire's servers, the other starts agents that spend tokens), and `review --list` for a configured profile and `review --findings` with saved runs were not observed, so those are tested against a fake CLI only.
 
 The four deeper `doctor` subcommands (`logs`, `trace`, `bundle`, `migrate-checkpoints`) are supported but tested against a fake CLI only: their real output formats were not observed, and the real bundle and migration were never run. Some "supported" rows are covered in part. The matrix says so in each row: some tests run the call against a fake CLI, and some only check the arguments built for it. `why`, `blame`, `hooks`, `session resume` and `checkpoint explain` are tested with a stub runner that records arguments. The CLI itself is not run in those tests. For `enable`, the argument building is tested, and the hook bridge end to end uses a stub.
 
@@ -31,18 +33,21 @@ The four deeper `doctor` subcommands (`logs`, `trace`, `bundle`, `migrate-checkp
 | `entire help` | The command tree is read through `agent-help`, which always matches the installed CLI. |
 | `entire completion` | Shell completion belongs to the terminal and the user's shell setup. |
 | `entire global-flags` | A documentation page for the flags themselves. `--context` has its own row. |
+| `entire review --configure`, `--edit` | Interactive wizards that choose agents, models and where a verdict goes. **Set Up Review in a Terminal** opens the wizard for you to complete. |
+| `entire review --set-*` | Flags that write a profile. The extension never passes one. |
+| `entire review --trust-target` | Approves loading the hooks and MCP servers of code you did not write. Only you, in a terminal, may decide that. |
+| `entire review --agents`, `--models` | They may start agent programs to list what they offer, so they were not run. Available in a terminal. |
+| `entire experts --tui` | An interactive viewer that needs a terminal. |
 
 ## Gaps
 
 None of these is excluded. Each is something the CLI can do and the editor does not.
 
 1. **Setup and teardown.** `disable`, `configure`, `clean`, `runner setup`. Nothing in the editor stops capture or edits repository settings.
-2. **Review and expertise.** `review`, `experts`.
-3. **Token analysis across history.** `tokens`, `tokens profile`.
-4. **Checkpoint deletion.** `checkpoint delete`. It is destructive and would need the same confirmation care as the control-plane deletes.
-5. **Control plane breadth.** Create and read for organisations and projects, organisation invitations, and repository `clone`, `mirror add`, `detach`, `remove`, `resync`, `protection`, `remote add` and `visibility get`.
-6. **Plugin management.** `plugin browse`, `doctor`, `index update`, `info`, `remove`, `search`, `upgrade`. Only `list` and `install` are wired.
-7. **Trail depth.** `trail create`, `update`, `watch`, and the comment and finding commands that edit, reply, resolve or dismiss.
+2. **Checkpoint deletion.** `checkpoint delete`. It is destructive and would need the same confirmation care as the control-plane deletes.
+3. **Control plane breadth.** Create and read for organisations and projects, organisation invitations, and repository `clone`, `mirror add`, `detach`, `remove`, `resync`, `protection`, `remote add` and `visibility get`.
+4. **Plugin management.** `plugin browse`, `doctor`, `index update`, `info`, `remove`, `search`, `upgrade`. Only `list` and `install` are wired.
+5. **Trail depth.** `trail create`, `update`, `watch`, and the comment and finding commands that edit, reply, resolve or dismiss.
 
 A gap is a finding, not a failure. Closing one means a command in `package.json`, a service, a test, and a move of the row from Gap to Supported.
 

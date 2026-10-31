@@ -22,6 +22,7 @@ Entirely is a community project and is not affiliated with or endorsed by Entire
 - [History import](https://greysquirr3l.github.io/entirely/guides/history-import/): Import existing agent history into Entire.
 - [Blame and why this line](https://greysquirr3l.github.io/entirely/guides/blame-and-why/): Find which agent edit introduced a line, and why.
 - [Diagnose problems](https://greysquirr3l.github.io/entirely/guides/doctor-and-diagnostics/): Produce a diagnostic report, read the CLI's own doctor findings, read its log and hook traces, write a diagnostic bundle, migrate checkpoints, use the output channel, and fix the common causes.
+- [Token profile, experts and review](https://greysquirr3l.github.io/entirely/guides/tokens-experts-review/): See where tokens went across checkpoint history, ask Entire which agents and tools have touched code, and run the CLI's multi-agent review with a confirmation first.
 
 ## Reference
 - [Commands](https://greysquirr3l.github.io/entirely/reference/commands/): Every command the extension contributes, where it appears, and whether it changes anything on Entire.

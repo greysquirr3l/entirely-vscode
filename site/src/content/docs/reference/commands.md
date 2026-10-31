@@ -113,6 +113,23 @@ See [Trails and review](/entirely/guides/trails-and-review/).
 
 See [Activity, dispatch and recap](/entirely/guides/activity-dispatch-recap/).
 
+## Token profile, experts and review
+
+See [Token profile, experts and review](/entirely/guides/tokens-experts-review/). Entirely never passes a trust or setup flag to `entire review`.
+
+| Palette title | Id | Where | Changes | What it does |
+| --- | --- | --- | --- | --- |
+| Entirely: Show Token Profile | `entirely.tokenProfile` | palette; Checkpoints view title | Read | Runs `entire tokens profile --json` for a scope you pick and opens it in a read-only document. Spends no tokens. |
+| Entirely: Who Has Touched This Path? | `entirely.expertsForPath` | Explorer and editor context menus; palette; the blame panel link | Read (sends the path to Entire) | Runs `entire experts` for a file or folder. Entire's servers answer. |
+| Entirely: Ask Entire Who Knows About a Topic | `entirely.expertsAsk` | palette | Read (sends the question to Entire) | Runs `entire experts` with your question after `--`. The question is not logged. |
+| Entirely: Who Has Touched the Staged Files? | `entirely.expertsStaged` | palette | Read (sends the staged paths to Entire) | Runs `entire experts` with the CLI's staged flag. |
+| Entirely: Show Raw Experts Reply | `entirely.showExpertsRawReply` | palette | Read | Opens the last experts reply as received, for when its shape was not recognised. Held in memory only. |
+| Entirely: List Review Profiles | `entirely.reviewProfiles` | palette; Activity view title overflow | Read | Runs `entire review --list`. |
+| Entirely: Show What a Review Would Run | `entirely.reviewShowConfig` | palette; Activity view title overflow | Read | Runs `entire review --show-config --json`. |
+| Entirely: Show Saved Review Findings | `entirely.reviewFindings` | palette; Activity view title overflow | Read | Runs `entire review --findings`. |
+| Entirely: Run Multi-Agent Review | `entirely.reviewRun` | palette; Activity view title overflow | Confirms | Asks for profile, branch and instructions, then a modal, then opens one terminal running the review as the confirmed login. Starts agents that spend your tokens. Never retried. |
+| Entirely: Set Up Review in a Terminal | `entirely.reviewSetup` | palette; Activity view title overflow | Confirms | Opens `entire review --configure` in a terminal after asking. You complete the wizard. |
+
 ## Control plane
 
 The delete, visibility and access commands are hidden from the palette and live on tree rows. Every change confirms, runs once, and is read back afterwards. A change that times out is reported as done only if the CLI now lists it that way. Create and delete paths were tested against a fake CLI only; they are not verified against a live Entire account. See [Control plane](/entirely/guides/control-plane/).

@@ -16,6 +16,7 @@ The channel never holds:
 - prompt bodies or transcripts;
 - checkpoint payloads;
 - search queries or search results;
+- the question or path of an experts lookup, the one-off instructions of a review, saved review findings, and the hook and MCP commands a review would load;
 - API responses from **Entirely: Call the Entire API**;
 - the words you type for a plugin command.
 
