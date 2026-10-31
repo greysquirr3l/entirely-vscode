@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import type { ControlConfirmation } from '../lib/entire';
+import { neutraliseLinks, type ControlConfirmation } from '../lib/entire';
 import type { FollowUp, PluginManagementUi, SearchItem } from '../commands/pluginManagement';
 import type { PluginChoice } from '../commands/plugins';
 import type { GeneratedDocuments } from './generatedDocuments';
@@ -22,7 +22,7 @@ export class EditorPluginManagementUi implements PluginManagementUi {
 				...choices.map(choice => ({
 					label: choice.name,
 					description: choice.installed ? 'installed' : 'not installed',
-					detail: choice.installed && choice.detail.length > 0 ? choice.detail : undefined,
+					detail: choice.installed && choice.detail.length > 0 ? neutraliseLinks(choice.detail) : undefined,
 				})),
 				{ label: OTHER, description: 'type a plugin name' },
 			],
@@ -57,8 +57,8 @@ export class EditorPluginManagementUi implements PluginManagementUi {
 		const picked = await vscode.window.showQuickPick(
 			items.map(item => ({
 				label: item.name,
-				description: item.blocked ? `cannot be installed: ${item.blocked}` : item.installed ? 'installed' : undefined,
-				detail: item.description.length > 0 ? item.description : undefined,
+				description: item.blocked ? neutraliseLinks(`cannot be installed: ${item.blocked}`) : item.installed ? 'installed' : undefined,
+				detail: item.description.length > 0 ? neutraliseLinks(item.description) : undefined,
 			})),
 			{ title: 'Plugin index', placeHolder: 'Choose a plugin', ignoreFocusOut: true, matchOnDetail: true },
 		);
@@ -87,8 +87,9 @@ export class EditorPluginManagementUi implements PluginManagementUi {
 	}
 
 	notify(level: 'info' | 'warn', message: string, followUp?: FollowUp): Promise<void> {
+		const safe = neutraliseLinks(message);
 		const show = (...items: string[]): Thenable<string | undefined> =>
-			level === 'warn' ? vscode.window.showWarningMessage(message, ...items) : vscode.window.showInformationMessage(message, ...items);
+			level === 'warn' ? vscode.window.showWarningMessage(safe, ...items) : vscode.window.showInformationMessage(safe, ...items);
 		const pending = followUp ? show(followUp.label) : show();
 		void pending.then(choice => (followUp && choice === followUp.label ? followUp.run() : undefined)).then(undefined, () => undefined);
 		return Promise.resolve();

@@ -79,6 +79,8 @@ export interface FakePluginManagementOptions {
 	removeFail?: string;
 	/** After any upgrade or removal, `plugin list` exits 1. */
 	listFailsAfterMutation?: boolean;
+	/** Replaces the directory the list names, to test text the CLI controls. */
+	managedDirText?: string;
 	/** Make `plugin list` always exit 1. */
 	listFails?: string;
 	/** Help overrides, keyed `plugin_upgrade` and so on. */
@@ -194,7 +196,7 @@ export function fakePluginManagementCli(options: FakePluginManagementOptions = {
 		...(options.helps ?? {}),
 	};
 	const config = {
-		managedDir,
+		managedDir: options.managedDirText ?? managedDir,
 		allFlag,
 		forceFlag,
 		helps,

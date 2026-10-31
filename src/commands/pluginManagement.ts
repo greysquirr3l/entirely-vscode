@@ -7,6 +7,7 @@ import {
 	describeMissingPluginSubcommand,
 	describePluginChange,
 	describeUnmanagedPlugin,
+	neutraliseLinks,
 	oneLine,
 	pickRemoveFlags,
 	pluginPathOf,
@@ -76,7 +77,21 @@ const NO_LOGIN = 'No Entire login is available, so Entirely cannot say who this 
 
 /** CLI text inside a notification: one line, no link syntax. */
 function quoted(text: string, max = 200): string {
-	return oneLine(text.replace(/[[\]]/g, ''), max);
+	return oneLine(neutraliseLinks(text), max);
+}
+
+/** Wraps a UI so every notification is link-neutral, whatever text reached it. */
+export function withSafeNotifications(ui: PluginManagementUi): PluginManagementUi {
+	return {
+		confirm: prompt => ui.confirm(prompt),
+		pickPlugin: (choices, title) => ui.pickPlugin(choices, title),
+		askTerm: () => ui.askTerm(),
+		pickResult: items => ui.pickResult(items),
+		pickResultAction: (name, installed) => ui.pickResultAction(name, installed),
+		withProgress: (title, work) => ui.withProgress(title, work),
+		notify: (level, message, followUp) => ui.notify(level, neutraliseLinks(message), followUp ? { ...followUp, label: neutraliseLinks(followUp.label) } : undefined),
+		showDocument: (title, text) => ui.showDocument(title, text),
+	};
 }
 
 function exclusive<T extends PluginManagementResult | { readonly result: PluginManagementResult }>(

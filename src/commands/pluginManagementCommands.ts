@@ -15,6 +15,7 @@ import {
 	updatePluginIndex,
 	upgradeAllPlugins,
 	upgradePlugin,
+	withSafeNotifications,
 	type PluginManagementDependencies,
 } from './pluginManagement';
 import { installPluginCommand, type PluginDependencies } from './plugins';
@@ -52,7 +53,7 @@ export function registerPluginManagementCommands(
 	context: vscode.ExtensionContext,
 	wiring: PluginManagementWiring,
 ): { readonly checkSource: () => PluginManagementSource } {
-	const ui = new EditorPluginManagementUi(wiring.documents);
+	const ui = withSafeNotifications(new EditorPluginManagementUi(wiring.documents));
 	const timeoutSeconds = () => readExtensionSettings().pluginTimeout;
 
 	const pluginServiceFor = (folder: string | undefined) => new PluginService({ runner: wiring.runner, workspaceRoot: () => folder, timeoutSeconds });

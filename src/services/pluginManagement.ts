@@ -141,7 +141,8 @@ export class PluginManagementService implements PluginManagementSource {
 	async listing(): Promise<Read<PluginListing>> {
 		const result = await this.options.runner.run(['plugin', 'list'], { cwd: this.cwd, timeoutMs: this.timeoutMs, withholdBodies: true });
 		if (!result.ok) {
-			return { ok: false, detail: describeHelpFailure('plugin', 'list plugins', result.reason, failureDetail(result.stderr, result.stdout, result.detail)) };
+			const said = failureDetail(result.stderr, result.stdout, result.detail);
+			return { ok: false, detail: result.reason === 'absent' || result.reason === 'broken' ? describeHelpFailure('plugin', 'list plugins', result.reason, said) : `plugin list failed: ${said}` };
 		}
 		const text = stripTerminalCodes(result.stdout);
 		return { ok: true, value: { plugins: parseInstalledPlugins(text), directory: parseManagedDirectory(text) } };

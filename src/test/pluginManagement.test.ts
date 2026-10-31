@@ -11,6 +11,7 @@ import {
 	describePluginCheck,
 	describeUnmanagedPlugin,
 	diffVersions,
+	neutraliseLinks,
 	parseInstalledPlugins,
 	parseManagedDirectory,
 	parseSearchResults,
@@ -34,13 +35,16 @@ import {
 	updatePluginIndex,
 	upgradeAllPlugins,
 	upgradePlugin,
+	withSafeNotifications,
 	type FollowUp,
 	type PluginManagementDependencies,
 	type PluginManagementUi,
 	type SearchItem,
 } from '../commands/pluginManagement';
 import { installPluginCommand, type PluginChoice, type PluginUi } from '../commands/plugins';
-import { buildIntegrationNodes, PLUGIN_MANAGED, PLUGIN_MISSING, PLUGIN_ON_PATH } from '../providers/integrationsProvider';
+import { IntegrationDetector } from '../services/integrationDetection';
+import type { McpServerSource } from '../services/mcpServer';
+import { buildIntegrationNodes, PLUGIN_BUILT_IN, PLUGIN_MANAGED, PLUGIN_MISSING, PLUGIN_ON_PATH } from '../providers/integrationsProvider';
 import { renderDoctorReport, type DoctorFacts } from '../services/doctorReport';
 import { PluginManagementService, readPluginCheck } from '../services/pluginManagement';
 import { PluginService } from '../services/plugins';
@@ -226,7 +230,8 @@ interface Harness {
 
 function harness(options: FakePluginManagementOptions = {}, script: ConstructorParameters<typeof Ui>[0] = {}, acting = true): Harness {
 	const cli = fakePluginManagementCli(options);
-	const ui = new Ui(script);
+	const raw = new Ui(script);
+	const ui = raw;
 	const timeoutSeconds = () => 20;
 	const plugins = new PluginService({ runner: cli.runner, workspaceRoot: () => cli.dir, timeoutSeconds });
 	const source = new PluginManagementService({ runner: cli.runner, plugins, workspaceRoot: () => cli.dir, timeoutSeconds });
@@ -251,7 +256,7 @@ function harness(options: FakePluginManagementOptions = {}, script: ConstructorP
 	const deps: PluginManagementDependencies = {
 		source,
 		acting: acts,
-		ui,
+		ui: withSafeNotifications(raw),
 		suggested: () => ['graph', 'investigate'],
 		install: name => installPluginCommand({ source: plugins, acting: acts, ui: installUi, suggested: () => [], running }, name),
 		refresh: () => {
@@ -734,5 +739,112 @@ suite('Plugin management: rows, manifest and wiring', () => {
 		}
 		const lib = fs.readFileSync(path.resolve(__dirname, '..', '..', 'src', 'lib', 'entire', 'pluginManagement.ts'), 'utf8');
 		assert.ok(!/['"]--(all|force)['"]/.test(lib));
+	});
+});
+
+suite('Plugin management: text from the CLI cannot make a live link', () => {
+	const LINK = '[x](command:workbench.action.reloadWindow)';
+	const live = (text: string): boolean => /\]\(|[[\]<>`]/.test(text);
+	const assertSafe = (h: Harness): void => {
+		assert.ok(h.ui.notices.length > 0);
+		for (const notice of h.ui.notices) {
+			assert.ok(!live(notice.message), notice.message);
+			assert.ok(!/command:/i.test(notice.message), notice.message);
+		}
+	};
+
+	test('neutraliseLinks drops brackets, autolinks, backticks and a live command scheme', () => {
+		const text = neutraliseLinks(`${LINK} <command:a> \`b\` command:c COMMAND:d [y](https://e)`);
+		assert.ok(!/[[\]<>`]/.test(text) && !/command:/i.test(text) && !/https:/i.test(text), text);
+	});
+
+	test('a version that carries a link is cut at the first character a version cannot hold', () => {
+		assert.strictEqual(versionOf(`1.0${LINK}`), '1.0');
+		assert.strictEqual(versionOf(`v2.3.4-rc.1+build5 → /p`), 'v2.3.4-rc.1+build5');
+		assert.ok((versionOf(`1.0${'a'.repeat(200)}`) ?? '').length <= 45);
+	});
+
+	test('a version with a link in the list reaches the notification without one', async () => {
+		const h = harness({ plugins: [{ name: 'graph', version: `v1.0.0${LINK}` }], upgrades: { graph: `v1.1.0${LINK}` } });
+		await upgradePlugin(h.deps, 'graph');
+		await upgradeAllPlugins(h.deps);
+		assertSafe(h);
+	});
+
+	test('a directory with a link in it, from the list, is neutral in the on-PATH explanation', async () => {
+		const h = harness({ onPath: ['pathy'], managedDirText: `/m/${LINK}` });
+		await removePlugin(h.deps, 'pathy');
+		assertSafe(h);
+	});
+
+	test('a failure detail with a link (listing and help failures) is neutral', async () => {
+		const listing = harness({ listFails: `Error: ${LINK}` });
+		await upgradePlugin(listing.deps, 'graph');
+		await upgradeAllPlugins(listing.deps);
+		assertSafe(listing);
+		assert.ok(listing.ui.notices.every(notice => !/has no 'plugin' command/.test(notice.message)), 'a failed list is not a missing subcommand');
+		assert.match(listing.ui.notices[0].message, /plugin list failed/);
+	});
+
+	test('a link in a preset name is neutral in every refusal', async () => {
+		const name = `a${LINK}`;
+		const h = harness();
+		await showPluginInfo(h.deps, name);
+		await upgradePlugin(h.deps, name);
+		await removePlugin(h.deps, name);
+		assertSafe(h);
+		assert.deepStrictEqual(h.cli.mutations(), []);
+	});
+
+	test('a search hit description with a link is neutral in the picker items the UI is given', async () => {
+		const h = harness({ searchOut: `graph  Nice ${LINK}\n` }, { term: '' });
+		await searchPluginIndex(h.deps);
+		assert.strictEqual(h.ui.items[0].description, `Nice ${LINK}`, 'the flow keeps the data; the editor adapter neutralises it when drawing');
+	});
+
+	test('a CLI text follow-up label cannot be a link either', async () => {
+		const h = harness({ indexOut: LINK });
+		await updatePluginIndex(h.deps);
+		assert.ok(!/[[\]<>`]/.test(h.ui.notices[0].followUp?.label ?? ''));
+	});
+});
+
+suite('Plugin management: rows for plugins named like CLI commands', () => {
+	test('a listed plugin whose name is a CLI command gets no actions and no target', () => {
+		const nodes = buildIntegrationNodes({
+			kind: 'folders',
+			folders: [
+				{
+					name: 'w',
+					path: '/w',
+					mcp: { editor: { kind: 'offered' }, config: { kind: 'configured', file: '.mcp.json' } },
+					plugins: [{ name: 'status', suggested: false, state: { kind: 'installed', detail: 'v1.0.0' }, builtIn: true }],
+				},
+			],
+		});
+		const row = nodes[0];
+		assert.ok(row.kind === 'row');
+		assert.strictEqual(row.contextValue, PLUGIN_BUILT_IN);
+		assert.strictEqual(row.target, undefined);
+		assert.match(row.tooltip, /also an Entire CLI command/);
+		const manifest = fs.readFileSync(path.resolve(__dirname, '..', '..', 'package.json'), 'utf8');
+		assert.ok(!manifest.includes(PLUGIN_BUILT_IN), 'no menu entry matches the built-in value');
+	});
+
+	test('detection marks a listed plugin that shares a CLI command name', async () => {
+		const cli = fakePluginManagementCli({ plugins: [{ name: 'status', version: 'v1.0.0' }, { name: 'graph', version: 'v0.6.0' }] });
+		const plugins = new PluginService({ runner: cli.runner, workspaceRoot: () => cli.dir, timeoutSeconds: () => 20 });
+		const detector = new IntegrationDetector({
+			cli: () => Promise.resolve({ kind: 'ready' }),
+			folders: () => [{ name: 'w', path: cli.dir }],
+			suggested: () => [],
+			plugins: () => plugins,
+			mcp: () => ({ probe: () => Promise.resolve({ ok: false, reason: 'absent', detail: 'x' }) }) as unknown as McpServerSource,
+			mcpEnabled: () => true,
+			config: () => Promise.resolve({ kind: 'configured', file: '.mcp.json' }),
+		});
+		const reading = await detector.detect();
+		assert.ok(reading.kind === 'folders');
+		assert.deepStrictEqual(reading.folders[0].plugins.map(row => [row.name, row.builtIn === true]), [['status', true], ['graph', false]]);
 	});
 });

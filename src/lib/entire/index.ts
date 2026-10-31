@@ -359,6 +359,7 @@ export {
 	pluginSearchArguments,
 	pluginUpgradeArguments,
 	refusedForDependents,
+	neutraliseLinks,
 	versionOf,
 } from './pluginManagement';
 export type { PluginChange, PluginCheckReading, PluginSubcommand, SearchRow, UpgradeTarget } from './pluginManagement';

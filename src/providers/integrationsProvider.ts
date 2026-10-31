@@ -38,6 +38,8 @@ export const PLUGIN_MISSING = 'entirely.integrationPluginMissing';
 /** Listed by `plugin list`: the CLI can show, upgrade and remove it. */
 export const PLUGIN_MANAGED = 'entirely.integrationPluginManaged';
 /** Found on the PATH only: the CLI can show it and nothing else. */
+/** Listed, but its name is also a CLI command: no actions, as the flows refuse it. */
+export const PLUGIN_BUILT_IN = 'entirely.integrationPluginBuiltIn';
 export const PLUGIN_ON_PATH = 'entirely.integrationPluginOnPath';
 export const MCP_OFF = 'entirely.integrationMcpOff';
 export const MCP_CONFIG_ADDABLE = 'entirely.integrationMcpConfigAddable';
@@ -46,7 +48,7 @@ function pluginNode(folder: FolderIntegrations, row: PluginRow): IntegrationNode
 	const installable = isInstallable(row.state);
 	const icons = { installed: 'check', 'on-path': 'check', missing: 'cloud-download', unknown: 'question' } as const;
 	const contextValues = { installed: PLUGIN_MANAGED, 'on-path': PLUGIN_ON_PATH, missing: PLUGIN_MISSING } as const;
-	const contextValue = row.state.kind === 'unknown' ? undefined : contextValues[row.state.kind];
+	const contextValue = row.state.kind === 'unknown' ? undefined : row.builtIn ? PLUGIN_BUILT_IN : contextValues[row.state.kind];
 	const actionable = contextValue !== undefined;
 	return {
 		kind: 'row',
@@ -54,14 +56,16 @@ function pluginNode(folder: FolderIntegrations, row: PluginRow): IntegrationNode
 		description: describePluginState(row.state),
 		tooltip: installable
 			? `The "${row.name}" plugin is not installed for ${folder.name}. Use Install to run "entire plugin install ${row.name}" after a question.`
-			: row.state.kind === 'on-path'
+			: row.builtIn
+				? `"${row.name}" is listed, but its name is also an Entire CLI command, so Entirely offers no upgrade or removal for it.`
+				: row.state.kind === 'on-path'
 				? describeUnmanagedPlugin(row.name, folder.managedDirectory)
 				: row.state.kind === 'unknown' && row.state.detail === BUILT_IN_DETAIL
 					? `"${row.name}" is also an Entire CLI command, so it cannot be told apart from a plugin on the PATH.`
 					: `${row.name}: ${describePluginState(row.state)}`,
 		icon: icons[row.state.kind],
 		contextValue,
-		target: actionable ? { kind: 'plugin', name: row.name, folder: folder.path } : undefined,
+		target: actionable && !row.builtIn ? { kind: 'plugin', name: row.name, folder: folder.path } : undefined,
 	};
 }
 

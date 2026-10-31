@@ -91,6 +91,8 @@ export interface PluginRow {
 	/** Whether the name is one of the suggested plugins, rather than one that was found installed. */
 	readonly suggested: boolean;
 	readonly state: PluginState;
+	/** An installed plugin whose name is also a command of the CLI: nothing can be done to it from here. */
+	readonly builtIn?: boolean;
 }
 
 /** The words for a plugin's state. */

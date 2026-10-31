@@ -23,6 +23,8 @@ export interface PluginProbe {
 	availability(names: readonly string[]): Promise<ReadonlyMap<string, PluginAvailability>>;
 	/** The managed directory the last `installed()` named, if the probe knows it. */
 	managedDirectory?(): string | undefined;
+	/** The CLI's own command names, to tell a plugin that shares one. */
+	builtinNames?(): Promise<Read<ReadonlySet<string>>>;
 }
 
 export interface IntegrationDetectionOptions {
@@ -90,20 +92,22 @@ export class IntegrationDetector implements IntegrationSource {
 		}
 		const installed = listed.value;
 		const managedDirectory = probe.managedDirectory?.();
+		const builtins = installed.length > 0 && probe.builtinNames ? await probe.builtinNames() : undefined;
+		const builtIn = (name: string): boolean | undefined => (builtins?.ok && builtins.value.has(name.toLowerCase()) ? true : undefined);
 		const held = (name: string) => installed.find(plugin => plugin.name.toLowerCase() === name.toLowerCase());
 		const asked = await probe.availability(suggested.filter(name => held(name) === undefined));
 
 		const rows: PluginRow[] = suggested.map(name => {
 			const plugin = held(name);
 			if (plugin) {
-				return { name, suggested: true, state: { kind: 'installed', detail: plugin.detail } };
+				return { name, suggested: true, state: { kind: 'installed', detail: plugin.detail }, builtIn: builtIn(name) };
 			}
 			const answer = asked.get(name) ?? { kind: 'unknown', detail: 'the CLI gave no answer' };
 			return { name, suggested: true, state: answer };
 		});
 		for (const plugin of installed) {
 			if (!suggested.some(name => name.toLowerCase() === plugin.name.toLowerCase())) {
-				rows.push({ name: plugin.name, suggested: false, state: { kind: 'installed', detail: plugin.detail } });
+				rows.push({ name: plugin.name, suggested: false, state: { kind: 'installed', detail: plugin.detail }, builtIn: builtIn(plugin.name) });
 			}
 		}
 		return { plugins: rows, managedDirectory };
