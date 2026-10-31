@@ -254,7 +254,7 @@ export class TrailService {
 	}
 
 	/** Lists the trails of a project. */
-	async list(project: string, repo?: string): Promise<TrailResult<TrailList>> {
+	async list(project: string, repo?: string, context?: string, rawFailure = false): Promise<TrailResult<TrailList>> {
 		const args = ['trail', 'list', '--project', project, '--json'];
 
 		if (repo) {
@@ -264,6 +264,7 @@ export class TrailService {
 		const result = await this.options.runner.runJson(args, value => unwrap(decodeTrailList(value)), {
 			cwd: this.options.workspaceRoot(),
 			withholdBodies: true,
+			context,
 		});
 
 		if (result.ok) {
@@ -274,7 +275,8 @@ export class TrailService {
 		// acting login cannot see it, the CLI says so in a form that
 		// names a JSON schema rather than a cause, so the cause is
 		// named here instead.
-		if (isProjectInvisible(result.stderr)) {
+		// A caller that words the failure itself asks for the CLI's own reason.
+		if (isProjectInvisible(result.stderr) && !rawFailure) {
 			return { kind: 'failed', detail: describeUnseenProject(project) };
 		}
 
@@ -287,7 +289,7 @@ export class TrailService {
 	}
 
 	/** Reads one trail and the project it belongs to. */
-	async show(selector: TrailSelector): Promise<TrailResult<TrailDetail>> {
+	async show(selector: TrailSelector, context?: string): Promise<TrailResult<TrailDetail>> {
 		const args = await this.selectorArgs('trail show', selector, ['--json']);
 
 		const result = await this.options.runner.runJson(
@@ -297,6 +299,7 @@ export class TrailService {
 				cwd: this.options.workspaceRoot(),
 				timeoutMs: this.options.actionTimeoutMs?.() ?? DEFAULT_ACTION_TIMEOUT_MS,
 				withholdBodies: true,
+				context,
 			},
 		);
 
@@ -326,13 +329,13 @@ export class TrailService {
 	}
 
 	/** Reads the discussions on a change. */
-	async comments(selector: TrailSelector): Promise<TrailResult<readonly TrailComment[]>> {
+	async comments(selector: TrailSelector, context?: string): Promise<TrailResult<readonly TrailComment[]>> {
 		const args = await this.selectorArgs('trail comment list', selector, ['--json']);
 
 		const result = await this.options.runner.runJson(
 			args,
 			value => unwrap(decodeTrailComments(value)),
-			{ cwd: this.options.workspaceRoot(), withholdBodies: true },
+			{ cwd: this.options.workspaceRoot(), withholdBodies: true, context },
 		);
 
 		return result.ok
@@ -599,7 +602,7 @@ export class TrailService {
 	 * The form is the CLI's, read from its own usage, so the extension
 	 * follows the CLI rather than assuming which way round it is.
 	 */
-	private async selectorArgs(
+	async selectorArgs(
 		command: string,
 		selector: TrailSelector,
 		trailing: readonly string[] = [],
@@ -623,12 +626,13 @@ export class TrailService {
 	 * command line, because review text does not go to the output channel.
 	 * What the command printed is kept out of the invocation record too.
 	 */
-	private actionOptions(redactFlags: readonly string[] = []): RunOptions {
+	actionOptions(redactFlags: readonly string[] = [], context?: string): RunOptions {
 		return {
 			cwd: this.options.workspaceRoot(),
 			timeoutMs: this.options.actionTimeoutMs?.() ?? DEFAULT_ACTION_TIMEOUT_MS,
 			redactFlags,
 			withholdBodies: true,
+			context,
 		};
 	}
 

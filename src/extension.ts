@@ -80,6 +80,7 @@ import { registerDoctorDepthCommands } from './commands/doctorDepthCommands';
 import { registerCaptureCommands } from './commands/captureCommands';
 import { EditorGeneratedUi } from './commands/activityUi';
 import { EditorControlPlaneUi } from './commands/controlPlaneUi';
+import { createTrailDepth } from './commands/trailDepthWiring';
 
 /** The workspace folder the CLI is run in. */
 function workspaceRoot(): string | undefined {
@@ -532,12 +533,26 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		log: { warn: line => log.warn(line) },
 	});
 
+	// Creating and updating trails, the discussions and findings under a
+	// change, and watching a change. The commands are registered before the
+	// view exists; the services behind them are disposed with the extension.
+	const trailDepth = createTrailDepth({
+		runner,
+		trails,
+		workspaceRoot,
+		workspaceFolder,
+		acting: async () => (await accounts.refresh(workspaceRoot())).acting,
+		actingHandle: () => accounts.current.acting?.handle,
+		log: line => log.info(line),
+	});
 	const trailsProvider = new TrailsProvider(
 		createTrailListingSource(trails),
 		() => readExtensionSettings().refreshInterval,
 		{ changes: trailChanges, badgeLimit: () => readExtensionSettings().trailBadgeLimit },
+		trailDepth.threads,
 	);
 	context.subscriptions.push(trailsProvider);
+	trailDepth.register(context, { provider: trailsProvider, selection, trailChanges, documents: generated, git });
 
 	// A change waiting on an approval is the most actionable thing in the
 	// view, so the count sits on the view's badge and in its message.

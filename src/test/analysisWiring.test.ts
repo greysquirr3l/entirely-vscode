@@ -172,6 +172,8 @@ suite('Review, experts and tokens: wiring', () => {
 			reviewProfiles: 'txt',
 			reviewConfig: 'md',
 			reviewFindings: 'txt',
+			'trail-discussion': 'md',
+			'trail-finding': 'txt',
 		};
 		for (const [kind, extension] of Object.entries(extensions)) {
 			const uri = documents.set(kind as GeneratedKind, 'text');

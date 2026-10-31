@@ -17,6 +17,8 @@ import {
 	clampSelectionCacheSeconds,
 	clampTrailBadgeLimit,
 	clampTrailActionTimeout,
+	clampTrailWatchLimit,
+	clampTrailWatchRefreshDelay,
 	effectiveLogLevel,
 } from '../services/configuration';
 import { REDACTED_ARGUMENT, redactArguments } from '../services/cli/runner';
@@ -266,6 +268,8 @@ suite('Entire extension settings', () => {
 			'entirely.cliPath',
 			'entirely.refreshInterval',
 			'entirely.trailActionTimeout',
+			'entirely.trailWatchLimit',
+			'entirely.trailWatchRefreshDelay',
 			'entirely.selectionCacheSeconds',
 			'entirely.trailBadgeLimit',
 			'entirely.showSessionsInExplorer',
@@ -328,6 +332,8 @@ suite('Entire effective log level', () => {
 				selectionCacheSeconds: 30,
 				trailBadgeLimit: 10,
 				trailActionTimeout: 60,
+				trailWatchLimit: 3,
+				trailWatchRefreshDelay: 2,
 				minimumCliVersion: '0.12.2',
 				logLevel: 'warn',
 				debug: false,
@@ -376,6 +382,8 @@ suite('Entire effective log level', () => {
 				selectionCacheSeconds: 30,
 				trailBadgeLimit: 10,
 				trailActionTimeout: 60,
+				trailWatchLimit: 3,
+				trailWatchRefreshDelay: 2,
 				minimumCliVersion: '0.12.2',
 				logLevel: 'info',
 				debug: true,
@@ -424,6 +432,8 @@ suite('Entire effective log level', () => {
 				selectionCacheSeconds: 30,
 				trailBadgeLimit: 10,
 				trailActionTimeout: 60,
+				trailWatchLimit: 3,
+				trailWatchRefreshDelay: 2,
 				minimumCliVersion: '0.12.2',
 				logLevel: 'trace',
 				debug: true,
@@ -484,6 +494,34 @@ suite('Trail action timeout', () => {
 		assert.strictEqual(clampTrailActionTimeout(60), 60);
 		assert.strictEqual(clampTrailActionTimeout(5), 5);
 		assert.strictEqual(clampTrailActionTimeout(600), 600);
+	});
+});
+
+suite('Trail watch settings', () => {
+	test('a limit that is not a number falls back to the default', () => {
+		assert.strictEqual(clampTrailWatchLimit(Number.NaN), 3);
+		assert.strictEqual(clampTrailWatchLimit(Number.POSITIVE_INFINITY), 3);
+		assert.strictEqual(clampTrailWatchLimit(Number.NEGATIVE_INFINITY), 3);
+	});
+
+	test('a limit is held between one and ten and rounded down', () => {
+		assert.strictEqual(clampTrailWatchLimit(0), 1);
+		assert.strictEqual(clampTrailWatchLimit(-4), 1);
+		assert.strictEqual(clampTrailWatchLimit(99), 10);
+		assert.strictEqual(clampTrailWatchLimit(4.9), 4);
+		assert.strictEqual(clampTrailWatchLimit(3), 3);
+	});
+
+	test('a delay that is not a number falls back to the default', () => {
+		assert.strictEqual(clampTrailWatchRefreshDelay(Number.NaN), 2);
+		assert.strictEqual(clampTrailWatchRefreshDelay(Number.POSITIVE_INFINITY), 2);
+	});
+
+	test('a delay is held between one and thirty seconds and rounded down', () => {
+		assert.strictEqual(clampTrailWatchRefreshDelay(0), 1);
+		assert.strictEqual(clampTrailWatchRefreshDelay(500), 30);
+		assert.strictEqual(clampTrailWatchRefreshDelay(2.8), 2);
+		assert.strictEqual(clampTrailWatchRefreshDelay(30), 30);
 	});
 });
 

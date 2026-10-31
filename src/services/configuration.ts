@@ -93,6 +93,10 @@ export interface ExtensionSettings {
 	readonly blameMaxDecoratedLines: number;
 	/** How long, in seconds, a trail review action may run before it is killed. */
 	readonly trailActionTimeout: number;
+	/** How many changes may be watched at once. Each watch is one `entire` process. */
+	readonly trailWatchLimit: number;
+	/** How long, in seconds, events from a watch are gathered before a change's discussions and findings are read again. */
+	readonly trailWatchRefreshDelay: number;
 	/** How long, in seconds, a detail loaded in the detail panel is kept. Zero keeps nothing. */
 	readonly selectionCacheSeconds: number;
 	/** How many open trails are read to count the changes awaiting approval. Zero reads none. */
@@ -470,6 +474,37 @@ export function clampTrailActionTimeout(seconds: number): number {
 	return Math.min(MAX_TRAIL_ACTION_TIMEOUT_SECONDS, Math.max(5, Math.floor(seconds)));
 }
 
+/** The bounds of the number of changes watched at once. */
+export const DEFAULT_TRAIL_WATCH_LIMIT = 3;
+export const MIN_TRAIL_WATCH_LIMIT = 1;
+export const MAX_TRAIL_WATCH_LIMIT = 10;
+
+/** Puts the number of simultaneous watches in range: each one is a process that stays running. */
+export function clampTrailWatchLimit(count: number): number {
+	if (!Number.isFinite(count)) {
+		return DEFAULT_TRAIL_WATCH_LIMIT;
+	}
+
+	return Math.min(MAX_TRAIL_WATCH_LIMIT, Math.max(MIN_TRAIL_WATCH_LIMIT, Math.floor(count)));
+}
+
+/** The bounds of the delay events are gathered over before a read, in seconds. */
+export const DEFAULT_TRAIL_WATCH_REFRESH_DELAY_SECONDS = 2;
+export const MIN_TRAIL_WATCH_REFRESH_DELAY_SECONDS = 1;
+export const MAX_TRAIL_WATCH_REFRESH_DELAY_SECONDS = 30;
+
+/** Puts the watch refresh delay in range. */
+export function clampTrailWatchRefreshDelay(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return DEFAULT_TRAIL_WATCH_REFRESH_DELAY_SECONDS;
+	}
+
+	return Math.min(
+		MAX_TRAIL_WATCH_REFRESH_DELAY_SECONDS,
+		Math.max(MIN_TRAIL_WATCH_REFRESH_DELAY_SECONDS, Math.floor(seconds)),
+	);
+}
+
 /** The bounds of the time a loaded detail is kept, in seconds. */
 export const DEFAULT_SELECTION_CACHE_SECONDS = 30;
 export const MAX_SELECTION_CACHE_SECONDS = 600;
@@ -558,6 +593,10 @@ export function readExtensionSettings(): ExtensionSettings {
 		blameMaxDecoratedLines: clampBlameMaxLines(configuration.get<number>('blameMaxDecoratedLines', 5000)),
 		trailActionTimeout: clampTrailActionTimeout(
 			configuration.get<number>('trailActionTimeout', DEFAULT_TRAIL_ACTION_TIMEOUT_SECONDS),
+		),
+		trailWatchLimit: clampTrailWatchLimit(configuration.get<number>('trailWatchLimit', DEFAULT_TRAIL_WATCH_LIMIT)),
+		trailWatchRefreshDelay: clampTrailWatchRefreshDelay(
+			configuration.get<number>('trailWatchRefreshDelay', DEFAULT_TRAIL_WATCH_REFRESH_DELAY_SECONDS),
 		),
 		selectionCacheSeconds: clampSelectionCacheSeconds(
 			configuration.get<number>('selectionCacheSeconds', DEFAULT_SELECTION_CACHE_SECONDS),

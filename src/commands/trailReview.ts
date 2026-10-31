@@ -18,6 +18,7 @@ import {
 } from '../lib/entire';
 import type { Trail, TrailSelector } from '../lib/entire';
 import type { TrailService, TrailWorkspace } from '../services/trailService';
+import { unsavedFiles } from './unsavedWork';
 
 /** What the commands need to do their job. */
 export interface TrailReviewDependencies {
@@ -139,35 +140,6 @@ async function trailToActOn(
 
 	const pick = await choose(trailPicks(listed.trails), title, placeHolder);
 	return pick?.kind === 'trail' ? pick : undefined;
-}
-
-/**
- * The files the editor holds open with unsaved changes.
- *
- * The editor is the only thing that knows about a buffer that was
- * never written to disk, so it is the editor that is asked.
- */
-function unsavedFiles(): { readonly path: string; readonly name?: string }[] {
-	const files: { path: string; name?: string }[] = [];
-
-	for (const document of vscode.workspace.textDocuments) {
-		// An untitled buffer or a virtual document is not a file in the
-		// working tree, so a checkout cannot lose it. A file outside the
-		// workspace is not in the repository the checkout moves.
-		if (!document.isDirty || document.isUntitled || document.uri.scheme !== 'file') {
-			continue;
-		}
-
-		if (!vscode.workspace.getWorkspaceFolder(document.uri)) {
-			continue;
-		}
-
-		const name = vscode.workspace.asRelativePath(document.uri, false);
-
-		files.push({ path: document.uri.fsPath, name });
-	}
-
-	return files;
 }
 
 /**
