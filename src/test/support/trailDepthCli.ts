@@ -372,9 +372,12 @@ switch (named) {
     out('updated'); break;
   }
   case 'trail watch': {
-    for (const line of config.watchLines) out(line);
+    // The handler and the pid marker come first: a line on stdout is what the extension
+    // (and so a test) waits for, and a stop that arrived before the handler would kill
+    // the process without leaving the signal record.
     process.on('SIGTERM', () => { fs.appendFileSync(path.join(root, 'signals.log'), 'SIGTERM\n'); process.exit(143); });
     fs.writeFileSync(path.join(root, 'watch.pid'), String(process.pid));
+    for (const line of config.watchLines) out(line);
     if (config.watchExit !== undefined) {
       if (config.watchStderr) process.stderr.write(config.watchStderr + '\n');
       process.exit(config.watchExit);
