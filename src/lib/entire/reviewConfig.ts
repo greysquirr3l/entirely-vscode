@@ -1,3 +1,4 @@
+import { markdownText } from './text';
 import { decodeRecord, fields, optionalBoolean, type DecodeResult } from './decode';
 
 /** One hook, MCP server or setting the reviewer would load. */
@@ -89,7 +90,7 @@ export function countLoaded(config: ReviewConfig): { readonly hooks: number; rea
 }
 
 function one(value: string): string {
-	return value.replace(/\s+/g, ' ').trim();
+	return markdownText(value);
 }
 
 /** What the review would load, as a Markdown document. The commands are the CLI's text. */
@@ -115,7 +116,7 @@ export function describeReviewConfig(config: ReviewConfig): string {
 			out.push(`  - From: ${one(entry.source)}`);
 		}
 		if (entry.command) {
-			out.push(`  - Command: \`${one(entry.command).replace(/`/g, "'")}\``);
+			out.push(`  - Command: ${one(entry.command)}`);
 		}
 	}
 	if (config.entries.length > 0) {

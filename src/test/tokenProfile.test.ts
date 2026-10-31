@@ -30,6 +30,8 @@ import { fakeAnalysisCli, type FakeAnalysisCli, type FakeAnalysisOptions } from 
 
 const FLAGS: ProfileFlags = { json: '--json', all: '--all', limit: '--limit' };
 
+const plain = (text: string): string => text.replace(/\\(.)/g, '$1');
+
 function observed(): TokenProfile {
 	const decoded = decodeTokenProfile(JSON.parse(TOKEN_PROFILE_JSON));
 	assert.ok(decoded.ok);
@@ -97,7 +99,7 @@ suite('Token profile: decoding the CLI JSON', () => {
 
 suite('Token profile: the document', () => {
 	test('shows the totals, signals, recommendations and limitations in the CLI words', () => {
-		const text = describeProfile(observed(), 'the latest 50 committed checkpoints');
+		const text = plain(describeProfile(observed(), 'the latest 50 committed checkpoints'));
 		assert.match(text, /\| Total \| 372,774,662 \|/);
 		assert.match(text, /\| Subagents \| 209,212,132 \|/);
 		assert.match(text, /### Cache\/context replay hotspot \(35 of 50 checkpoints, 70%\)/);

@@ -1,6 +1,6 @@
 import { decodeRecord, fields, optionalString, type DecodeResult, type Fields } from './decode';
 import { isCheckpointId } from './checkpoint';
-import { escapeMarkdown } from './text';
+import { markdownText } from './text';
 import { checkpointLink } from './generatedLinks';
 import { NOT_REPORTED, decodeTokenUsage, type TokenUsage } from './tokenUsage';
 import type { FlagWant } from './controlPlaneFlags';
@@ -188,11 +188,6 @@ export function isEmptyProfile(profile: TokenProfile): boolean {
 export const EMPTY_PROFILE_TEXT =
 	'There is no checkpoint history to profile. The Entire CLI analysed no committed checkpoints in this repository. Checkpoints appear after an agent session is recorded and committed.';
 
-/** One line of text, so a value from the CLI cannot start a block of its own. */
-function flat(text: string): string {
-	return text.replace(/\s+/g, ' ').trim();
-}
-
 function formatCount(value: number | undefined): string {
 	return value === undefined ? NOT_REPORTED : value.toLocaleString('en-US');
 }
@@ -230,7 +225,7 @@ export function describeProfile(profile: TokenProfile, scopeNote: string): strin
 	const usage = profile.usage;
 	out.push('## Token usage', '');
 	if (profile.usageScope) {
-		out.push(`Scope reported by the CLI: ${profile.usageScope}.`, '');
+		out.push(`Scope reported by the CLI: ${markdownText(profile.usageScope)}.`, '');
 	}
 	out.push('| Count | Tokens |', '| --- | ---: |');
 	out.push(`| Total | ${formatCount(usage?.total)} |`);
@@ -247,13 +242,13 @@ export function describeProfile(profile: TokenProfile, scopeNote: string): strin
 	}
 	for (const signal of profile.signals) {
 		const summary = signalSummary(signal, profile.checkpointsAnalyzed);
-		out.push(`### ${flat(signal.label)}${summary ? ` (${summary})` : ''}`, '');
+		out.push(`### ${markdownText(signal.label)}${summary ? ` (${summary})` : ''}`, '');
 		if (signal.checkpointIds.length === 0) {
 			out.push('No checkpoint ids were given.', '');
 			continue;
 		}
 		for (const id of signal.checkpointIds) {
-			out.push(`- ${isCheckpointId(id) ? checkpointLink(id) : escapeMarkdown(flat(id))}`);
+			out.push(`- ${isCheckpointId(id) ? checkpointLink(id) : markdownText(id)}`);
 		}
 		out.push('');
 	}
@@ -263,8 +258,8 @@ export function describeProfile(profile: TokenProfile, scopeNote: string): strin
 		out.push('The CLI made no recommendations.', '');
 	}
 	for (const recommendation of profile.recommendations) {
-		const severity = recommendation.severity ? `**${flat(recommendation.severity)}**: ` : '';
-		out.push(`- ${severity}${recommendation.message}`);
+		const severity = recommendation.severity ? `**${markdownText(recommendation.severity)}**: ` : '';
+		out.push(`- ${severity}${markdownText(recommendation.message)}`);
 	}
 	if (profile.recommendations.length > 0) {
 		out.push('');
@@ -275,7 +270,7 @@ export function describeProfile(profile: TokenProfile, scopeNote: string): strin
 		out.push('The CLI stated no limitations.', '');
 	}
 	for (const limitation of profile.limitations) {
-		out.push(`- ${limitation}`);
+		out.push(`- ${markdownText(limitation)}`);
 	}
 	return `${out.join('\n').trimEnd()}\n`;
 }

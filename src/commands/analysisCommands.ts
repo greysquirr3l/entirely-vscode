@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import type { AccountContext } from '../lib/entire';
+import { repositoryFileToAbsolute, type AccountContext } from '../lib/entire';
 import type { GeneratedDocuments } from '../providers/generatedDocuments';
 import type { CliRunner } from '../services/cli';
 import { readExtensionSettings } from '../services/configuration';
@@ -82,9 +82,11 @@ export function registerAnalysisCommands(context: vscode.ExtensionContext, deps:
 			await showTokenProfile({ source: profile, ui, limit: () => readExtensionSettings().tokenProfileCheckpoints });
 		}),
 		vscode.commands.registerCommand('entirely.expertsForPath', async (target?: unknown) => {
-			// A link in the blame panel passes the file as text. It is checked to be inside the workspace before Entire is asked.
+			// A link in the blame panel passes the file as text, named relative to the repository root. It is checked to be inside the workspace before Entire is asked.
 			const uri = target instanceof vscode.Uri ? target : vscode.window.activeTextEditor?.document.uri;
-			const file = typeof target === 'string' && target.length > 0 ? target : uri?.scheme === 'file' ? uri.fsPath : undefined;
+			const root = deps.git?.repositoryRootFor(deps.workspaceFolder()) ?? workspaceRoot();
+			const named = typeof target === 'string' && target.length > 0 && root ? repositoryFileToAbsolute(root, target) : undefined;
+			const file = named ?? (uri?.scheme === 'file' ? uri.fsPath : undefined);
 			await expertsForPath(expertsDeps, file);
 		}),
 		vscode.commands.registerCommand('entirely.expertsAsk', async () => {

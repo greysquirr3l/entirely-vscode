@@ -28,6 +28,8 @@ export interface GitRepository {
 /** The part of the git extension's API the extension uses. */
 interface GitApi {
 	readonly repositories: GitRepository[];
+	/** The repository that holds a file or folder, when the git extension offers the lookup. */
+	getRepository?(uri: vscode.Uri): GitRepository | null;
 }
 
 /** The shape of the git extension's exports. */
@@ -90,6 +92,14 @@ export class GitService {
 		return this.api.repositories.find(
 			repository => repository.rootUri.fsPath === folder.fsPath,
 		);
+	}
+
+	/** The root of the repository that holds a folder, which is above the folder when the workspace is a subfolder. */
+	repositoryRootFor(folder: vscode.Uri | undefined): string | undefined {
+		if (!folder) {
+			return undefined;
+		}
+		return (this.api.getRepository?.(folder) ?? this.repositoryFor(folder))?.rootUri.fsPath;
 	}
 
 	/** The checked-out branch, when the repository has one. */

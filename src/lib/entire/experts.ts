@@ -1,4 +1,5 @@
 import { END_OF_OPTIONS } from './operand';
+import { markdownText } from './text';
 import type { FlagWant } from './controlPlaneFlags';
 
 /**
@@ -180,7 +181,9 @@ export type ExpertsFailure = 'not-mirrored' | 'other';
  * own text is always shown with it.
  */
 export function classifyExpertsFailure(output: string): ExpertsFailure {
-	return /mirror|publish|not found|no such repo/i.test(output) ? 'not-mirrored' : 'other';
+	return /mirror|publish|no such repo|(?:repo|repository|project)\b[^\n]{0,40}\bnot found|not found\b[^\n]{0,40}\b(?:repo|repository)\b/i.test(output)
+		? 'not-mirrored'
+		: 'other';
 }
 
 /** What the answer is about, for the document's heading and the messages. */
@@ -209,15 +212,15 @@ export const EXPERTS_SERVER_NOTICE =
 
 function contextLines(context: ExpertsContext): string[] {
 	return [
-		`- Repository: ${context.repository ?? 'the repository of this folder, as the CLI resolves it'}`,
-		`- Branch: ${context.branch ?? "the CLI's default"}`,
-		`- Asked as: ${context.login}, on Entire`,
+		`- Repository: ${context.repository ? markdownText(context.repository) : 'the repository of this folder, as the CLI resolves it'}`,
+		`- Branch: ${context.branch ? markdownText(context.branch) : "the CLI's default"}`,
+		`- Asked as: ${markdownText(context.login)}, on Entire`,
 	];
 }
 
 /** The heading and context shared by every experts document. */
 function head(request: ExpertsRequest, context: ExpertsContext): string[] {
-	const scope = request.kind === 'scope' ? `Scope: \`${request.scope.replace(/`/g, "'")}\`` : `Scope: ${describeExpertsRequest(request)}`;
+	const scope = request.kind === 'scope' ? `Scope: ${markdownText(request.scope)}` : `Scope: ${describeExpertsRequest(request)}`;
 	return ['# Who has touched this code', '', EXPERTS_SERVER_NOTICE, '', scope, ...contextLines(context), ''];
 }
 
@@ -230,11 +233,11 @@ export function describeExperts(entries: readonly ExpertEntry[], request: Expert
 	const out = head(request, context);
 	out.push(`## Ranked (${entries.length})`, '');
 	entries.forEach((entry, index) => {
-		const kind = entry.kind ? ` (${line(entry.kind)})` : '';
+		const kind = entry.kind ? ` (${markdownText(entry.kind)})` : '';
 		const score = entry.score !== undefined ? ` — ${entry.score}` : '';
-		out.push(`${index + 1}. **${line(entry.name)}**${kind}${score}`);
+		out.push(`${index + 1}. **${markdownText(entry.name)}**${kind}${score}`);
 		for (const detail of entry.details) {
-			out.push(`   - ${line(detail.label)}: ${line(detail.value)}`);
+			out.push(`   - ${markdownText(detail.label)}: ${markdownText(detail.value)}`);
 		}
 	});
 	return `${out.join('\n').trimEnd()}\n`;
@@ -246,9 +249,10 @@ export function describeEmptyExperts(request: ExpertsRequest, context: ExpertsCo
 	out.push(
 		'## Nothing found',
 		'',
-		`Entire has no recorded provenance for ${describeExpertsRequest(request)}. This is an answer, not a failure.`,
+		`Entire has no recorded provenance for ${markdownText(describeExpertsRequest(request))}. This is an answer, not a failure.`,
 		'',
 		'A recent push can take a couple of minutes to appear. Try again shortly, or ask about another path.',
+		...(context.branch ? ['', `Branch ${markdownText(context.branch)} may not be pushed to Entire; Entire answers only for what it holds.`] : []),
 	);
 	return `${out.join('\n')}\n`;
 }

@@ -82,7 +82,7 @@ They are in the palette and the overflow menu of the **Activity** view title. Ho
 3. Asks which branch: the current one, or another local branch, which the CLI checks out in a worktree.
 4. Optionally asks for one-off instructions.
 5. Reads what the review would load with `--show-config --json`.
-6. Asks you to confirm in a modal. It names the profile, the branch, the login the review runs as "on Entire", the CLI's own description, that the reviewer and judge agents run on your machine and spend your tokens, and the time limit. Reviewers have none unless you set `entirely.reviewReviewerTimeoutMinutes`. It gives the number of hooks and MCP servers the reviewer would load. If the CLI says you did not write the code, it warns that the reviewer will load that code's hooks and MCP servers and that the CLI will ask you to approve this in the terminal. The default button is **Cancel**.
+6. Asks you to confirm in a modal. It names the profile, the branch, the login the review runs as "on Entire", the CLI's own description, that the reviewer and judge agents run on your machine and spend your tokens, and the time limit. Reviewers have none unless you set `entirely.reviewReviewerTimeoutMinutes`. It gives the number of hooks and MCP servers the reviewer would load. If the CLI says you did not write the code, it warns that the reviewer will load that code's hooks and MCP servers and that the CLI will ask you to approve this in the terminal. Press Esc or choose **Cancel** to decline.
 7. Only after **Start Review**, opens one terminal named "Entire: review" that runs the CLI as the login you confirmed.
 </Steps>
 

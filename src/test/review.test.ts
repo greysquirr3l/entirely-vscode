@@ -120,9 +120,9 @@ suite('Review: what a review would run', () => {
 	test('the document shows commands and the unauthored-code note, and names no agent', () => {
 		const decoded = decodeReviewConfig({ ...JSON.parse(REVIEW_CONFIG_JSON), yours: false });
 		assert.ok(decoded.ok);
-		const text = describeReviewConfig(decoded.value);
+		const text = describeReviewConfig(decoded.value).replace(/\\(.)/g, '$1');
 		assert.match(text, /Authored by you: no\. The reviewer would load code you did not write/);
-		assert.match(text, /Command: `\.\/scripts\/check-before-compact\.sh`/);
+		assert.match(text, /Command: \.\/scripts\/check-before-compact\.sh/);
 		assert.match(text, /Nothing was checked out and no agent was started/);
 	});
 });

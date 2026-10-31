@@ -1,5 +1,6 @@
 import {
 	MAX_REVIEW_PROMPT,
+	isBranchName,
 	NO_PROFILE_TEXT,
 	REVIEW_STARTED_TEXT,
 	describeReviewConfig,
@@ -219,8 +220,9 @@ async function start(deps: ReviewDependencies, later: (work: () => Promise<void>
 	}
 
 	const branches = await deps.branches();
+	// A branch the CLI cannot be given safely is not offered, so the run cannot be refused after the person confirmed.
 	const where = await ui.pickTarget(
-		branches.local.filter(name => name !== branches.current),
+		branches.local.filter(name => name !== branches.current && isBranchName(name)),
 		branches.current,
 	);
 	if (!where) {
@@ -239,7 +241,19 @@ async function start(deps: ReviewDependencies, later: (work: () => Promise<void>
 		timeoutMinutes: deps.timeoutMinutes(),
 	};
 
-	const config = await ui.withProgress('Reading what the review would load…', () => source.config(plan));
+	if (where.target !== undefined && !isBranchName(where.target)) {
+		await unavailable(ui, 'A review cannot be started', `the branch "${where.target}" has a name the Entire CLI cannot be given safely`);
+		return 'unavailable';
+	}
+
+	// The login is read before the read of what the review would load, so that read and the run use the same login.
+	const acting = await deps.acting();
+	if (!acting) {
+		await ui.warn(NO_LOGIN);
+		return 'no-login';
+	}
+
+	const config = await ui.withProgress('Reading what the review would load…', () => source.config(plan, acting));
 	if (config.kind === 'refused') {
 		// The CLI's refusal is shown as it was written. No trust flag is offered or added.
 		await ui.warn(config.message);
@@ -248,13 +262,6 @@ async function start(deps: ReviewDependencies, later: (work: () => Promise<void>
 	if (config.kind !== 'config') {
 		await unavailable(ui, 'A review cannot be started', config.detail);
 		return 'unavailable';
-	}
-
-	// The login is read again just before the question, so the question names the login the terminal runs as.
-	const acting = await deps.acting();
-	if (!acting) {
-		await ui.warn(NO_LOGIN);
-		return 'no-login';
 	}
 
 	const question = reviewConfirmation(

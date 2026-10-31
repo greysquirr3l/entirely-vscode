@@ -120,9 +120,9 @@ suite('Experts: the words', () => {
 	test('a ranking names the scope, the repository, the branch, the login and the servers', () => {
 		const reading = decodeExperts(JSON.parse(EXPERTS_JSON));
 		assert.ok(reading.kind === 'entries');
-		const text = describeExperts(reading.entries, request, CONTEXT);
+		const text = describeExperts(reading.entries, request, CONTEXT).replace(/\\(.)/g, '$1');
 		assert.ok(text.includes(EXPERTS_SERVER_NOTICE));
-		assert.match(text, /Scope: `src\/payments`/);
+		assert.match(text, /Scope: src\/payments/);
 		assert.match(text, /Repository: gh\/acme\/widgets/);
 		assert.match(text, /Branch: main/);
 		assert.match(text, /Asked as: alice, on Entire/);
@@ -311,9 +311,9 @@ suite('Experts: the commands', () => {
 		assert.deepStrictEqual(cli.modes('experts')[0].slice(-2), ['--', 'src/payments/a.ts']);
 		assert.match(ui.progress[0], /Entire's servers/);
 		assert.strictEqual(ui.shown[0].kind, 'experts');
-		assert.match(ui.shown[0].text, /Scope: `src\/payments\/a\.ts`/);
-		assert.match(ui.shown[0].text, /Repository: gh\/acme\/widgets/);
-		assert.match(ui.shown[0].text, /Asked as: alice \(login alice@us\.auth\.entire\.io\), on Entire/);
+		assert.match(ui.shown[0].text.replace(/\\(.)/g, '$1'), /Scope: src\/payments\/a\.ts/);
+		assert.match(ui.shown[0].text.replace(/\\(.)/g, '$1'), /Repository: gh\/acme\/widgets/);
+		assert.match(ui.shown[0].text.replace(/\\(.)/g, '$1'), /Asked as: alice \(login alice@us\.auth\.entire\.io\), on Entire/);
 	});
 
 	test('the workspace folder itself is asked as the dot scope, and a path outside is refused', async () => {

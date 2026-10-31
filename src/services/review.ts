@@ -3,6 +3,7 @@ import {
 	cliReason,
 	decodeReviewConfig,
 	failureDetail,
+	isBranchName,
 	firstParagraph,
 	longestFlagDescription,
 	parseProfileList,
@@ -69,7 +70,8 @@ export type LaunchPlan =
 export interface ReviewSource {
 	help(): Promise<{ readonly ok: true; readonly value: ReviewHelp } | ({ readonly ok: false } & Unavailable)>;
 	profiles(): Promise<ProfilesOutcome>;
-	config(plan: Pick<ReviewPlan, 'profile' | 'target' | 'base'> | undefined): Promise<ConfigOutcome>;
+	/** Reads what a review would load. With `acting`, the read runs as that login. */
+	config(plan: Pick<ReviewPlan, 'profile' | 'target' | 'base'> | undefined, acting?: AccountContext): Promise<ConfigOutcome>;
 	findings(): Promise<TextOutcome>;
 	/** Builds the terminal command of a run. Nothing is started. */
 	prepareRun(plan: ReviewPlan, acting: AccountContext): Promise<LaunchPlan>;
@@ -159,7 +161,10 @@ export class ReviewService implements ReviewSource {
 		return outcome;
 	}
 
-	async config(plan: Pick<ReviewPlan, 'profile' | 'target' | 'base'> | undefined): Promise<ConfigOutcome> {
+	async config(plan: Pick<ReviewPlan, 'profile' | 'target' | 'base'> | undefined, acting?: AccountContext): Promise<ConfigOutcome> {
+		if (plan?.target !== undefined && !isBranchName(plan.target)) {
+			return { kind: 'failed', detail: `the branch "${plan.target}" has a name the Entire CLI cannot be given safely, so it cannot be reviewed from the editor` };
+		}
 		const { help, cwd, timeoutMs } = await this.read();
 		if (!help.ok) {
 			return help;
@@ -171,6 +176,7 @@ export class ReviewService implements ReviewSource {
 		const result = await this.options.runner.runJson(args, value => unwrap(decodeReviewConfig(value)), {
 			cwd,
 			timeoutMs,
+			context: acting?.name,
 			env: staticEnvironment(),
 			withholdBodies: true,
 		});
