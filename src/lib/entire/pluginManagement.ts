@@ -108,19 +108,6 @@ export function versionOf(detail: string): string | undefined {
 	return /(?:^|\s)(v?\d+(?:\.\d+)+[\w.+-]{0,40})/.exec(detail)?.[1];
 }
 
-/**
- * Makes text from the CLI safe for a notification, which renders Markdown.
- * Brackets, angle brackets and backticks are dropped so no link or autolink
- * can form, and a `scheme:` right before a slash or a word is broken, so a
- * bare `command:` URI is not live either. Newlines are kept: callers use them.
- */
-export function neutraliseLinks(text: string): string {
-	return text
-		.replace(/[[\]<>`]/g, '')
-		.replace(/\b(command|file|vscode|vscode-insiders|https?|ftp|mailto)\s*:/gi, '$1 :')
-		.replace(/\]\(/g, '');
-}
-
 /** The file a list row points at, after the arrow. */
 export function pluginPathOf(detail: string): string | undefined {
 	const path = /→\s*(.+?)\s*$/.exec(detail)?.[1];

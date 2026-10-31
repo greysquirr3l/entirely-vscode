@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
-import type { ControlConfirmation } from '../lib/entire';
+import { neutraliseLinks, type ControlConfirmation } from '../lib/entire';
 import type { GeneratedDocuments } from '../providers/generatedDocuments';
 import type { DoctorDepthUi, OutputDocument, TraceMode } from './doctorDepth';
 
@@ -19,7 +19,7 @@ export class EditorDoctorDepthUi implements DoctorDepthUi {
 
 	notify(level: 'info' | 'warn', message: string, actions: readonly string[] = []): Promise<string | undefined> {
 		const show = level === 'warn' ? vscode.window.showWarningMessage : vscode.window.showInformationMessage;
-		return Promise.resolve(show(message, ...actions));
+		return Promise.resolve(show(neutraliseLinks(message), ...actions));
 	}
 
 	async confirm(prompt: ControlConfirmation): Promise<boolean> {

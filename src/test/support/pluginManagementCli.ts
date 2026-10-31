@@ -79,6 +79,8 @@ export interface FakePluginManagementOptions {
 	removeFail?: string;
 	/** After any upgrade or removal, `plugin list` exits 1. */
 	listFailsAfterMutation?: boolean;
+	/** `plugin install` exits 1 with this text. */
+	installFail?: string;
 	/** Replaces the directory the list names, to test text the CLI controls. */
 	managedDirText?: string;
 	/** Make `plugin list` always exit 1. */
@@ -171,7 +173,7 @@ if (sub === 'remove') {
   state.mutated = true; save(state);
   out('removed ' + name); process.exit(0);
 }
-if (sub === 'install') { out('installed'); process.exit(0); }
+if (sub === 'install') { if (config.installFail) fail(config.installFail); out('installed'); process.exit(0); }
 fail('Error: unknown plugin command');
 `;
 
@@ -196,6 +198,7 @@ export function fakePluginManagementCli(options: FakePluginManagementOptions = {
 		...(options.helps ?? {}),
 	};
 	const config = {
+		installFail: options.installFail,
 		managedDir: options.managedDirText ?? managedDir,
 		allFlag,
 		forceFlag,

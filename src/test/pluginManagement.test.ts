@@ -41,7 +41,10 @@ import {
 	type PluginManagementUi,
 	type SearchItem,
 } from '../commands/pluginManagement';
-import { installPluginCommand, type PluginChoice, type PluginUi } from '../commands/plugins';
+import { installPluginCommand, runPluginCommand, type PluginChoice, type PluginUi } from '../commands/plugins';
+import { EditorPluginUi } from '../commands/pluginUi';
+import { GeneratedDocuments } from '../providers/generatedDocuments';
+import { fakePluginCli } from './support/pluginCli';
 import { IntegrationDetector } from '../services/integrationDetection';
 import type { McpServerSource } from '../services/mcpServer';
 import { buildIntegrationNodes, PLUGIN_BUILT_IN, PLUGIN_MANAGED, PLUGIN_MISSING, PLUGIN_ON_PATH } from '../providers/integrationsProvider';
@@ -846,5 +849,78 @@ suite('Plugin management: rows for plugins named like CLI commands', () => {
 		const reading = await detector.detect();
 		assert.ok(reading.kind === 'folders');
 		assert.deepStrictEqual(reading.folders[0].plugins.map(row => [row.name, row.builtIn === true]), [['status', true], ['graph', false]]);
+	});
+});
+
+suite('Plugin management: the editor adapters neutralise what they show', () => {
+	const LINK = '[click](command:workbench.action.reloadWindow)';
+	const clean = (text: string): boolean => !/[[\]<>`\u200B-\u200F\u202A-\u202E\u2066-\u2069]/.test(text) && !/command:/i.test(text);
+
+	/** Records what reaches the editor's message functions; a modal answers with its action. */
+	async function withStubbedMessages(run: () => Promise<void>): Promise<string[]> {
+		const shown: string[] = [];
+		const window = vscode.window as unknown as Record<string, unknown>;
+		const saved = { warn: window.showWarningMessage, info: window.showInformationMessage };
+		const stub = (message: string, ...rest: unknown[]): Promise<unknown> => {
+			const modal = typeof rest[0] === 'object' && rest[0] !== null;
+			shown.push(message);
+			return Promise.resolve(modal ? rest[rest.length - 1] : undefined);
+		};
+		window.showWarningMessage = stub;
+		window.showInformationMessage = stub;
+		try {
+			await run();
+		} finally {
+			window.showWarningMessage = saved.warn;
+			window.showInformationMessage = saved.info;
+		}
+		return shown;
+	}
+
+	test('neutraliseLinks removes bidi and zero-width characters', () => {
+		const text = neutraliseLinks('a\u200Bb\u202Ec\u2066d\u2069e\u200Ff\u202Ag');
+		assert.strictEqual(text, 'abcdefg');
+	});
+
+	test('an install that fails after the search hand-off shows no live link', async () => {
+		const cli = fakePluginManagementCli({ installFail: `boom ${LINK}` });
+		const plugins = new PluginService({ runner: cli.runner, workspaceRoot: () => cli.dir, timeoutSeconds: () => 20 });
+		const ui = new EditorPluginUi(new GeneratedDocuments());
+		const shown = await withStubbedMessages(async () => {
+			const result = await installPluginCommand({ source: plugins, acting: () => Promise.resolve(ALICE), ui, suggested: () => [], running: { active: false } }, 'newone');
+			assert.strictEqual(result, 'failed');
+		});
+		assert.ok(shown.some(message => /could not be installed: boom/.test(message)), shown.join('|'));
+		assert.ok(shown.slice(1).every(clean), shown.join('|'));
+	});
+
+	test('a plugin list failure and a plugin run failure show no live link', async () => {
+		const listing = fakePluginManagementCli({ listFails: `Error: ${LINK}` });
+		const listService = new PluginService({ runner: listing.runner, workspaceRoot: () => listing.dir, timeoutSeconds: () => 20 });
+		const editor = new EditorPluginUi(new GeneratedDocuments());
+		const shown = await withStubbedMessages(async () => {
+			await installPluginCommand({ source: listService, acting: () => Promise.resolve(ALICE), ui: editor, suggested: () => [], running: { active: false } });
+		});
+		assert.ok(shown.some(message => /cannot be listed/.test(message)), shown.join('|'));
+		assert.ok(shown.every(clean), shown.join('|'));
+
+		const cli = fakePluginCli({ fail: { graph: `boom ${LINK}` } });
+		const service = new PluginService({ runner: cli.runner, workspaceRoot: () => cli.dir, timeoutSeconds: () => 20 });
+		const scripted: PluginUi = {
+			pickPlugin: () => Promise.resolve('graph'),
+			pickSubcommand: () => Promise.resolve(''),
+			askArguments: () => Promise.resolve(''),
+			confirm: () => Promise.resolve(true),
+			withProgress: (_title, work) => work(new AbortController().signal),
+			warn: message => editor.warn(message),
+			offerInstall: (message, name) => editor.offerInstall(message, name),
+			showOutput: () => Promise.resolve(),
+			inform: message => editor.inform(message),
+		};
+		const ran = await withStubbedMessages(async () => {
+			assert.strictEqual(await runPluginCommand({ source: service, acting: () => Promise.resolve(ALICE), ui: scripted, suggested: () => [], running: { active: false } }), 'failed');
+		});
+		assert.ok(ran.some(message => /plugin failed: boom/.test(message)), ran.join('|'));
+		assert.ok(ran.every(clean), ran.join('|'));
 	});
 });

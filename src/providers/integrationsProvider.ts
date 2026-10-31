@@ -37,9 +37,9 @@ export type IntegrationNode =
 export const PLUGIN_MISSING = 'entirely.integrationPluginMissing';
 /** Listed by `plugin list`: the CLI can show, upgrade and remove it. */
 export const PLUGIN_MANAGED = 'entirely.integrationPluginManaged';
-/** Found on the PATH only: the CLI can show it and nothing else. */
 /** Listed, but its name is also a CLI command: no actions, as the flows refuse it. */
 export const PLUGIN_BUILT_IN = 'entirely.integrationPluginBuiltIn';
+/** Found on the PATH only: the CLI can show it and nothing else. */
 export const PLUGIN_ON_PATH = 'entirely.integrationPluginOnPath';
 export const MCP_OFF = 'entirely.integrationMcpOff';
 export const MCP_CONFIG_ADDABLE = 'entirely.integrationMcpConfigAddable';

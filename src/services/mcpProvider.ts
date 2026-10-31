@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import { MCP_PROVIDER_ID, MCP_SERVER_LABEL } from '../lib/entire';
+import { MCP_PROVIDER_ID, MCP_SERVER_LABEL, neutraliseLinks } from '../lib/entire';
 import type { McpServerSource } from './mcpServer';
 
 /**
@@ -37,7 +37,7 @@ export class EntireMcpProvider implements vscode.McpServerDefinitionProvider<vsc
 	async resolveMcpServerDefinition(server: vscode.McpStdioServerDefinition): Promise<vscode.McpStdioServerDefinition | undefined> {
 		const probe = await this.source.probe();
 		if (!probe.ok) {
-			void vscode.window.showWarningMessage(`The Entire MCP server cannot start: ${probe.detail}.`);
+			void vscode.window.showWarningMessage(neutraliseLinks(`The Entire MCP server cannot start: ${probe.detail}.`));
 			return undefined;
 		}
 		server.command = probe.launch.command;

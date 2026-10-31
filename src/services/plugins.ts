@@ -98,12 +98,12 @@ export class PluginService implements PluginSource {
 		return { ok: true, value: parseInstalledPlugins(text) };
 	}
 
-	/** The CLI's own command names, or why they could not be read. */
 	/** The CLI's own command names, for a caller that checks many names at once. */
 	builtinNames(): Promise<Read<ReadonlySet<string>>> {
 		return this.builtins();
 	}
 
+	/** The CLI's own command names, or why they could not be read. */
 	private async builtins(): Promise<Read<ReadonlySet<string>>> {
 		const options = { cwd: this.cwd };
 		const [guide, top] = await Promise.all([this.options.runner.usage('', options), this.options.runner.help('', options)]);
