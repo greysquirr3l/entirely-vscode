@@ -10,6 +10,7 @@ export type GeneratedKind =
 	| 'plugin'
 	| 'detail'
 	| 'doctor'
+	| 'capture'
 	| 'tokenProfile'
 	| 'experts'
 	| 'expertsRaw'
@@ -23,6 +24,7 @@ const EXTENSIONS: Record<GeneratedKind, string> = {
 	plugin: 'txt',
 	detail: 'txt',
 	doctor: 'txt',
+	capture: 'txt',
 	tokenProfile: 'md',
 	experts: 'md',
 	expertsRaw: 'txt',

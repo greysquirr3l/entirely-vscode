@@ -269,6 +269,31 @@
         "category": "Entirely"
       },
       {
+        "command": "entirely.disableCapture",
+        "title": "Disable Capture",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.uninstallEntire",
+        "title": "Remove Entire from This Repository",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.configureEntire",
+        "title": "Configure Entire Settings",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.cleanSessionData",
+        "title": "Clean Session Data",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.setUpRunners",
+        "title": "Set Up Trail Runners",
+        "category": "Entirely"
+      },
+      {
         "command": "entirely.manageAgents",
         "title": "Set Up Agent Integrations",
         "category": "Entirely"
@@ -772,6 +797,20 @@
           "maximum": 1800,
           "markdownDescription": "How long, in seconds, **Entirely: Doctor: Migrate Checkpoints to Git Refs** waits for the CLI to wrap every checkpoint in a commit. It is never started again after a timeout; running it again is safe because converted checkpoints are skipped."
         },
+        "entirely.captureControlTimeout": {
+          "type": "number",
+          "default": 60,
+          "minimum": 5,
+          "maximum": 600,
+          "markdownDescription": "How long, in seconds, **Disable Capture**, **Remove Entire**, **Configure Entire** and **Clean Session Data** (and the clean preview) wait for the CLI. A command is never started again after a timeout."
+        },
+        "entirely.runnerSetupTimeout": {
+          "type": "number",
+          "default": 300,
+          "minimum": 10,
+          "maximum": 1800,
+          "markdownDescription": "How long, in seconds, **Set Up Trail Runners** waits for `entire runner setup`. Tailoring calls the summary provider Entire is configured with, which can be slow. A run is never started again after a timeout."
+        },
         "entirely.importTimeout": {
           "type": "number",
           "default": 300,
@@ -1137,6 +1176,11 @@
           "command": "entirely.stopSession",
           "when": "view == entirely.sessions && viewItem == entirely.session",
           "group": "3_destructive@1"
+        },
+        {
+          "command": "entirely.cleanSessionData",
+          "when": "view == entirely.sessions && viewItem == entirely.session",
+          "group": "3_destructive@2"
         },
         {
           "command": "entirely.createRepository",

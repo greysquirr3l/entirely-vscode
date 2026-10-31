@@ -77,6 +77,7 @@ import { SelectionService } from './services/selection';
 import { SelectedRows } from './providers/selectedMark';
 import { createSelectionLoader } from './services/selectionLoader';
 import { registerDoctorDepthCommands } from './commands/doctorDepthCommands';
+import { registerCaptureCommands } from './commands/captureCommands';
 import { EditorGeneratedUi } from './commands/activityUi';
 import { EditorControlPlaneUi } from './commands/controlPlaneUi';
 
@@ -487,6 +488,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		workspaceRoot,
 		documents: generated,
 		acting: async () => (await accounts.refresh(workspaceRoot())).acting,
+	});
+
+	// Turning capture off, removing Entire, editing its settings, cleaning
+	// session data and setting up runners. Each is run by choosing it and
+	// asks first; nothing here runs on its own.
+	registerCaptureCommands(context, {
+		runner,
+		documents: generated,
+		acting: async () => (await accounts.refresh(workspaceRoot())).acting,
+		statusController,
+		authenticationProvider,
+		sessions,
+		agentIntegrations,
 	});
 
 	// Plugins run as the acting login, and the MCP server is offered to the

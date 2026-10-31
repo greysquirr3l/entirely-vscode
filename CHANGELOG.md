@@ -78,8 +78,28 @@ All notable changes to the Entirely extension are documented in this file. The f
   `doctorReadTimeout`, `doctorBundleTimeout` and `migrateCheckpointsTimeout`.
 - A CLI without one of these subcommands is named, with its version and an update link,
   and nothing is run.
+- **Stop, remove, configure and clean capture from the editor.** Five commands, each
+  confirmed in a modal that names the folder, what it touches, the acting login and that
+  the change is local to this checkout, each run once as that login with no retry, and
+  each judged by a fresh read (an unverified change is reported as unconfirmed):
+  **Disable Capture** (pick the settings file; live sessions named), **Remove Entire from
+  This Repository** (`disable --uninstall`; the question says the CLI has no preview, lists
+  what its help says is removed and the hook files found, and needs the folder name typed),
+  **Clean Session Data** (the CLI's dry run opens first; a **Delete anyway** button and the folder name typed when a
+  live session is in scope (or could not be read), because the skip-confirmation flag also overrides the CLI's own
+  guard; also in the session context menu), **Configure Entire Settings** (only the ticked
+  settings, to the file you pick, read back from the settings files) and **Set Up Trail
+  Runners** (defaults and the tailoring prompt call no provider; a preview and a tailoring
+  are separate questions that say repository signals go to the configured summary provider).
+  Flags, choices and the uninstall list come from the CLI's help; a CLI that is missing,
+  too old or lacks the command is named and nothing runs.
+- Two settings: `entirely.captureControlTimeout` and `entirely.runnerSetupTimeout`.
 
-These flows were tested only against a fake CLI. The real CLI's output formats for
+These flows were tested only against a fake CLI. `entire disable`, `configure`, `clean`
+and `runner setup` were not run against the real CLI, so their real output, exit codes and
+the exact settings keys `configure` writes are unobserved.
+
+The doctor flows above were also tested only against a fake CLI. The real CLI's output formats for
 `doctor logs`, `trace`, `bundle` and `migrate-checkpoints` were not observed, and the
 bundle and migration were not run against it.
 

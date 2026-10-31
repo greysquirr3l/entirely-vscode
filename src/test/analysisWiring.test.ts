@@ -165,6 +165,7 @@ suite('Review, experts and tokens: wiring', () => {
 			plugin: 'txt',
 			detail: 'txt',
 			doctor: 'txt',
+			capture: 'txt',
 			tokenProfile: 'md',
 			experts: 'md',
 			expertsRaw: 'txt',

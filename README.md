@@ -44,6 +44,7 @@ Entirely (this extension)
 | **Control Plane view** | Projects, repositories, organisations and clusters you can see, and who has access, with confirmed changes |
 | **Integrations view** | Whether each suggested Entire plugin and the Entire MCP server is available in each workspace folder, with click-to-install and click-to-add |
 | **MCP server** | Offers `entire mcp` to the editor's agent, and can add it to a project's `.mcp.json` |
+| **Capture control** | Turns capture off, removes Entire, edits the repository's Entire settings, cleans session data and sets up trail runners — each previewed where the CLI offers a preview, confirmed in a modal that names the folder and the login, run once and checked by a fresh read. Tested only against a fake CLI (see below) |
 | **Agent integrations** | Lists the agents the CLI supports, and installs or removes one after you confirm what it will touch; more than one can be installed |
 | **Hook bridge** | Reports the editor's own agent activity to the compatible `copilot-cli` integration; other integrations record their own activity |
 | **Terminal PATH repair** | Puts the Entire CLI on the integrated terminal's PATH, through the editor's own settings — no shell profile, no shell command |
@@ -269,6 +270,64 @@ and removal refresh them immediately. `agent add` has no preview, so the install
 confirmation says it cannot list the files in advance and Entirely shows the CLI's own
 list afterwards.
 `entirely.lifecycleActionTimeout` sets how long an install or removal may take.
+
+## Stopping, configuring and cleaning capture
+
+Five commands change what Entire does in the open repository. None of them runs on its
+own, none retries, and each one asks first with a modal that names the folder, the
+file or data it touches, the login it will run as, and that the change is to this
+checkout on this machine only. Every flag is read from the CLI's own help when the
+command runs, so a flag the help does not describe is never passed and the action says
+what is missing. If the CLI is missing, or lacks the command, the message says so and
+nothing runs.
+
+**These flows were tested only against a fake CLI.** `entire disable`, `configure`,
+`clean` and `runner setup` were not run against the real CLI: only their help was read.
+Their real output and exit codes are unobserved.
+
+- **Disable Capture** (`entire disable`). You pick the settings file: this checkout only
+  (`.entire/settings.local.json`) or the shared one (`.entire/settings.json`, usually
+  committed). Hooks then exit silently; nothing is removed. Live sessions are named in
+  the question. A fresh `status --json` decides the result: if Entire still reports as
+  enabled, the result is "unconfirmed", not "done". The result offers **Set Up Again**,
+  which is the status bar's own set-up flow.
+- **Remove Entire from This Repository** (`disable --uninstall`). The CLI has no preview
+  for this, and the question says so. It lists what the CLI's help says is removed, names
+  the hook files found in the workspace, and you must type the folder's name. Only then
+  is the CLI's skip-confirmation flag passed. A fresh read of status, the `.entire`
+  directory and the hook files decides the result, and a partial failure lists what is
+  left.
+- **Clean Session Data** (`entire clean`, from the palette or **Clean Session Data** on a
+  session). You pick the scope: this HEAD, all session data, or one session. The CLI's
+  own dry run runs first and opens in a read-only editor; the question follows, with
+  one line of the preview. The skip-confirmation flag also overrides the CLI's own
+  live-session guard, so it is passed only after you confirm here: live sessions in scope
+  are named, the button reads **Delete anyway**, and you must type the folder name. Cleaning
+  everything, cleaning with a CLI that has no preview, or cleaning when the live sessions
+  could not be read also needs the folder name typed. Turning capture off asks for it too
+  when the live sessions could not be read. The result is checked
+  against a fresh session list.
+- **Configure Entire Settings** (`entire configure`). You see the current value and file of
+  each setting, tick the ones to change, give values (backend choices and remote providers
+  come from the help), and pick the file. Only those settings and the file are passed.
+  Telemetry, absolute hook path, checkpoint remote and checkpoint backend are read back
+  from the settings files and verified; the others are reported as written, with the
+  editor unable to read them back. A value missing or overridden by a higher settings
+  file makes the result unconfirmed. User-level settings are not written.
+- **Set Up Trail Runners** (`entire runner setup`). **Create default runners** and **Show the
+  tailoring prompt** call no summary provider (the second creates missing default files
+  first). **Preview tailoring** and **Tailor runners to this repository** send signals
+  about the repository (docs and structure, merged pull requests and issues, checkpoint
+  hotspots, past trail findings) to the summary provider Entire is configured with, so
+  each is its own question. You can choose the data sources, one runner, and an agent
+  for that run only. The files under `.entire/runners` are listed before and after. The
+  debug-directory flag is never passed.
+
+Every flow ends by refreshing the status bar, the Account view and the Sessions view from
+a fresh read. The CLI's output stays out of the output channel; the preview, the
+tailoring diff and the prompt open in read-only documents held in memory.
+`entirely.captureControlTimeout` and `entirely.runnerSetupTimeout` set how long the
+commands wait.
 
 ## Importing past agent history
 

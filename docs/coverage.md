@@ -25,7 +25,7 @@ README. Every CLI invocation the extension can make is in section 1.
 | Excluded | A decision: the extension deliberately does not do it. The notes say why. |
 | Gap | Not done, and no decision to leave it out. Listed in section 3. |
 
-**Totals.** Rows: 140 (supported 82, excluded 14, gap 44).
+**Totals.** Rows: 142 (supported 88, excluded 14, gap 40).
 
 The totals line is read by `src/test/coverage.test.ts`, which fails when it
 disagrees with the table.
@@ -49,6 +49,12 @@ row names a command its callers never build.
 | `entire doctor trace` | `src/lib/entire/doctorFlags.ts`, `src/services/doctorDepth.ts` | Hook timing traces |
 | `entire doctor bundle` | `src/lib/entire/doctorFlags.ts`, `src/services/doctorDepth.ts` | A diagnostic bundle written to a path the person chose |
 | `entire doctor migrate-checkpoints` | `src/lib/entire/doctorFlags.ts`, `src/services/checkpointMigration.ts` | A dry run, then the migration to per-checkpoint git refs |
+| `entire disable` | `src/lib/entire/captureFlags.ts`, `src/services/captureControl.ts` | Disable Capture |
+| `entire disable --uninstall` | `src/lib/entire/captureFlags.ts`, `src/services/captureControl.ts` | Remove Entire from This Repository |
+| `entire configure` | `src/lib/entire/captureFlags.ts`, `src/services/captureControl.ts` | Configure Entire Settings |
+| `entire clean` | `src/lib/entire/captureFlags.ts`, `src/services/captureControl.ts` | Clean Session Data |
+| `entire clean --dry-run` | `src/lib/entire/captureFlags.ts`, `src/services/captureControl.ts` | The preview shown before a clean |
+| `entire runner setup` | `src/lib/entire/captureFlags.ts`, `src/services/captureControl.ts` | Set Up Trail Runners |
 | `entire hooks` | `src/services/hookBridge.ts` | Reporting editor-side agent activity |
 | `entire agent list` | `src/services/agentIntegrations.ts` | Installed agent integrations |
 | `entire agent add` | `src/lib/entire/agents.ts` | Installing an agent integration |
@@ -134,9 +140,12 @@ The three rows below are the plugins the documentation names.
 | Command | Status | Evidence | Notes |
 | --- | --- | --- | --- |
 | `entire enable` | Supported | `entirely.setUp`, `src/services/setup.ts`, `src/test/onboarding.test.ts`, `src/test/hookBridgeE2e.test.ts` | Non-interactive only: the agent is picked from `entire agent list`, passed with `--no-init-repo`. The CLI's interactive flow needs a terminal. Tested in part: `onboarding.test.ts` covers argument building (`enableArguments`) against a stub runner, and `hookBridgeE2e.test.ts` runs `entire enable --agent copilot-cli --no-init-repo` through the runner against the installed CLI (it skips when the CLI is absent). No test runs `enableEntire` itself. |
-| `entire disable` | Gap | | Stopping capture in a repository. |
-| `entire configure` | Gap | | Settings are read through `entire status`, never written. |
-| `entire clean` | Gap | | Cleaning up session data. |
+| `entire disable` | Supported | `entirely.disableCapture`, `src/services/captureControl.ts`, `src/test/captureControl.test.ts` | Turns Entire off and removes nothing. The person picks the settings file (this checkout or the shared one), then a modal names the folder, the file, the live sessions, the acting login and that the change is local to this checkout. The CLI runs once as that login, and a fresh `status --json` decides between done and unconfirmed; a status that still reports Entire as enabled is unconfirmed, never done. Tested only against a fake `entire` (`src/test/support/captureCli.ts`) built from the 0.12.2 help text; the command itself was never run against the real CLI, so its real output and exit codes are unobserved. |
+| `entire disable --uninstall` | Supported | `entirely.uninstallEntire`, `src/services/captureControl.ts`, `src/test/captureControl.test.ts` | Removes Entire completely. The CLI offers no preview, and the modal says so, lists what the help says is removed, names the hook files found in the workspace and needs the folder name typed. The skip-confirmation flag, read from the help, is passed only after that. A fresh read of status, the `.entire` directory and the hook files decides done, unconfirmed or failed, and a partial failure lists what remains. Tested only against a fake `entire` (`src/test/support/captureCli.ts`) built from the 0.12.2 help text; the command itself was never run against the real CLI, so its real output and exit codes are unobserved. |
+| `entire configure` | Supported | `entirely.configureEntire`, `src/services/captureControl.ts`, `src/test/captureControl.test.ts` | Writes only the settings the person ticked, to the settings file they chose, in one call. The result is read back from the settings files: telemetry, absolute hook path, checkpoint remote and checkpoint backend are verified by name, the rest are reported as written and not readable back, and a missing or overridden value is unconfirmed. User-level settings are not written (no flag documents them). Tested only against a fake `entire` (`src/test/support/captureCli.ts`) built from the 0.12.2 help text; the command itself was never run against the real CLI, so its real output and exit codes are unobserved. |
+| `entire clean` | Supported | `entirely.cleanSessionData`, `src/services/captureControl.ts`, `src/test/captureControl.test.ts` | The CLI's own dry run is shown first and the clean is confirmed afterwards, naming the folder, scope, live sessions and login. The skip-confirmation flag also overrides the CLI's live-session guard, so it is passed only after the modal, which has a Delete anyway button when a live session is in scope. Verified against a fresh session list. Tested only against a fake `entire` (`src/test/support/captureCli.ts`) built from the 0.12.2 help text; the command itself was never run against the real CLI, so its real output and exit codes are unobserved. |
+| `entire clean --dry-run` | Supported | `entirely.cleanSessionData`, `src/services/captureControl.ts`, `src/test/captureControl.test.ts` | The preview. It deletes nothing and asks nothing; its text opens in a read-only document and stays out of the output channel. A CLI whose help lacks the preview flag gets the typed-confirmation path and the plain statement that there is no preview. Tested only against a fake `entire` (`src/test/support/captureCli.ts`) built from the 0.12.2 help text; the command itself was never run against the real CLI, so its real output and exit codes are unobserved. |
+| `entire runner setup` | Supported | `entirely.setUpRunners`, `src/services/captureControl.ts`, `src/test/captureControl.test.ts` | The help documents non-interactive forms, so it is not interactive-only. The defaults-only form calls no summary provider; printing the tailoring prompt creates missing default files; a preview and a tailoring send repository signals to the configured summary provider, so each is a separate modal. The runner files under `.entire/runners` are listed before and after. The debug-directory flag is never passed, and `runner` is not in `agent-help`, so its flags come from `runner setup --help`. Tested only against a fake `entire` (`src/test/support/captureCli.ts`) built from the 0.12.2 help text; the command itself was never run against the real CLI, so its real output and exit codes are unobserved. |
 | `entire status` | Supported | `src/services/statusController.ts`, `src/test/statusBar.test.ts`, `src/test/cli.test.ts` | The status bar and the doctor report. `statusBar.test.ts` (suite "Entire status controller and the acting login") runs `StatusController` against a fake CLI that answers `status`; `cli.test.ts` runs the runner against a fake CLI for the same call. |
 | `entire version` | Supported | `src/services/cli/locator.ts`, `src/test/cli.test.ts`, `src/test/cliVersion.test.ts` | `cli.test.ts` runs the locator against fake CLIs that answer `version`; `cliVersion.test.ts` covers parsing and comparison only. |
 | `entire doctor` | Supported | `entirely.showCliDoctorOutput`, `src/services/cliDoctor.ts`, `src/test/cliDoctor.test.ts` | The bare report, read-only. The fix prompts need a terminal. |
@@ -145,7 +154,6 @@ The three rows below are the plugins the documentation names.
 | `entire doctor migrate-checkpoints` | Supported | `entirely.migrateCheckpoints`, `src/services/checkpointMigration.ts`, `src/test/migrateCheckpoints.test.ts` | The dry run opens first; the migration is confirmed naming the repository and the acting login, runs once with no flag, and is checked by counting `refs/entire/checkpoints/` before and after (a real git repository in a temporary folder). Tested against a fake CLI only; the real CLI's output formats were not observed, and the real subcommand was not run. `--remote` not exposed, so the extension never pushes. |
 | `entire doctor trace` | Supported | `entirely.showHookTraces`, `src/services/doctorDepth.ts`, `src/test/doctorDepth.test.ts` | The latest trace, the last N, a summary or the slow ones, with an optional hook filter; each option is offered only when the CLI's help describes it. Tested against a fake CLI only; the real CLI's output formats were not observed, and the real subcommand was not run. `--json` not exposed. |
 | `entire import` | Supported | `entirely.importHistory`, `src/services/historyImport.ts`, `src/test/historyImport.test.ts` | A preview first, then the import. The CLI marks it experimental. One agent at a time, with the agent read from the CLI's help. |
-| `entire runner setup` | Gap | | Trail runner setup for a repository. |
 | `entire agent-help` | Supported | `src/services/cli/runner.ts`, `src/test/cli.test.ts` | How the extension reads every command's flags at runtime. The test runs `runner.usage` against a fake CLI that answers `agent-help`. |
 | `entire hooks` | Supported | `src/services/hookBridge.ts`, `src/test/hookBridge.test.ts` | `entire hooks <agent> <verb>`; the CLI marks it internal. The bridge reports editor events for one configured agent. Tested with a stub runner that records the arguments; the CLI is not run. |
 | `entire labs` | Excluded | | Prints the list of experimental commands. Each of those commands has its own row, so the index adds nothing to the editor. |
@@ -320,11 +328,10 @@ The three rows below are the plugins the documentation names.
 
 Nothing below is excluded. Each is a capability the CLI has and the editor does not.
 
-1. **Setup and teardown.** `disable`, `configure`, `clean`, `runner setup`. Nothing in the editor stops capture or edits repository settings.
-2. **Checkpoint deletion.** `checkpoint delete`.
-3. **Control plane breadth.** Create and read for organisations and projects (`org create`, `org get`, `project create`, `project get`), organisation invitations (`org invite list`, `revoke`, `send`), and the repository commands `clone`, `mirror add`, `mirror detach`, `mirror remove`, `mirror resync`, `protection add`, `protection list`, `protection remove`, `remote add`, `visibility get`.
-4. **Plugin management.** `plugin browse`, `doctor`, `index update`, `info`, `remove`, `search`, `upgrade`. Only `list` and `install` are wired.
-5. **Trail depth.** `trail create`, `update`, `watch`, and the comment and finding commands that edit, reply, resolve or dismiss.
+1. **Checkpoint deletion.** `checkpoint delete`.
+2. **Control plane breadth.** Create and read for organisations and projects (`org create`, `org get`, `project create`, `project get`), organisation invitations (`org invite list`, `revoke`, `send`), and the repository commands `clone`, `mirror add`, `mirror detach`, `mirror remove`, `mirror resync`, `protection add`, `protection list`, `protection remove`, `remote add`, `visibility get`.
+3. **Plugin management.** `plugin browse`, `doctor`, `index update`, `info`, `remove`, `search`, `upgrade`. Only `list` and `install` are wired.
+4. **Trail depth.** `trail create`, `update`, `watch`, and the comment and finding commands that edit, reply, resolve or dismiss.
 
 ---
 

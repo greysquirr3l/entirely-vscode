@@ -49,6 +49,12 @@ Both dialogs name the other installed agents and say they are not touched. You c
 A reinstall rewrites the files that already hold the agent's hooks. The extension finds those files by scanning dot-directories in the workspace for `entire hooks <agent>` commands: three directories deep, up to 300 files, each under 256 KB.
 </Aside>
 
+## Stop or remove capture
+
+Installing an integration is not the same as capturing. **Entirely: Disable Capture** turns Entire off in the repository without removing anything: hooks exit silently and Entire commands report that it is disabled. **Entirely: Remove Entire from This Repository** removes the integrations, the git hooks Entire installed, Entire's session state and its `.entire/` directory.
+
+Both ask first, naming the folder, the login and that the change is to this checkout on this machine only. Removing is stricter: the CLI has no preview, so the modal says so, lists what the CLI's help says is removed, names the hook files Entirely found in the workspace, and needs the folder name typed. Declining or typing a wrong name runs nothing. Afterwards Entirely reads status, the `.entire` directory and the hook files, and reports a partial removal with what is left. These two commands were tested only against a fake CLI. The steps are in [Stop, configure and clean capture](/entirely/guides/capture-control/).
+
 ## Bridged and not bridged
 
 Installing an integration and bridging it are two separate things.
