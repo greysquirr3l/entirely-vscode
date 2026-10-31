@@ -83,7 +83,7 @@ row names a command its callers never build.
 | `entire checkpoint explain` | `src/services/checkpointSource.ts` | Explain Checkpoint |
 | `entire checkpoint tokens` | `src/services/tokenUsage.ts` | Checkpoint token usage |
 | `entire checkpoint search` | `src/lib/entire/search.ts` | Filtering the checkpoint tree |
-| `entire search` | `src/services/workSearch.ts` | Searching past work and code |
+| `entire search` | `src/lib/entire/workSearchFlags.ts` | Searching past work and code |
 | `entire why` | `src/services/whyService.ts` | Why Does This Line Exist |
 | `entire blame` | `src/lib/entire/blame.ts` | Blame the active file |
 | `entire tokens` | `src/lib/entire/tokenProfile.ts` | The group that holds `tokens profile`; it has no behaviour of its own |
@@ -95,7 +95,7 @@ row names a command its callers never build.
 | `entire logout` | `src/services/authentication.ts` | Signing out |
 | `entire auth status` | `src/services/authentication.ts` | Whether a login is valid |
 | `entire auth contexts` | `src/services/accountContext.ts` | The saved logins |
-| `entire repo view` | `src/services/checkpointDestination.ts` | Where checkpoints go |
+| `entire repo view` | `src/services/checkpointDestination.ts`, `src/services/trailService.ts` | Where checkpoints go |
 | `entire repo list` | `src/lib/entire/controlPlaneFlags.ts` | The control plane tree |
 | `entire repo create` | `src/lib/entire/controlPlaneFlags.ts` | Create Repository |
 | `entire repo edit` | `src/lib/entire/controlPlaneFlags.ts` | Set Repository Visibility |
