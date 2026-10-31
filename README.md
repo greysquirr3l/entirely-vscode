@@ -37,6 +37,9 @@ Entirely (this extension)
 | **Trail review** | Approve, comment on, merge, check out, link and unlink the work on an Entire trail — each action confirmed, and each merge naming what it merges |
 | **Account view** | Who the CLI is signed in as, and which jurisdiction the account belongs to, with sign-in and sign-out |
 | **Activity view** | Recent sessions and commits across your repositories on Entire, a recap, and a generated dispatch you can copy |
+| **Token profile** | `entire tokens profile` over committed checkpoint history: totals, repeated signals with links to their checkpoints, recommendations and limitations in the CLI's words. A count the CLI left out reads "Not reported", never zero |
+| **Who has touched this** | `entire experts` for a file, a folder, a question or the staged files: the ranked agents, skills and tools, with the repository, branch and login Entire was asked as |
+| **Review** | `entire review`: profiles, what a review would run and saved findings with no agent started; a run asks first and opens one terminal as the confirmed login |
 | **Search view** | Past agent work, commits and code, searched by the CLI in this repository or in all of them (`entirely.searchScope`) |
 | **Control Plane view** | Projects, repositories, organisations and clusters you can see, and who has access, with confirmed changes |
 | **Integrations view** | Whether each suggested Entire plugin and the Entire MCP server is available in each workspace folder, with click-to-install and click-to-add |
@@ -385,6 +388,41 @@ message counts the others. The clear button restores the full list.
 `entirely.searchDebounce` sets how long to wait after you stop typing. Your query
 stays in the editor: it is not written to the `Entire` output channel, and the
 results are kept out of it too.
+
+## Token profile, experts and review
+
+**Entirely: Show Token Profile** (or the chart button on the **Checkpoints** view)
+opens `entire tokens profile --json` for the scope you pick. It reads committed
+checkpoint metadata only, so it spends no tokens. The document keeps the CLI's
+signals, recommendations and limitations in its words, shows every count the CLI
+left out as "Not reported", and turns each checkpoint id into a link that opens
+the checkpoint. It adds no money figure: the CLI reports tokens.
+
+**Entirely: Who Has Touched This Path?** (Explorer and editor menus),
+**Ask Entire Who Knows About a Topic** and **Who Has Touched the Staged Files?**
+run `entire experts`. **The path or question is sent to Entire's servers**, which
+answer from the provenance they hold for the repository, so the repository must
+be mirrored on Entire. The result names the repository, branch and login, and
+tells a ranking, nothing found, a repository that is not on Entire, and a failure
+apart. The question is not written to the `Entire` output channel.
+
+The review commands read freely: **List Review Profiles**, **Show What a Review
+Would Run** and **Show Saved Review Findings** start no agent and ask nothing.
+**Run Multi-Agent Review** starts reviewer agents and a judge on your machine,
+under your own agent accounts, and they spend tokens. It lists the profiles the
+CLI knows, asks the branch and any one-off instructions, then asks you to confirm
+in a dialog that names the profile, the branch, the login it runs as on Entire,
+the CLI's own description and that reviewers have no time limit unless you set
+`entirely.reviewReviewerTimeoutMinutes`. If the code under review is not yours it
+warns that its hooks and MCP servers will load. After you confirm it opens one
+terminal running the CLI as that login. It is never started again, and Entirely
+never passes `--trust-target` or any `--set-*` flag.
+
+Flags are read from each command's own `--help`, since `agent-help` does not know
+these commands. `tokens profile` and `review --show-config` were checked against
+the real CLI. `experts` and the review run were tested against a fake CLI only:
+one sends a query to Entire and the other spends tokens, so neither was run while
+the extension was built.
 
 ## The control plane
 

@@ -108,5 +108,6 @@ site/node_modules/
 site/dist/
 site/.astro/
 
-# Test Things
+# Test workspace and the MCP configuration a local agent reads.
 test-workspace/
+.mcp.json

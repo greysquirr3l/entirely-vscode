@@ -25,7 +25,7 @@ README. Every CLI invocation the extension can make is in section 1.
 | Excluded | A decision: the extension deliberately does not do it. The notes say why. |
 | Gap | Not done, and no decision to leave it out. Listed in section 3. |
 
-**Totals.** Rows: 135 (supported 84, excluded 7, gap 44).
+**Totals.** Rows: 142 (supported 88, excluded 14, gap 40).
 
 The totals line is read by `src/test/coverage.test.ts`, which fails when it
 disagrees with the table.
@@ -86,6 +86,10 @@ row names a command its callers never build.
 | `entire search` | `src/services/workSearch.ts` | Searching past work and code |
 | `entire why` | `src/services/whyService.ts` | Why Does This Line Exist |
 | `entire blame` | `src/lib/entire/blame.ts` | Blame the active file |
+| `entire tokens` | `src/lib/entire/tokenProfile.ts` | The group that holds `tokens profile`; it has no behaviour of its own |
+| `entire tokens profile` | `src/lib/entire/tokenProfile.ts`, `src/services/tokenProfile.ts` | Show Token Profile over committed checkpoint history |
+| `entire experts` | `src/lib/entire/experts.ts`, `src/services/experts.ts` | Who has touched a path, a question or the staged files |
+| `entire review` | `src/lib/entire/review.ts`, `src/services/review.ts` | Review profiles, what a review would run, saved findings, and the confirmed run in a terminal |
 | `entire import` | `src/lib/entire/importHistory.ts` | Importing past agent history |
 | `entire login` | `src/services/authentication.ts` | Signing in |
 | `entire logout` | `src/services/authentication.ts` | Signing out |
@@ -187,10 +191,17 @@ The three rows below are the plugins the documentation names.
 | `entire search` | Supported | `entirely.searchWork`, `src/services/workSearch.ts`, `src/test/workSearch.test.ts` | Work search and `--code` search. |
 | `entire why` | Supported | `entirely.whyThisLine`, `src/services/whyService.ts`, `src/test/why.test.ts` | Tested with a stub runner that records the arguments; the CLI is not run. |
 | `entire blame` | Supported | `entirely.blameFile`, `src/services/blameService.ts`, `src/test/blame.test.ts` | Tested with a stub runner that records the arguments; the CLI is not run. |
-| `entire review` | Gap | | Multi-agent review of a branch. |
-| `entire experts` | Gap | | Ranking agents and tools by contribution to a file or topic. |
-| `entire tokens` | Gap | | The labs token diagnostics. Session and checkpoint usage have their own rows. |
-| `entire tokens profile` | Gap | | Usage aggregated across checkpoint history. |
+| `entire review` | Supported | `entirely.reviewRun`, `src/services/review.ts`, `src/test/review.test.ts`, `src/test/reviewRun.test.ts` | Three read-only views (`--list`, `--show-config --json`, `--findings`) run through `ReviewService` against a fake CLI with no confirmation. A run asks first, in a modal that names the profile, branch, acting login and cost, then opens one terminal as that login (`reviewRun.test.ts` uses a fake terminal; no review process was started, so what the real CLI does with a piped run is unobserved). Flags are read from `review --help` because `agent-help` does not know the command. Observed against the real CLI 0.12.2: `--list` with no profile, `--show-config --json` (the fixture is copied from it) and `--findings` with none saved. Not observed: `--list` with a configured profile, `--findings` with saved runs, and any run. The flags the extension does not drive are in the rows below. |
+| `entire review --configure` | Excluded | | An interactive wizard that chooses agents, models and where a verdict goes. `entirely.reviewSetup` opens it in a terminal after asking, for the person to complete; the extension writes no profile. |
+| `entire review --edit` | Excluded | | An interactive picker that changes a saved profile. It needs a terminal and the person's choices. |
+| `entire review --set-*` | Excluded | | Flags that write a profile non-interactively (agents, judge, output, task, models, slots, config). The extension never passes one; a test asserts none appears in any argument list. |
+| `entire review --trust-target` | Excluded | | Approves loading the hooks and MCP servers of code the person did not write. Only the person, in a terminal, may decide it. The extension shows the CLI's refusal as written and never adds the flag. |
+| `entire review --agents` | Excluded | | Lists the reviewer agents and may start agent programs to do it, so it was not run and is not offered. Available in a terminal. |
+| `entire review --models` | Excluded | | Lists the models each agent advertises and may start agent programs to do it, so it was not run and is not offered. Available in a terminal. |
+| `entire experts` | Supported | `entirely.expertsForPath`, `src/services/experts.ts`, `src/test/experts.test.ts` | For a path, a typed question or the staged files, as a read-only document that names the repository, branch and acting login and says the question goes to Entire's servers. Tested against a fake CLI only: the real command sends the query to Entire, so it was never run, and neither the `--json` entry shape nor the error text for a repository that is not mirrored was observed. The decoder is tolerant and the raw reply opens through `entirely.showExpertsRawReply`. |
+| `entire experts --tui` | Excluded | | An interactive viewer that needs a terminal. The extension always asks for JSON. |
+| `entire tokens` | Supported | `entirely.tokenProfile`, `src/services/tokenProfile.ts`, `src/test/tokenProfile.test.ts` | The group has the single subcommand `profile` and prints only help, so it is reached through `tokens profile`. |
+| `entire tokens profile` | Supported | `entirely.tokenProfile`, `src/services/tokenProfile.ts`, `src/test/tokenProfile.test.ts` | Reads committed checkpoint metadata only (no tokens spent, nothing written). The JSON was observed against the real CLI 0.12.2 and the fixture is copied from it; the service is run against a fake CLI. Counts the CLI leaves out read "Not reported", never zero, and the CLI's signals, recommendations and limitations are kept in its words. The exit code for an empty history was not observed. |
 
 ### Identity, login and accounts
 
@@ -317,12 +328,10 @@ The three rows below are the plugins the documentation names.
 
 Nothing below is excluded. Each is a capability the CLI has and the editor does not.
 
-1. **Review and expertise.** `review`, `experts`.
-2. **Token analysis across history.** `tokens`, `tokens profile`.
-3. **Checkpoint deletion.** `checkpoint delete`.
-4. **Control plane breadth.** Create and read for organisations and projects (`org create`, `org get`, `project create`, `project get`), organisation invitations (`org invite list`, `revoke`, `send`), and the repository commands `clone`, `mirror add`, `mirror detach`, `mirror remove`, `mirror resync`, `protection add`, `protection list`, `protection remove`, `remote add`, `visibility get`.
-5. **Plugin management.** `plugin browse`, `doctor`, `index update`, `info`, `remove`, `search`, `upgrade`. Only `list` and `install` are wired.
-6. **Trail depth.** `trail create`, `update`, `watch`, and the comment and finding commands that edit, reply, resolve or dismiss.
+1. **Checkpoint deletion.** `checkpoint delete`.
+2. **Control plane breadth.** Create and read for organisations and projects (`org create`, `org get`, `project create`, `project get`), organisation invitations (`org invite list`, `revoke`, `send`), and the repository commands `clone`, `mirror add`, `mirror detach`, `mirror remove`, `mirror resync`, `protection add`, `protection list`, `protection remove`, `remote add`, `visibility get`.
+3. **Plugin management.** `plugin browse`, `doctor`, `index update`, `info`, `remove`, `search`, `upgrade`. Only `list` and `install` are wired.
+4. **Trail depth.** `trail create`, `update`, `watch`, and the comment and finding commands that edit, reply, resolve or dismiss.
 
 ---
 

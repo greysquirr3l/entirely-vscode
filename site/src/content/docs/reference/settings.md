@@ -73,6 +73,17 @@ The extension never waits forever on the CLI. Each class of call has its own lim
 | `entirely.doctorReadTimeout` | `30` | 5 to 300 | `entire doctor logs`, `entire doctor trace` and the dry run of `entire doctor migrate-checkpoints`. All three only read local files and git. |
 | `entirely.doctorBundleTimeout` | `120` | 10 to 900 | **Write a Diagnostic Bundle**. It reads every log file and runs several git commands. |
 | `entirely.migrateCheckpointsTimeout` | `300` | 10 to 1800 | **Migrate Checkpoints to Git Refs**. It is never started again after a timeout; running it again is safe because converted checkpoints are skipped. |
+| `entirely.tokenProfileTimeout` | `30` | 5 to 300 | `entire tokens profile`. It reads checkpoint metadata only. |
+| `entirely.expertsTimeout` | `30` | 5 to 300 | `entire experts`. Entire's servers answer it; it is not asked again after a timeout. |
+| `entirely.reviewReadTimeout` | `30` | 5 to 300 | The read-only review views: `--list`, `--show-config` and `--findings`. |
+
+## Token profile, experts and review
+
+| Setting | Default | Range | What it does |
+| --- | --- | --- | --- |
+| `entirely.tokenProfileCheckpoints` | `50` | 1 to 1000 | How many of the latest committed checkpoints the "latest *N*" scope of **Show Token Profile** covers. Passed only if the CLI's help describes a maximum flag. |
+| `entirely.expertsLimit` | `8` | 1 to 20 | How many ranked entries the experts commands ask for. The CLI clamps above 20. |
+| `entirely.reviewReviewerTimeoutMinutes` | `0` | 0 to 1440 | The most minutes each reviewer may run, passed as the CLI's timeout flag if its help lists one. `0` passes nothing, and reviewers have no limit. |
 
 ## Doctor: log, traces and large output
 

@@ -19,11 +19,17 @@ export interface GitRepository {
 	show(ref: string, path: string): Promise<string>;
 	getCommit(ref: string): Promise<GitCommit>;
 	log(options?: { readonly maxEntries?: number }): Promise<GitCommit[]>;
+	/** The checked-out branch. Absent on a detached head. */
+	readonly state?: { readonly HEAD?: { readonly name?: string } };
+	/** The branches git knows, local ones when `remote` is false. */
+	getBranches?(query: { readonly remote: boolean }): Promise<{ readonly name?: string }[]>;
 }
 
 /** The part of the git extension's API the extension uses. */
 interface GitApi {
 	readonly repositories: GitRepository[];
+	/** The repository that holds a file or folder, when the git extension offers the lookup. */
+	getRepository?(uri: vscode.Uri): GitRepository | null;
 }
 
 /** The shape of the git extension's exports. */
@@ -86,6 +92,32 @@ export class GitService {
 		return this.api.repositories.find(
 			repository => repository.rootUri.fsPath === folder.fsPath,
 		);
+	}
+
+	/** The root of the repository that holds a folder, which is above the folder when the workspace is a subfolder. */
+	repositoryRootFor(folder: vscode.Uri | undefined): string | undefined {
+		if (!folder) {
+			return undefined;
+		}
+		return (this.api.getRepository?.(folder) ?? this.repositoryFor(folder))?.rootUri.fsPath;
+	}
+
+	/** The checked-out branch, when the repository has one. */
+	currentBranch(repository: GitRepository): string | undefined {
+		return repository.state?.HEAD?.name;
+	}
+
+	/** The checked-out branch and the local branches of a repository. Empty when git does not say. */
+	async branches(repository: GitRepository): Promise<{ readonly current?: string; readonly local: readonly string[] }> {
+		const current = repository.state?.HEAD?.name;
+		let local: readonly string[] = [];
+		try {
+			const found = (await repository.getBranches?.({ remote: false })) ?? [];
+			local = found.flatMap(branch => (typeof branch.name === 'string' && branch.name.length > 0 ? [branch.name] : []));
+		} catch {
+			local = [];
+		}
+		return { current, local };
 	}
 
 	/**

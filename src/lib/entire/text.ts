@@ -60,6 +60,17 @@ export function escapeMarkdown(value: string): string {
 }
 
 /**
+ * A value from the CLI, a server or a checkout as one line of Markdown text.
+ *
+ * Whitespace is folded so the value cannot start a heading or list item of
+ * its own, then every Markdown character is escaped, so `[x](command:...)`,
+ * `<command:...>` and `*bold*` are shown as words and never become a link.
+ */
+export function markdownText(value: string): string {
+	return escapeMarkdown(value.replace(/\s+/g, ' ').trim());
+}
+
+/**
  * Counts things in the way English does: one turn, two turns.
  */
 export function pluralise(count: number, noun: string): string {

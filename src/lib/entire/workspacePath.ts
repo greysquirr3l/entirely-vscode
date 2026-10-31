@@ -42,3 +42,13 @@ export function answerNamesFile(relative: string, answered: string): boolean {
 	const tail = named.slice(named.length - asked.length);
 	return tail.every((segment, index) => segment === asked[index]);
 }
+
+/**
+ * The absolute path of a file the CLI named relative to the repository root.
+ *
+ * The blame panel names a file that way, which is not the workspace root when
+ * the workspace is a subfolder of the repository. An absolute path is kept.
+ */
+export function repositoryFileToAbsolute(repositoryRoot: string, file: string): string {
+	return path.isAbsolute(file) ? file : path.join(repositoryRoot, file);
+}

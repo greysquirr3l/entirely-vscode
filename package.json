@@ -576,6 +576,57 @@
         "title": "Add MCP Server to Project Configuration",
         "category": "Entirely",
         "icon": "$(add)"
+      },
+      {
+        "command": "entirely.tokenProfile",
+        "title": "Show Token Profile",
+        "category": "Entirely",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "entirely.expertsForPath",
+        "title": "Who Has Touched This Path?",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.expertsAsk",
+        "title": "Ask Entire Who Knows About a Topic",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.expertsStaged",
+        "title": "Who Has Touched the Staged Files?",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.showExpertsRawReply",
+        "title": "Show Raw Experts Reply",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.reviewProfiles",
+        "title": "List Review Profiles",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.reviewShowConfig",
+        "title": "Show What a Review Would Run",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.reviewFindings",
+        "title": "Show Saved Review Findings",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.reviewRun",
+        "title": "Run Multi-Agent Review",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.reviewSetup",
+        "title": "Set Up Review in a Terminal",
+        "category": "Entirely"
       }
     ],
     "configuration": {
@@ -831,6 +882,48 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "Offer once per machine to install the suggested Entire plugins that are missing, and once per project to add the Entire MCP server to the project's `.mcp.json`. Turn this off to never be asked; the **Integrations** view still shows the status."
+        },
+        "entirely.tokenProfileCheckpoints": {
+          "type": "number",
+          "default": 50,
+          "minimum": 1,
+          "maximum": 1000,
+          "markdownDescription": "How many of the latest committed checkpoints **Entirely: Show Token Profile** covers when you choose the default scope. Passed to `entire tokens profile` only if its help describes a maximum flag. Choosing all checkpoints is a separate choice in the picker."
+        },
+        "entirely.tokenProfileTimeout": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 300,
+          "markdownDescription": "How long, in seconds, to wait for `entire tokens profile`. It reads committed checkpoint metadata only and spends no tokens."
+        },
+        "entirely.expertsLimit": {
+          "type": "number",
+          "default": 8,
+          "minimum": 1,
+          "maximum": 20,
+          "markdownDescription": "How many ranked agents, skills and tools **Entirely: Who Has Touched This Path?** and the other experts commands ask Entire for. The CLI allows 1 to 20 and clamps higher values."
+        },
+        "entirely.expertsTimeout": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 300,
+          "markdownDescription": "How long, in seconds, to wait for Entire's servers to answer `entire experts`. The scope or question is sent to Entire; it is never asked again after a timeout."
+        },
+        "entirely.reviewReadTimeout": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 300,
+          "markdownDescription": "How long, in seconds, the read-only review views wait for `entire review --list`, `--show-config` and `--findings`. A findings browser that waits for a terminal is reported after this time, with an offer to open one."
+        },
+        "entirely.reviewReviewerTimeoutMinutes": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 1440,
+          "markdownDescription": "The most minutes each reviewer of **Entirely: Run Multi-Agent Review** may run, passed as the CLI's timeout flag when its help lists one. `0` passes nothing: the CLI's own default applies, which is **no time limit** for reviewers. Reviewers are agents on your machine and spend your own tokens."
         }
       }
     },
@@ -915,6 +1008,36 @@
           "command": "entirely.refreshControlPlane",
           "when": "view == entirely.controlPlane",
           "group": "navigation@3"
+        },
+        {
+          "command": "entirely.tokenProfile",
+          "when": "view == entirely.checkpoints",
+          "group": "navigation@3"
+        },
+        {
+          "command": "entirely.reviewRun",
+          "when": "view == entirely.activity",
+          "group": "9_review@1"
+        },
+        {
+          "command": "entirely.reviewProfiles",
+          "when": "view == entirely.activity",
+          "group": "9_review@2"
+        },
+        {
+          "command": "entirely.reviewShowConfig",
+          "when": "view == entirely.activity",
+          "group": "9_review@3"
+        },
+        {
+          "command": "entirely.reviewFindings",
+          "when": "view == entirely.activity",
+          "group": "9_review@4"
+        },
+        {
+          "command": "entirely.reviewSetup",
+          "when": "view == entirely.activity",
+          "group": "9_review@5"
         }
       ],
       "commandPalette": [
@@ -1005,6 +1128,11 @@
         {
           "command": "entirely.blameFile",
           "group": "1_entirely@2",
+          "when": "editorTextFocus && resourceScheme == file"
+        },
+        {
+          "command": "entirely.expertsForPath",
+          "group": "1_entirely@3",
           "when": "editorTextFocus && resourceScheme == file"
         }
       ],
@@ -1103,6 +1231,13 @@
           "command": "entirely.revokeAccess",
           "when": "view == entirely.controlPlane && viewItem == entirely.cpGrant",
           "group": "3_destructive@1"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "entirely.expertsForPath",
+          "when": "resourceScheme == file",
+          "group": "1_entirely@1"
         }
       ]
     },

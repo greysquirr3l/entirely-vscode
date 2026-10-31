@@ -46,7 +46,7 @@ export { planBlameMarks } from './blameMarks';
 export type { BlameMark, BlamePlan } from './blameMarks';
 export { lineState, UNATTRIBUTED_LABEL, UNSYNCED_LABEL } from './lineState';
 export type { LineState } from './lineState';
-export { answerNamesFile, workspaceRelative } from './workspacePath';
+export { answerNamesFile, repositoryFileToAbsolute, workspaceRelative } from './workspacePath';
 export { parseRequestedLine } from './requestedLine';
 export {
 	decodeEntireSettings,
@@ -545,6 +545,66 @@ export {
 	describeMigrationOutcome,
 } from './migrateCheckpoints';
 export type { MigrationOutcome } from './migrateCheckpoints';
+export { describesCommand, firstParagraph, longestFlagDescription } from './commandHelp';
+export { OPEN_CHECKPOINT_COMMAND, checkpointLink, findCheckpointLinks } from './generatedLinks';
+export type { CheckpointLinkSpan } from './generatedLinks';
+export {
+	EMPTY_PROFILE_TEXT,
+	PROFILE_WANTS,
+	decodeTokenProfile,
+	describeProfile,
+	describeProfileScope,
+	isEmptyProfile,
+	profileArguments,
+} from './tokenProfile';
+export type { ProfileFlags, ProfileRecommendation, ProfileScope, ProfileSignal, TokenProfile } from './tokenProfile';
+export { decodeTokenUsage } from './tokenUsage';
+export {
+	EXPERTS_SERVER_NOTICE,
+	EXPERTS_WANTS,
+	MAX_EXPERTS_LIMIT,
+	MAX_EXPERTS_QUESTION,
+	MIN_EXPERTS_LIMIT,
+	UNREADABLE_EXPERTS,
+	classifyExpertsFailure,
+	decodeExperts,
+	describeEmptyExperts,
+	describeExperts,
+	describeExpertsRequest,
+	describeNotMirrored,
+	expertsArguments,
+} from './experts';
+export type {
+	ExpertEntry,
+	ExpertsContext,
+	ExpertsFailure,
+	ExpertsFlags,
+	ExpertsReading,
+	ExpertsRequest,
+} from './experts';
+export {
+	MAX_REVIEW_PROMPT,
+	REVIEW_WANTS,
+	isForbiddenReviewArgument,
+	isProfileName,
+	parseProfileList,
+	reviewConfigArguments,
+	reviewFindingsArguments,
+	reviewListArguments,
+	reviewRunArguments,
+	reviewSetupArguments,
+} from './review';
+export type { ReviewArguments, ReviewFlags, ReviewPlan, ReviewProfile, ReviewProfileList } from './review';
+export { countLoaded, decodeReviewConfig, describeReviewConfig } from './reviewConfig';
+export type { ReviewConfig, ReviewConfigEntry } from './reviewConfig';
+export {
+	NO_PROFILE_TEXT,
+	REVIEW_STARTED_TEXT,
+	describeReviewExit,
+	reviewConfirmation,
+	reviewSetupConfirmation,
+} from './reviewActions';
+export type { ReviewQuestion } from './reviewActions';
 export {
 	CLEAN_WANTS,
 	CONFIGURE_WANTS,

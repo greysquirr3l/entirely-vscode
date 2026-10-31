@@ -146,6 +146,20 @@ These were exercised against a fake CLI. They are not verified against a live En
 
 Dispatch, plugin install and the live MCP server are tested with fake CLIs. They have not been verified against a live Entire account. Plugin commands run as the login the extension is acting as, and the CLI's built-in names are refused. See [Plugins](/entirely/guides/plugins/) and [Integrations and MCP](/entirely/guides/integrations-and-mcp/).
 
+## Token profile, experts and review
+
+| Command | Feature | Kind |
+| --- | --- | --- |
+| `entire tokens profile --json` | **Show Token Profile** | Read (checkpoint metadata only, no tokens spent) |
+| `entire experts --json` | **Who Has Touched This Path?** and the other experts commands | Read, but the path or question is sent to Entire's servers |
+| `entire review --list` | **List Review Profiles**, and the profile picker of a run | Read |
+| `entire review --show-config --json` | **Show What a Review Would Run**, and the details in the run's confirmation | Read |
+| `entire review --findings` | **Show Saved Review Findings** | Read |
+| `entire review --profile=…` | **Run Multi-Agent Review**, in a terminal, after a confirmation | Starts agents that spend tokens |
+| `entire review --configure` | **Set Up Review in a Terminal**, in a terminal, after asking | You complete a wizard |
+
+All of these read their flags from `<command> --help`, since `agent-help` does not know them. `tokens profile --json` and `review --show-config --json` were observed against the real CLI 0.12.2; `review --list` with no profile and `--findings` with none saved were too. `experts` and the review run were never run for real, and the rest of the review outputs were not observed, so they are tested against a fake CLI only. The extension never passes `--trust-target`, any `--set-*` flag, `--agents`, `--models`, `--edit` or the experts viewer flag. See [Token profile, experts and review](/entirely/guides/tokens-experts-review/).
+
 ## Privacy of the call record
 
 The runner keeps a record of each call for the output channel and **Doctor: Show the Last Entire CLI Output**. Options on the call decide what that record may hold. Transcripts, search queries, comment bodies and plugin arguments are kept out. See [Privacy and redaction](/entirely/concepts/privacy-and-redaction/).
