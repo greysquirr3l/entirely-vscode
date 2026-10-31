@@ -35,6 +35,7 @@ Entirely (this extension)
 | **File blame** | `entire blame` for the active file: every line marked as attributed, recorded but not synced, or not attributed to any recorded change |
 | **Trails view** | The trails of the project this repository belongs to. A trail's changes are read when you expand it, and a badge counts the changes that await an approval among the open trails it has read |
 | **Trail review** | Approve, comment on, merge, check out, link and unlink the work on an Entire trail — each action confirmed, and each merge naming what it merges |
+| **Trail depth** | Create and update a trail, follow a change with one watch process you can stop, and work a change's discussions and findings from Comments and Findings groups under it — reply, edit, delete, resolve, dismiss, update and apply a suggestion. Each write is read back before it is reported. **Tested against a fake CLI only** |
 | **Account view** | Who the CLI is signed in as, and which jurisdiction the account belongs to, with sign-in and sign-out |
 | **Activity view** | Recent sessions and commits across your repositories on Entire, a recap, and a generated dispatch you can copy |
 | **Token profile** | `entire tokens profile` over committed checkpoint history: totals, repeated signals with links to their checkpoints, recommendations and limitations in the CLI's words. A count the CLI left out reads "Not reported", never zero |
@@ -696,6 +697,8 @@ remote-machine settings, never workspace settings.
 | `blameMaxDecoratedLines` | `5000` | Longest file marked in the editor by Blame |
 | `transcriptTimeout` | `60` | Opening a transcript |
 | `trailActionTimeout` | `60` | A trail review action, and each `trail show` the Trails view and the detail panel make |
+| `trailWatchLimit` | `3` | How many changes may be watched at once (1 to 10); each watch is one `entire trail watch` process |
+| `trailWatchRefreshDelay` | `2` | Seconds a watch gathers events before reading a change's discussions and findings again (1 to 30) |
 | `selectionCacheSeconds` | `30` | How long the detail panel and the Trails view keep what they loaded. `0` reads every time; ended sessions and Activity rows keep ten times as long |
 | `trailBadgeLimit` | `10` | How many open trails are read, on a refresh you ask for, to count the changes awaiting approval. `0` shows no count |
 | `lifecycleActionTimeout` | `60` | Stop, attach, adopt, and agent install and removal |

@@ -2,6 +2,7 @@ import { execute, type ExecOptions } from './exec';
 import { parseJson } from './json';
 import { CliLocator } from './locator';
 import { parseUsage } from './usage';
+import { startStream, type StreamHandle, type StreamOptions } from './stream';
 import {
 	byteLength,
 	type CliInvocation,
@@ -187,7 +188,7 @@ export class CliRunner {
 	 * one is a deliberate request for that command alone. The pin is
 	 * left off entirely when the command asks for the CLI's own login.
 	 */
-	private resolveContext(options: RunOptions): string | undefined {
+	private resolveContext(options: Pick<RunOptions, 'context' | 'ignoreContext'>): string | undefined {
 		const named = options.context?.trim();
 
 		if (named && named.length > 0) {
@@ -259,6 +260,29 @@ export class CliRunner {
 		this.report(performed);
 
 		return performed.result;
+	}
+
+	/**
+	 * Starts a command that streams, such as a watch, and calls back per line.
+	 *
+	 * The binary and the login are resolved as for a run. The stream lives
+	 * in `stream.ts`; this only hands it what it shares with a run.
+	 */
+	stream(
+		args: readonly string[],
+		options: StreamOptions & Pick<RunOptions, 'context' | 'ignoreContext'>,
+	): StreamHandle {
+		const context = this.resolveContext(options);
+		return startStream(
+			{
+				locator: this.locator,
+				context,
+				effectiveArgs: context ? ['--context', context, ...args] : [...args],
+				sink: this.sink,
+				report: recorded => redactArguments(recorded, options.redactFlags),
+			},
+			options,
+		);
 	}
 
 	/**

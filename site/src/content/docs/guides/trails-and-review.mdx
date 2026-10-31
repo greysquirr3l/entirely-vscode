@@ -7,7 +7,7 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components';
 
-A trail groups the changes (one branch per repository) that make up a piece of work. The **Trails** view lists them, and six commands review them from the editor. Entirely calls the CLI for each action, and reads the result back before it says anything landed.
+A trail groups the changes (one branch per repository) that make up a piece of work. The **Trails** view lists them, and six commands review them from the editor, and more create, update and watch them and work their discussions and findings. Entirely calls the CLI for each action, and reads the result back before it says anything landed.
 
 ## The Trails view
 
@@ -80,6 +80,48 @@ Details that matter:
 
 Write actions are tested against a fake CLI. They are not verified against a live Entire server in every case, so check the result on the trail itself the first time you use them. See [Coverage](/entirely/reference/coverage/).
 
+## Create, update and watch
+
+These were tested against a fake CLI only: no trail was created, updated or watched on the real service while they were built, and the CLI's output for several of them was not observed. Check the result on the trail itself the first time you use them.
+
+- **Entirely: Create a Trail** (the **+** in the Trails view title, or the palette) asks for a title, an optional description and whether the trail is for the current branch or intent only, then asks in a modal naming the title, the login and "on Entire". For a branch, the CLI publishes your current branch to the remote first; it does not commit your changes or change your checkout. The trail is reported only when a fresh `trail list` holds exactly one new trail with that title. If the CLI succeeds but no such trail is listed you are told so ("check the web UI"). If the CLI fails after the trail exists, Entirely says to link the branch with **Link a Branch to a Trail** and not to create it again. Type and priority are offered only when the CLI's help names a list.
+- **Entirely: Update a Trail** (the pencil on a trail row, or the palette) changes one field: title, description, type, priority, status, or the assignees (add, remove, replace the list, clear it). It shows the current value, changes it once and reads the trail again before reporting. **Closing a trail** and **replacing or clearing the assignee list** ask first, naming the trail, the login and "on Entire", with the old and new value. Other edits and adding or removing one assignee do not ask.
+- **Entirely: Watch a Change on a Trail** (the eye on a change row) starts one `entire trail watch` process for that change. The CLI reconnects by itself and Entirely never polls. When the stream reports an event, the change's Comments and Findings rows are read again once, after `entirely.trailWatchRefreshDelay` seconds so a burst of events costs one read. The change row says "watching" and how many updates have arrived; event contents are never shown or logged. **Stop Watching** (the closed eye, or **Stop Watching All Changes**) ends the process, and so do the end of the stream, a revoked access, a project the login cannot see, and closing the editor. A watch that ends on its own says why and is not restarted. `entirely.trailWatchLimit` caps how many run at once.
+
+## Comments and Findings under a change
+
+A change row expands into **Comments** and **Findings**. Nothing is read until you expand a group; the rows are then kept until you refresh the view, write something, retry, or a watch reports an event, so the view's refresh timer does not read them again. A group with nothing shows "No discussions" or "No findings"; a read that fails shows the reason with a retry button.
+
+Discussions show their title, resolved or open, message count and last author. Findings show severity, status and file and line, with an icon by severity, and resolved and dismissed findings stay in the list so they can be reopened.
+
+| Row | Inline actions | In the context menu |
+|---|---|---|
+| Change | Watch or Stop Watching, Start a Discussion | |
+| Discussion | Reply, Resolve or Reopen, Show | Edit a Discussion Message, Delete a Discussion Message |
+| Finding | Apply, Resolve, Dismiss (open); Reopen (resolved or dismissed) | Update a Finding, Show a Finding |
+
+| Action | Asks first? | Read back before it is reported |
+|---|---|---|
+| Start a discussion, reply | No (the text is the consent) | The discussion shows it under the acting handle. A message recorded under another handle is reported as theirs. |
+| Edit a message | No; your own messages are offered, and any message the listing gives no author for (the CLI then decides) | The fresh discussion holds the new text. |
+| Delete a message | **Yes**, the strictest wording, naming the message (author and the start of its text) when there are several: it cannot be recovered from the editor | The fresh discussion no longer holds the message. |
+| Resolve or reopen a discussion | No | The fresh flag. |
+| Resolve or reopen a finding, update a finding | No | The fresh listing of every status. |
+| Dismiss a finding | Only a high-severity one | The fresh listing. |
+| Apply a finding's suggestion | **Yes** | See below. |
+
+Typed text (titles, bodies, messages, reasons) is sent to the CLI as arguments of their own, left out of the logged command line, and what the CLI prints is withheld. **Show a Discussion** and **Show a Finding** open read-only documents on request; their text is review text and is never logged. If the CLI's answer for a discussion is in a form Entirely does not read, you are told so and offered the command to copy.
+
+The CLI allows discussion writes only to people. If this editor session is an agent session, a reply, edit, delete or resolve is refused with a message saying so; nothing is retried or redirected. (A new comment from **Comment on a Change on a Trail** still falls back to a finding, as above.)
+
+### Applying a finding's suggestion
+
+**Apply** changes your working tree, so it is refused while any workspace file has unsaved changes, naming the files, and the CLI is not run. Otherwise Entirely asks the CLI whether the patch applies (its check flag); if not, your files are untouched and the CLI's reason is shown. If it does, a modal names the finding, the login and the folder, and offers **Apply** or **Apply and Resolve**. The CLI applies it once and Entirely says "The CLI reported the suggestion applied. Review it in Source Control." It reads no diff, so it cannot list the files that changed. With **Apply and Resolve** the finding's status is read back, and "unconfirmed" is reported if it still shows open.
+
+### When the project is not visible
+
+A GitHub collaborator on a repository can see the repository but not the personal project that holds its trails, and every trail command then fails with "project not found". For every command above Entirely says that the acting login has no access to the project, that this is how the CLI and the forge behave, and that you can review in Entire's web UI or move the repository to a GitHub organisation both people belong to. See [Accounts and contexts](/entirely/concepts/accounts-and-contexts/).
+
 ## Limits
 
 - `trail resume` is not offered. It is interactive in the CLI. Resuming a session on a branch is covered by **Entirely: Resume Session** in [Sessions and checkpoints](/entirely/guides/sessions-and-checkpoints/).
@@ -90,6 +132,8 @@ Write actions are tested against a fake CLI. They are not verified against a liv
 | Setting | Default | Effect |
 |---|---|---|
 | `entirely.trailActionTimeout` | `60` | Seconds a review action may run before Entirely stops waiting. A check out that has to fetch can take longer than a read. |
+| `entirely.trailWatchLimit` | `3` | How many changes may be watched at once (1 to 10). |
+| `entirely.trailWatchRefreshDelay` | `2` | Seconds a watch gathers events before reading a change's discussions and findings again (1 to 30). |
 | `entirely.refreshInterval` | `30` | Seconds between Trails view refreshes. `0` refreshes only on command. |
 | `entirely.cliContext` | empty | The saved login to act as. Machine scope. |
 

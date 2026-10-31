@@ -348,6 +348,115 @@
         "category": "Entirely"
       },
       {
+        "command": "entirely.trailCreate",
+        "title": "Create a Trail",
+        "category": "Entirely",
+        "icon": "$(add)"
+      },
+      {
+        "command": "entirely.trailUpdate",
+        "title": "Update a Trail",
+        "category": "Entirely",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "entirely.trailWatch",
+        "title": "Watch a Change on a Trail",
+        "category": "Entirely",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "entirely.trailStopWatching",
+        "title": "Stop Watching a Change on a Trail",
+        "category": "Entirely",
+        "icon": "$(eye-closed)"
+      },
+      {
+        "command": "entirely.trailStopAllWatches",
+        "title": "Stop Watching All Changes",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.trailStartDiscussion",
+        "title": "Start a Discussion on a Change",
+        "category": "Entirely",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "entirely.trailReplyToDiscussion",
+        "title": "Reply to a Discussion",
+        "category": "Entirely",
+        "icon": "$(reply)"
+      },
+      {
+        "command": "entirely.trailEditMessage",
+        "title": "Edit a Discussion Message",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.trailDeleteMessage",
+        "title": "Delete a Discussion Message",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.trailResolveDiscussion",
+        "title": "Resolve a Discussion",
+        "category": "Entirely",
+        "icon": "$(check)"
+      },
+      {
+        "command": "entirely.trailReopenDiscussion",
+        "title": "Reopen a Discussion",
+        "category": "Entirely",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "entirely.trailShowDiscussion",
+        "title": "Show a Discussion",
+        "category": "Entirely",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "entirely.trailResolveFinding",
+        "title": "Resolve a Finding",
+        "category": "Entirely",
+        "icon": "$(check)"
+      },
+      {
+        "command": "entirely.trailDismissFinding",
+        "title": "Dismiss a Finding",
+        "category": "Entirely",
+        "icon": "$(circle-slash)"
+      },
+      {
+        "command": "entirely.trailReopenFinding",
+        "title": "Reopen a Finding",
+        "category": "Entirely",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "entirely.trailUpdateFinding",
+        "title": "Update a Finding",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.trailApplyFinding",
+        "title": "Apply a Finding's Suggestion",
+        "category": "Entirely",
+        "icon": "$(diff-added)"
+      },
+      {
+        "command": "entirely.trailShowFinding",
+        "title": "Show a Finding",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.trailRetryThreads",
+        "title": "Read Discussions and Findings Again",
+        "category": "Entirely",
+        "icon": "$(refresh)"
+      },
+      {
         "command": "entirely.repairTerminalPath",
         "title": "Add the Entire CLI to the Terminal PATH",
         "category": "Entirely"
@@ -656,6 +765,20 @@
           "minimum": 5,
           "maximum": 600,
           "markdownDescription": "How long, in seconds, a trail review action (approve, comment, merge, check out, link, unlink) may run before Entirely stops waiting for the Entire CLI. A check out that has to fetch can take longer than a read."
+        },
+        "entirely.trailWatchLimit": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 10,
+          "markdownDescription": "How many changes Entirely may watch at once. Each watch is one running `entire trail watch` process that stays open until you stop it, the connection ends, or the editor closes, so the number is capped."
+        },
+        "entirely.trailWatchRefreshDelay": {
+          "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 30,
+          "markdownDescription": "How long, in seconds, Entirely gathers the events of a watched change before it reads the change's discussions and findings again. Events that arrive within this time share one read. Nothing is read on a timer while no event arrives."
         },
         "entirely.selectionCacheSeconds": {
           "type": "number",
@@ -1037,6 +1160,11 @@
           "command": "entirely.reviewSetup",
           "when": "view == entirely.activity",
           "group": "9_review@5"
+        },
+        {
+          "command": "entirely.trailCreate",
+          "when": "view == entirely.trails",
+          "group": "navigation@1"
         }
       ],
       "commandPalette": [
@@ -1098,6 +1226,10 @@
         },
         {
           "command": "entirely.copyCommitHash",
+          "when": "false"
+        },
+        {
+          "command": "entirely.trailRetryThreads",
           "when": "false"
         }
       ],
@@ -1230,6 +1362,91 @@
           "command": "entirely.revokeAccess",
           "when": "view == entirely.controlPlane && viewItem == entirely.cpGrant",
           "group": "3_destructive@1"
+        },
+        {
+          "command": "entirely.trailUpdate",
+          "when": "view == entirely.trails && viewItem == entirely.trail",
+          "group": "inline@1"
+        },
+        {
+          "command": "entirely.trailWatch",
+          "when": "view == entirely.trails && viewItem =~ /^entirely\\.change(\\.awaitingApproval)?$/",
+          "group": "inline@1"
+        },
+        {
+          "command": "entirely.trailStopWatching",
+          "when": "view == entirely.trails && viewItem =~ /^entirely\\.change(\\.awaitingApproval)?\\.watched$/",
+          "group": "inline@1"
+        },
+        {
+          "command": "entirely.trailStartDiscussion",
+          "when": "view == entirely.trails && viewItem =~ /^entirely\\.change(\\.awaitingApproval)?(\\.watched)?$/",
+          "group": "inline@2"
+        },
+        {
+          "command": "entirely.trailReplyToDiscussion",
+          "when": "view == entirely.trails && viewItem =~ /^entirely\\.discussion(\\.resolved)?$/",
+          "group": "inline@1"
+        },
+        {
+          "command": "entirely.trailResolveDiscussion",
+          "when": "view == entirely.trails && viewItem == entirely.discussion",
+          "group": "inline@2"
+        },
+        {
+          "command": "entirely.trailReopenDiscussion",
+          "when": "view == entirely.trails && viewItem == entirely.discussion.resolved",
+          "group": "inline@2"
+        },
+        {
+          "command": "entirely.trailShowDiscussion",
+          "when": "view == entirely.trails && viewItem =~ /^entirely\\.discussion(\\.resolved)?$/",
+          "group": "inline@3"
+        },
+        {
+          "command": "entirely.trailEditMessage",
+          "when": "view == entirely.trails && viewItem =~ /^entirely\\.discussion(\\.resolved)?$/",
+          "group": "1_message@1"
+        },
+        {
+          "command": "entirely.trailDeleteMessage",
+          "when": "view == entirely.trails && viewItem =~ /^entirely\\.discussion(\\.resolved)?$/",
+          "group": "3_destructive@1"
+        },
+        {
+          "command": "entirely.trailApplyFinding",
+          "when": "view == entirely.trails && viewItem == entirely.finding.open",
+          "group": "inline@1"
+        },
+        {
+          "command": "entirely.trailResolveFinding",
+          "when": "view == entirely.trails && viewItem == entirely.finding.open",
+          "group": "inline@2"
+        },
+        {
+          "command": "entirely.trailDismissFinding",
+          "when": "view == entirely.trails && viewItem == entirely.finding.open",
+          "group": "inline@3"
+        },
+        {
+          "command": "entirely.trailReopenFinding",
+          "when": "view == entirely.trails && viewItem =~ /^entirely\\.finding\\.(resolved|dismissed)$/",
+          "group": "inline@1"
+        },
+        {
+          "command": "entirely.trailUpdateFinding",
+          "when": "view == entirely.trails && viewItem =~ /^entirely\\.finding\\./",
+          "group": "1_finding@1"
+        },
+        {
+          "command": "entirely.trailShowFinding",
+          "when": "view == entirely.trails && viewItem =~ /^entirely\\.finding\\./",
+          "group": "1_finding@2"
+        },
+        {
+          "command": "entirely.trailRetryThreads",
+          "when": "view == entirely.trails && viewItem == entirely.threadFailed",
+          "group": "inline@1"
         }
       ],
       "explorer/context": [

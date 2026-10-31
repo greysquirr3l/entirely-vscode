@@ -4,6 +4,7 @@ export { findCandidate, parseVersion, type Candidate, type DiscoveryOptions } fr
 export { documentedLocations, pathEntries, type DocumentedLocation } from './locations';
 export { parseJson, type JsonParseResult } from './json';
 export { parseUsage } from './usage';
+export { LineSplitter, STDERR_TAIL_BYTES, startStream, type StreamEnd, type StreamHandle, type StreamOptions } from './stream';
 export {
 	byteLength,
 	excerptPayload,

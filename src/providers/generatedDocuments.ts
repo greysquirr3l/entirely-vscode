@@ -16,7 +16,9 @@ export type GeneratedKind =
 	| 'expertsRaw'
 	| 'reviewProfiles'
 	| 'reviewConfig'
-	| 'reviewFindings';
+	| 'reviewFindings'
+	| 'trail-discussion'
+	| 'trail-finding';
 
 const EXTENSIONS: Record<GeneratedKind, string> = {
 	dispatch: 'md',
@@ -31,6 +33,8 @@ const EXTENSIONS: Record<GeneratedKind, string> = {
 	reviewProfiles: 'txt',
 	reviewConfig: 'md',
 	reviewFindings: 'txt',
+	'trail-discussion': 'md',
+	'trail-finding': 'txt',
 };
 
 /** How many documents are kept in memory at once. */

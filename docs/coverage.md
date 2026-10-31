@@ -25,7 +25,7 @@ README. Every CLI invocation the extension can make is in section 1.
 | Excluded | A decision: the extension deliberately does not do it. The notes say why. |
 | Gap | Not done, and no decision to leave it out. Listed in section 3. |
 
-**Totals.** Rows: 142 (supported 88, excluded 14, gap 40).
+**Totals.** Rows: 142 (supported 103, excluded 14, gap 25).
 
 The totals line is read by `src/test/coverage.test.ts`, which fails when it
 disagrees with the table.
@@ -71,6 +71,21 @@ row names a command its callers never build.
 | `entire trail checkout` | `src/services/trailService.ts` | Checking out a change's branch |
 | `entire trail link` | `src/services/trailService.ts` | Linking a branch to a trail |
 | `entire trail unlink` | `src/services/trailService.ts` | Unlinking a branch from a trail |
+| `entire trail create` | `src/lib/entire/trailDepthFlags.ts`, `src/services/trailAuthoring.ts` | Creating a trail, after a question |
+| `entire trail update` | `src/lib/entire/trailDepthFlags.ts`, `src/services/trailAuthoring.ts` | Changing a trail's fields and assignees |
+| `entire trail watch` | `src/lib/entire/trailDepthFlags.ts`, `src/services/trailWatch.ts` | One owned process per watched change |
+| `entire trail comment show` | `src/lib/entire/trailDepthFlags.ts`, `src/services/trailDepthReads.ts` | One discussion and its messages |
+| `entire trail comment reply` | `src/lib/entire/trailDepthFlags.ts`, `src/services/trailDiscussions.ts` | Replying to a discussion |
+| `entire trail comment edit` | `src/lib/entire/trailDepthFlags.ts`, `src/services/trailDiscussions.ts` | Editing one's own message |
+| `entire trail comment delete` | `src/lib/entire/trailDepthFlags.ts`, `src/services/trailDiscussions.ts` | Deleting a message, after a question |
+| `entire trail comment resolve` | `src/lib/entire/trailDepthFlags.ts`, `src/services/trailDiscussions.ts` | Resolving a discussion |
+| `entire trail comment unresolve` | `src/lib/entire/trailDepthFlags.ts`, `src/services/trailDiscussions.ts` | Reopening a discussion |
+| `entire trail finding show` | `src/lib/entire/trailDepthFlags.ts`, `src/services/trailFindings.ts` | The CLI's text for a finding |
+| `entire trail finding apply` | `src/lib/entire/trailDepthFlags.ts`, `src/services/trailFindings.ts` | Checking, then applying a finding's suggestion |
+| `entire trail finding dismiss` | `src/lib/entire/trailDepthFlags.ts`, `src/services/trailFindings.ts` | Dismissing a finding |
+| `entire trail finding reopen` | `src/lib/entire/trailDepthFlags.ts`, `src/services/trailFindings.ts` | Reopening a finding |
+| `entire trail finding resolve` | `src/lib/entire/trailDepthFlags.ts`, `src/services/trailFindings.ts` | Resolving a finding |
+| `entire trail finding update` | `src/lib/entire/trailDepthFlags.ts`, `src/services/trailFindings.ts` | Changing a finding's body, severity or confidence |
 | `entire session list` | `src/services/sessionSource.ts`, `src/services/checkpointSource.ts` | The session tree |
 | `entire session current` | `src/services/sessionSource.ts` | The workspace's own session |
 | `entire session info` | `src/services/sessionDetail.ts` | Session detail and transcript |
@@ -276,22 +291,22 @@ The three rows below are the plugins the documentation names.
 | `entire trail link` | Supported | `entirely.trailLink`, `src/test/trailActions.test.ts`, `src/test/trailReviewFlow.test.ts` | |
 | `entire trail unlink` | Supported | `entirely.trailUnlink`, `src/test/trailActions.test.ts`, `src/test/trailReviewFlow.test.ts` | |
 | `entire trail merge` | Supported | `entirely.trailMerge`, `src/test/trailActions.test.ts`, `src/test/trailReviewFlow.test.ts` | A dry run first; the gate is read from it. |
-| `entire trail create` | Gap | | |
-| `entire trail update` | Gap | | |
-| `entire trail watch` | Gap | | A streaming view. |
+| `entire trail create` | Supported | `entirely.trailCreate`, `src/test/trailAuthoring.test.ts`, `src/test/support/trailDepthCli.ts` | Asks first; publishes the branch. Reported only when a fresh list holds one new trail with the title. Verified against a fake CLI only. |
+| `entire trail update` | Supported | `entirely.trailUpdate`, `src/test/trailAuthoring.test.ts`, `src/test/support/trailDepthCli.ts` | Closing or replacing the assignee list asks first. Verified against a fake CLI only. |
+| `entire trail watch` | Supported | `entirely.trailWatch`, `src/test/trailWatch.test.ts`, `src/test/cliStream.test.ts` | One owned process per change, stopped by the user or on deactivation, never polled. Verified against a fake CLI only. |
 | `entire trail resume` | Excluded | | Entire's documentation says a non-interactive run shows the same context and prints the resume commands, so interactivity is only the default, not the reason. The reason is that `entire session resume` already covers the editor use case: `entirely.resumeSession` (`src/services/sessionResume.ts`) resumes a branch's session in an editor terminal. |
-| `entire trail comment delete` | Gap | | |
-| `entire trail comment edit` | Gap | | |
-| `entire trail comment reply` | Gap | | |
-| `entire trail comment resolve` | Gap | | |
-| `entire trail comment show` | Gap | | |
-| `entire trail comment unresolve` | Gap | | |
-| `entire trail finding apply` | Gap | | |
-| `entire trail finding dismiss` | Gap | | |
-| `entire trail finding reopen` | Gap | | |
-| `entire trail finding resolve` | Gap | | |
-| `entire trail finding show` | Gap | | |
-| `entire trail finding update` | Gap | | |
+| `entire trail comment delete` | Supported | `entirely.trailDeleteMessage`, `src/test/trailDiscussions.test.ts`, `src/test/support/trailDepthCli.ts` | Asks first, with the strictest wording. Verified against a fake CLI only. |
+| `entire trail comment edit` | Supported | `entirely.trailEditMessage`, `src/test/trailDiscussions.test.ts`, `src/test/support/trailDepthCli.ts` | Only the acting login's messages are offered. Verified against a fake CLI only. |
+| `entire trail comment reply` | Supported | `entirely.trailReplyToDiscussion`, `src/test/trailDiscussions.test.ts`, `src/test/support/trailDepthCli.ts` | Read back under the acting handle. Verified against a fake CLI only. |
+| `entire trail comment resolve` | Supported | `entirely.trailResolveDiscussion`, `src/test/trailDiscussions.test.ts`, `src/test/support/trailDepthCli.ts` | Verified against a fake CLI only. |
+| `entire trail comment show` | Supported | `entirely.trailShowDiscussion`, `src/test/trailDiscussions.test.ts`, `src/test/support/trailDepthCli.ts` | The shape of the answer was not observed on the real CLI, so it is read tolerantly. Verified against a fake CLI only. |
+| `entire trail comment unresolve` | Supported | `entirely.trailReopenDiscussion`, `src/test/trailDiscussions.test.ts`, `src/test/support/trailDepthCli.ts` | Verified against a fake CLI only. |
+| `entire trail finding apply` | Supported | `entirely.trailApplyFinding`, `src/test/trailApplyFinding.test.ts`, `src/test/support/trailDepthCli.ts` | Refused with unsaved work; the check runs first and the person confirms. Verified against a fake CLI only. |
+| `entire trail finding dismiss` | Supported | `entirely.trailDismissFinding`, `src/test/trailFindings.test.ts`, `src/test/support/trailDepthCli.ts` | Asks first for a high-severity finding. Verified against a fake CLI only. |
+| `entire trail finding reopen` | Supported | `entirely.trailReopenFinding`, `src/test/trailFindings.test.ts`, `src/test/support/trailDepthCli.ts` | Verified against a fake CLI only. |
+| `entire trail finding resolve` | Supported | `entirely.trailResolveFinding`, `src/test/trailFindings.test.ts`, `src/test/support/trailDepthCli.ts` | Verified against a fake CLI only. |
+| `entire trail finding show` | Supported | `entirely.trailShowFinding`, `src/test/trailFindings.test.ts`, `src/test/support/trailDepthCli.ts` | The CLI has no JSON form for this one, so its text is shown as printed. Verified against a fake CLI only. |
+| `entire trail finding update` | Supported | `entirely.trailUpdateFinding`, `src/test/trailFindings.test.ts`, `src/test/support/trailDepthCli.ts` | Verified against a fake CLI only. |
 
 ### Data, plugins and MCP
 
@@ -331,7 +346,6 @@ Nothing below is excluded. Each is a capability the CLI has and the editor does 
 1. **Checkpoint deletion.** `checkpoint delete`.
 2. **Control plane breadth.** Create and read for organisations and projects (`org create`, `org get`, `project create`, `project get`), organisation invitations (`org invite list`, `revoke`, `send`), and the repository commands `clone`, `mirror add`, `mirror detach`, `mirror remove`, `mirror resync`, `protection add`, `protection list`, `protection remove`, `remote add`, `visibility get`.
 3. **Plugin management.** `plugin browse`, `doctor`, `index update`, `info`, `remove`, `search`, `upgrade`. Only `list` and `install` are wired.
-4. **Trail depth.** `trail create`, `update`, `watch`, and the comment and finding commands that edit, reply, resolve or dismiss.
 
 ---
 

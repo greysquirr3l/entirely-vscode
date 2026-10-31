@@ -14,6 +14,8 @@ import {
 import type { BadgeCoverage, TrailChangesService } from '../services/trailChanges';
 import type { TrailListingSource } from '../services/trailListing';
 import { rowUri } from './selectedMark';
+import type { ThreadSource } from '../services/trailThreadSource';
+import { ThreadRows, changeContextValue, changeKeyOf, describeChangeLine, threadTreeItem, type ThreadGroupNode, type ThreadNode } from './trailThreads';
 
 /** One trail. */
 export interface TrailNode {
@@ -39,7 +41,7 @@ export interface NoteNode {
 }
 
 /** A node in the trails tree. */
-export type TrailsNode = TrailNode | ChangeNode | NoteNode;
+export type TrailsNode = TrailNode | ChangeNode | NoteNode | ThreadNode;
 
 /** The nodes of a trail's changes. */
 export function buildChangeNodes(entry: GatedTrail): ChangeNode[] {
@@ -68,7 +70,7 @@ export function selectionOfRow(node: TrailNode | ChangeNode): Selection {
 
 /** What selecting any row of the tree means; a line that is only a note selects nothing. */
 export function selectionOfTrailsNode(node: TrailsNode): Selection | undefined {
-	return node.kind === 'note' ? undefined : selectionOfRow(node);
+	return node.kind === 'trail' || node.kind === 'change' ? selectionOfRow(node) : undefined;
 }
 
 /** The line beside a trail: its state and how many changes wait. */
@@ -128,6 +130,8 @@ export class TrailsProvider implements vscode.TreeDataProvider<TrailsNode> {
 	private emptyReasonText: string | undefined;
 	private coverage: BadgeCoverage | undefined;
 	private disposed = false;
+	private readonly threadRows: ThreadRows | undefined;
+	private readonly watchListener: { dispose(): void } | undefined;
 
 	readonly onDidChangeTreeData: vscode.Event<TrailsNode | undefined> = this.changed.event;
 
@@ -135,7 +139,11 @@ export class TrailsProvider implements vscode.TreeDataProvider<TrailsNode> {
 		private readonly source: TrailListingSource,
 		private readonly refreshIntervalSeconds: () => number = () => 30,
 		private readonly reading?: TrailsReading,
+		private readonly threads?: ThreadSource,
 	) {
+		this.threadRows = threads ? new ThreadRows(threads) : undefined;
+		// A change's row shows whether it is watched, so it is redrawn when that changes.
+		this.watchListener = threads?.onWatchChanged(key => this.redrawChange(key));
 		this.schedulePolling();
 	}
 
@@ -228,6 +236,7 @@ export class TrailsProvider implements vscode.TreeDataProvider<TrailsNode> {
 		const reading = this.reading;
 		if (trigger === 'user') {
 			reading?.changes.clear();
+			this.threadRows?.forget();
 			this.coverage = undefined;
 		}
 		const carried = new Map(
@@ -255,7 +264,45 @@ export class TrailsProvider implements vscode.TreeDataProvider<TrailsNode> {
 		this.changed.fire(undefined);
 	}
 
+	/**
+	 * Reads a change's Comments and Findings again.
+	 *
+	 * What was kept for the change is forgotten and the rows already drawn
+	 * are redrawn, which makes the view ask for them again. Called after the
+	 * person's own writes, after a retry and when a watch reports an event.
+	 */
+	invalidateThreads(key: string): void {
+		if (!this.threadRows || this.disposed) {
+			return;
+		}
+		this.threadRows.forget(key);
+		for (const group of this.threadRows.drawn(key)) {
+			this.changed.fire(group);
+		}
+	}
+
+	/** Reads the group a failed row belongs to again. */
+	retryThreads(node: ThreadNode): void {
+		const group: ThreadGroupNode = node.kind === 'threadGroup' ? node : node.kind === 'threadNote' ? node.group : { kind: 'threadGroup', group: node.kind === 'discussion' ? 'comments' : 'findings', change: node.change };
+		this.invalidateThreads(changeKeyOf(group.change));
+	}
+
+	private redrawChange(key: string): void {
+		if (this.disposed) {
+			return;
+		}
+		for (const trail of this.nodes) {
+			const change = trail.changes?.find(node => changeKeyOf(node) === key);
+			if (change) {
+				this.changed.fire(change);
+			}
+		}
+	}
+
 	getTreeItem(element: TrailsNode): vscode.TreeItem {
+		if (element.kind === 'threadGroup' || element.kind === 'discussion' || element.kind === 'finding' || element.kind === 'threadNote') {
+			return threadTreeItem(element);
+		}
 		if (element.kind === 'note') {
 			const item = new vscode.TreeItem(element.text, vscode.TreeItemCollapsibleState.None);
 			item.iconPath = new vscode.ThemeIcon('warning');
@@ -284,13 +331,13 @@ export class TrailsProvider implements vscode.TreeDataProvider<TrailsNode> {
 		}
 
 		const { change, gate } = element.entry;
+		const watch = this.threads?.watchState(changeKeyOf(element));
 		const item = new vscode.TreeItem(
 			change.title ?? (change.branch.length > 0 ? change.branch : `${change.repository}/${change.number}`),
-			vscode.TreeItemCollapsibleState.None,
+			this.threadRows ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
 		);
-		item.description = `${change.repository}/${change.number} · ${describeGate(gate)}`;
-		item.contextValue =
-			gate.kind === 'awaiting-approval' ? 'entirely.change.awaitingApproval' : 'entirely.change';
+		item.description = describeChangeLine(`${change.repository}/${change.number} · ${describeGate(gate)}`, watch);
+		item.contextValue = changeContextValue(gate.kind === 'awaiting-approval', watch);
 		item.iconPath = new vscode.ThemeIcon(
 			gate.kind === 'awaiting-approval'
 				? 'bell'
@@ -313,6 +360,12 @@ export class TrailsProvider implements vscode.TreeDataProvider<TrailsNode> {
 	getChildren(element?: TrailsNode): TrailsNode[] | Promise<TrailsNode[]> {
 		if (!element) {
 			return [...this.nodes];
+		}
+		if (element.kind === 'change') {
+			return this.threadRows ? this.threadRows.groupsOf(element) : [];
+		}
+		if (element.kind === 'threadGroup') {
+			return this.threadRows ? this.threadRows.read(element) : [];
 		}
 		if (element.kind !== 'trail') {
 			return [];
@@ -349,6 +402,15 @@ export class TrailsProvider implements vscode.TreeDataProvider<TrailsNode> {
 	}
 
 	getParent(element: TrailsNode): TrailsNode | undefined {
+		if (element.kind === 'discussion' || element.kind === 'finding') {
+			return this.threadRows?.groupsOf(element.change)[element.kind === 'discussion' ? 0 : 1];
+		}
+		if (element.kind === 'threadNote') {
+			return element.group;
+		}
+		if (element.kind === 'threadGroup') {
+			return element.change;
+		}
 		if (element.kind !== 'change') {
 			return undefined;
 		}
@@ -376,6 +438,7 @@ export class TrailsProvider implements vscode.TreeDataProvider<TrailsNode> {
 
 	dispose(): void {
 		this.disposed = true;
+		this.watchListener?.dispose();
 		if (this.timer) {
 			clearInterval(this.timer);
 			this.timer = undefined;

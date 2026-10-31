@@ -101,8 +101,26 @@ Merge, check out, link and unlink confirm in a modal prompt that names what they
 | Entirely: Check Out a Change on a Trail | `entirely.trailCheckout` | palette; detail panel link | Confirms | `entire trail checkout`. Warns about unsaved files because the checkout moves the working tree. |
 | Entirely: Link a Branch to a Trail | `entirely.trailLink` | palette; detail panel link | Confirms | `entire trail link`. |
 | Entirely: Unlink a Branch from a Trail | `entirely.trailUnlink` | palette; detail panel link | Confirms | `entire trail unlink`. |
+| Entirely: Create a Trail | `entirely.trailCreate` | palette; Trails view title | Confirms | `entire trail create`. Publishes your current branch unless intent only. |
+| Entirely: Update a Trail | `entirely.trailUpdate` | palette; trail row | Confirms to close or to replace the assignee list | `entire trail update`. |
+| Entirely: Watch a Change on a Trail | `entirely.trailWatch` | palette; change row | No | One `entire trail watch` process. |
+| Entirely: Stop Watching a Change on a Trail | `entirely.trailStopWatching` | palette; change row | No | Ends that process. |
+| Entirely: Stop Watching All Changes | `entirely.trailStopAllWatches` | palette | No | Ends every watch. |
+| Entirely: Start a Discussion on a Change | `entirely.trailStartDiscussion` | palette; change row | Asks for input | `entire trail comment add`. |
+| Entirely: Reply to a Discussion | `entirely.trailReplyToDiscussion` | palette; discussion row | Asks for input | `entire trail comment reply`. |
+| Entirely: Edit a Discussion Message | `entirely.trailEditMessage` | palette; discussion row menu | Asks for input | `entire trail comment edit`; your own messages, and any with no author listed. |
+| Entirely: Delete a Discussion Message | `entirely.trailDeleteMessage` | palette; discussion row menu | Confirms | `entire trail comment delete`. |
+| Entirely: Resolve a Discussion | `entirely.trailResolveDiscussion` | palette; discussion row | No | `entire trail comment resolve`. |
+| Entirely: Reopen a Discussion | `entirely.trailReopenDiscussion` | palette; discussion row | No | `entire trail comment unresolve`. |
+| Entirely: Show a Discussion | `entirely.trailShowDiscussion` | palette; discussion row | No | `entire trail comment show`, in a read-only document. |
+| Entirely: Resolve a Finding | `entirely.trailResolveFinding` | palette; finding row | No | `entire trail finding resolve`. |
+| Entirely: Dismiss a Finding | `entirely.trailDismissFinding` | palette; finding row | Confirms for high severity | `entire trail finding dismiss`. |
+| Entirely: Reopen a Finding | `entirely.trailReopenFinding` | palette; finding row | No | `entire trail finding reopen`. |
+| Entirely: Update a Finding | `entirely.trailUpdateFinding` | palette; finding row menu | Asks for input | `entire trail finding update`. |
+| Entirely: Apply a Finding's Suggestion | `entirely.trailApplyFinding` | palette; finding row | Refused with unsaved work; checks, then confirms | `entire trail finding apply`. |
+| Entirely: Show a Finding | `entirely.trailShowFinding` | palette; finding row menu | No | `entire trail finding show`, in a read-only document. |
 
-See [Trails and review](/entirely/guides/trails-and-review/).
+The create, update, watch, discussion and finding commands were tested against a fake CLI only. **Read Discussions and Findings Again** (`entirely.trailRetryThreads`) is the retry button on a failed read and is not in the palette. See [Trails and review](/entirely/guides/trails-and-review/).
 
 ## Activity, dispatch and recap
 

@@ -683,3 +683,74 @@ export type {
 	SettingsLayerReading,
 	UninstallFacts,
 } from './captureVerify';
+export {
+	changedFields,
+	discussionArguments,
+	findingArguments,
+	planDiscussionWrite,
+	planFindingApply,
+	planFindingList,
+	planFindingWrite,
+	planJsonRead,
+	planTrailCreate,
+	planTrailUpdate,
+	planWatch,
+	trailCreateArguments,
+	trailUpdateArguments,
+	watchArguments,
+	anyStatusValue,
+	choicesOf,
+	typedFlags,
+	TRAIL_DEPTH_COMMANDS,
+} from './trailDepthFlags';
+export type {
+	DiscussionInput,
+	FindingInput,
+	TrailDraft,
+	TrailEdit,
+	TrailEditField,
+} from './trailDepthFlags';
+export {
+	AGENT_SESSION_REFUSAL,
+	closesTrail,
+	confirmTrailDepth,
+	describeApplyRefusal,
+	describeMessage,
+	decodeDiscussion,
+	describeDepthFailure,
+	describeDepthOutcome,
+	describeNoProjectAccess,
+	isAgentSessionRefusal,
+	isOperandId,
+	isOwnMessage,
+	mayEditMessage,
+	replacesAssignees,
+	requiresConfirmation,
+	validateOperandId,
+} from './trailDepth';
+export type {
+	ActingLogin,
+	DepthAction,
+	DepthConfirmation,
+	DepthOutcome,
+	DepthSubject,
+	DiscussionMessage,
+	DiscussionView,
+	FailureContext,
+	TrailBefore,
+} from './trailDepth';
+export { describeWatchState, isWatchEnd, isWatchUpdate, parseWatchLine } from './trailEvents';
+export type { WatchEvent, WatchEventKind, WatchState } from './trailEvents';
+export {
+	describeDiscussion,
+	describeFinding,
+	discussionContextValue,
+	discussionLabel,
+	findingContextValue,
+	findingIcon,
+	findingLabel,
+	findingStatus,
+} from './trailThreadRows';
+export { threadTargetOf } from './trailThreadTarget';
+export type { ThreadTarget } from './trailThreadTarget';
+export { discussionMarkdown } from './trailDepthDocuments';

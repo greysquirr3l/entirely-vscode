@@ -108,6 +108,14 @@ export interface Trail {
 	readonly priority?: string;
 	readonly url?: string;
 	/**
+	 * The logins assigned to the trail, when the answer names them.
+	 *
+	 * Read tolerantly and only when present: the element shape was not
+	 * observed, so a string or an object with a handle, login or name is
+	 * read and anything else is skipped.
+	 */
+	readonly assignees?: readonly string[];
+	/**
 	 * The changes on the trail.
 	 *
 	 * The CLI only sends the changes with some of its answers, so an
@@ -166,6 +174,8 @@ export interface TrailFinding {
 	readonly body?: string;
 	readonly state?: string;
 	readonly severity?: string;
+	/** The reviewer's confidence from 0 to 1, when the listing carries it. */
+	readonly confidence?: number;
 	readonly file?: string;
 	readonly line?: number;
 	readonly createdAt?: string;
@@ -430,10 +440,31 @@ export function decodeTrail(value: unknown, path: string): DecodeResult<Trail> {
 			type: type.value,
 			priority: priority.value,
 			url: url.value,
+			...assigneesOf(read.record.assignees),
 			changes: decodeChanges(read.record.changes, `${path}.changes`),
 			partial: partial ?? false,
 		},
 	};
+}
+
+/** The assignee logins of a trail, as a field to spread, or nothing when the answer has none. */
+function assigneesOf(value: unknown): { readonly assignees?: readonly string[] } {
+	if (!Array.isArray(value)) {
+		return {};
+	}
+	const logins: string[] = [];
+	for (const entry of value as unknown[]) {
+		if (typeof entry === 'string' && entry.length > 0) {
+			logins.push(entry);
+		} else if (typeof entry === 'object' && entry !== null) {
+			const record = entry as Record<string, unknown>;
+			const named = ['handle', 'login', 'username', 'name'].map(key => record[key]).find(item => typeof item === 'string' && item.length > 0);
+			if (typeof named === 'string') {
+				logins.push(named);
+			}
+		}
+	}
+	return { assignees: logins };
 }
 
 /**
@@ -798,6 +829,7 @@ export function decodeTrailFinding(value: unknown, path: string): DecodeResult<T
 			body: body.value,
 			state: state.value,
 			severity: severity.value,
+			...(typeof read.record.confidence === 'number' ? { confidence: read.record.confidence } : {}),
 			file: file.value,
 			line: line.value,
 			createdAt: createdAt.value,

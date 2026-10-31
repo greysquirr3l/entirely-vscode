@@ -34,6 +34,8 @@ Some operands are sensitive even though the command isn't, such as a search term
 [info] entire: /usr/local/bin/entire investigate <redacted>
 ```
 
+The same holds for the trail depth commands: the title, description, message, reason and instruction you type go to the CLI as arguments of their own and are replaced with `<redacted>` in the logged command line, and what the CLI prints is withheld. Discussion text, finding text and the events of a watched change are never written to the output channel; discussions and findings open as documents only when you ask, and watch events are reduced to a count.
+
 ## Explicit "show output" commands
 
 When you do want the content, ask for it:
