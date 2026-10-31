@@ -420,6 +420,11 @@ const STYLES = `
 	}
 `;
 
+/** The link that asks Entire which agents, skills and tools have touched the file. */
+function expertsLink(file: string): string {
+	return `<p><a class="button" href="command:entirely.expertsForPath?${encodeURIComponent(JSON.stringify([file]))}">Who else touched this file</a></p>`;
+}
+
 /**
  * Renders the answer as the body of a panel.
  *
@@ -431,7 +436,8 @@ export function renderWhyBody(answer: WhyAnswer): string {
 		return `
 			<h1>Why does this line exist?</h1>
 			<p class="path">${escapeHtml(answer.file)}:${answer.line.lineNumber}</p>
-			${renderLine(answer.line)}`;
+			${renderLine(answer.line)}
+			${expertsLink(answer.file)}`;
 	}
 
 	const rows = answer.lines.map(renderRow).join('');
@@ -439,6 +445,7 @@ export function renderWhyBody(answer: WhyAnswer): string {
 	return `
 		<h1>Why does this file look like this?</h1>
 		<p class="path">${escapeHtml(answer.file)}</p>
+		${expertsLink(answer.file)}
 		${renderSummary(answer.summary)}
 		<table>${rows}</table>`;
 }

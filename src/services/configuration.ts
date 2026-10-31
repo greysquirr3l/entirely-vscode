@@ -47,6 +47,18 @@ export interface ExtensionSettings {
 	readonly dispatchTimeout: number;
 	/** How long, in seconds, a plugin command or a plugin install may take. */
 	readonly pluginTimeout: number;
+	/** How many committed checkpoints the token profile covers when the person does not choose all of them. */
+	readonly tokenProfileCheckpoints: number;
+	/** How long, in seconds, the token profile may take. */
+	readonly tokenProfileTimeout: number;
+	/** How many ranked entries an experts lookup asks for. */
+	readonly expertsLimit: number;
+	/** How long, in seconds, Entire's servers may take to answer an experts lookup. */
+	readonly expertsTimeout: number;
+	/** How long, in seconds, the read-only review modes (profiles, what a review would run, findings) may take. */
+	readonly reviewReadTimeout: number;
+	/** Minutes each reviewer of a review may run. Zero leaves the CLI's own default, which is no limit. */
+	readonly reviewReviewerTimeoutMinutes: number;
 	/** How many lines of the CLI log the doctor shows. */
 	readonly doctorLogLines: number;
 	/** How many hook traces the doctor asks for by default. */
@@ -195,6 +207,59 @@ export function clampActivityTimeout(seconds: number): number {
 		return 30;
 	}
 	return Math.min(MAX_ACTIVITY_TIMEOUT_SECONDS, Math.max(MIN_ACTIVITY_TIMEOUT_SECONDS, Math.floor(seconds)));
+}
+
+/** Puts a whole-number setting inside its range, and falls back to its default when it is not a number. */
+function clampWhole(value: number, min: number, max: number, fallback: number): number {
+	return Number.isFinite(value) ? Math.min(max, Math.max(min, Math.floor(value))) : fallback;
+}
+
+/** The bounds of the number of checkpoints the token profile covers. */
+export const MIN_TOKEN_PROFILE_CHECKPOINTS = 1;
+export const MAX_TOKEN_PROFILE_CHECKPOINTS = 1000;
+export const DEFAULT_TOKEN_PROFILE_CHECKPOINTS = 50;
+
+export function clampTokenProfileCheckpoints(count: number): number {
+	return clampWhole(count, MIN_TOKEN_PROFILE_CHECKPOINTS, MAX_TOKEN_PROFILE_CHECKPOINTS, DEFAULT_TOKEN_PROFILE_CHECKPOINTS);
+}
+
+/** The bounds of the time the token profile may take, in seconds. It reads local metadata only. */
+export const MIN_TOKEN_PROFILE_TIMEOUT_SECONDS = 5;
+export const MAX_TOKEN_PROFILE_TIMEOUT_SECONDS = 300;
+
+export function clampTokenProfileTimeout(seconds: number): number {
+	return clampWhole(seconds, MIN_TOKEN_PROFILE_TIMEOUT_SECONDS, MAX_TOKEN_PROFILE_TIMEOUT_SECONDS, 30);
+}
+
+/** The bounds of the number of experts asked for. They are the CLI's own: it clamps above 20. */
+export const MIN_EXPERTS_LIMIT_SETTING = 1;
+export const MAX_EXPERTS_LIMIT_SETTING = 20;
+
+export function clampExpertsLimit(count: number): number {
+	return clampWhole(count, MIN_EXPERTS_LIMIT_SETTING, MAX_EXPERTS_LIMIT_SETTING, 8);
+}
+
+/** The bounds of the time an experts lookup may take, in seconds. Entire's servers answer it. */
+export const MIN_EXPERTS_TIMEOUT_SECONDS = 5;
+export const MAX_EXPERTS_TIMEOUT_SECONDS = 300;
+
+export function clampExpertsTimeout(seconds: number): number {
+	return clampWhole(seconds, MIN_EXPERTS_TIMEOUT_SECONDS, MAX_EXPERTS_TIMEOUT_SECONDS, 30);
+}
+
+/** The bounds of the time a read-only review mode may take, in seconds. */
+export const MIN_REVIEW_READ_TIMEOUT_SECONDS = 5;
+export const MAX_REVIEW_READ_TIMEOUT_SECONDS = 300;
+
+export function clampReviewReadTimeout(seconds: number): number {
+	return clampWhole(seconds, MIN_REVIEW_READ_TIMEOUT_SECONDS, MAX_REVIEW_READ_TIMEOUT_SECONDS, 30);
+}
+
+/** The bounds of the reviewer time limit, in minutes. Zero means the CLI's own default: no limit. */
+export const MAX_REVIEW_REVIEWER_TIMEOUT_MINUTES = 1440;
+
+export function clampReviewReviewerTimeout(minutes: number): number {
+	return clampWhole(minutes, 0, MAX_REVIEW_REVIEWER_TIMEOUT_MINUTES, 0);
 }
 
 /** The bounds of the time a dispatch may take, in seconds. A local agent writes it, which can be slow. */
@@ -437,6 +502,14 @@ export function readExtensionSettings(): ExtensionSettings {
 		activityTimeout: clampActivityTimeout(configuration.get<number>('activityTimeout', 30)),
 		dispatchTimeout: clampDispatchTimeout(configuration.get<number>('dispatchTimeout', 180)),
 		pluginTimeout: clampPluginTimeout(configuration.get<number>('pluginTimeout', 120)),
+		tokenProfileCheckpoints: clampTokenProfileCheckpoints(
+			configuration.get<number>('tokenProfileCheckpoints', DEFAULT_TOKEN_PROFILE_CHECKPOINTS),
+		),
+		tokenProfileTimeout: clampTokenProfileTimeout(configuration.get<number>('tokenProfileTimeout', 30)),
+		expertsLimit: clampExpertsLimit(configuration.get<number>('expertsLimit', 8)),
+		expertsTimeout: clampExpertsTimeout(configuration.get<number>('expertsTimeout', 30)),
+		reviewReadTimeout: clampReviewReadTimeout(configuration.get<number>('reviewReadTimeout', 30)),
+		reviewReviewerTimeoutMinutes: clampReviewReviewerTimeout(configuration.get<number>('reviewReviewerTimeoutMinutes', 0)),
 		doctorLogLines: clampDoctorLogLines(configuration.get<number>('doctorLogLines', DEFAULT_DOCTOR_LOG_LINES)),
 		doctorTraceCount: clampDoctorTraceCount(configuration.get<number>('doctorTraceCount', DEFAULT_DOCTOR_TRACE_COUNT)),
 		doctorOutputMaxKilobytes: clampDoctorOutputMaxKilobytes(

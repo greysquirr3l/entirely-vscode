@@ -51,7 +51,7 @@ export interface TokenReport {
 }
 
 /** Reads the `tokens` block. A count that is not a number counts as not reported. */
-function decodeUsage(value: unknown): TokenUsage | undefined {
+export function decodeTokenUsage(value: unknown): TokenUsage | undefined {
 	const record = decodeRecord(value, 'tokens');
 	if (!record.ok) {
 		return undefined;
@@ -75,7 +75,7 @@ function decodeUsage(value: unknown): TokenUsage | undefined {
 		cacheRead: count('cache_read'),
 		cacheWrite: count('cache_write'),
 		apiCalls: count('api_calls', 'api_call_count'),
-		subagentTokens: count('subagent_tokens'),
+		subagentTokens: count('subagent_tokens', 'subagent_total'),
 		subagentTokensComplete: optionalBoolean(read, 'subagent_tokens_complete'),
 	};
 
@@ -127,7 +127,7 @@ export function decodeTokenReport(
 
 	const models = decodeStringList(optionalRaw(read, 'models'));
 	const rawTokens = optionalRaw(read, 'tokens');
-	const usage = decodeUsage(rawTokens);
+	const usage = decodeTokenUsage(rawTokens);
 
 	return {
 		ok: true,

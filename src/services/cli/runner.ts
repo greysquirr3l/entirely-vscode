@@ -211,6 +211,7 @@ export class CliRunner {
 	 */
 	async terminalCommand(
 		args: readonly string[],
+		context?: string,
 	): Promise<
 		| { readonly ok: true; readonly path: string; readonly args: readonly string[]; readonly env: Record<string, string> }
 		| { readonly ok: false; readonly detail: string }
@@ -222,12 +223,13 @@ export class CliRunner {
 		if (discovery.state === 'broken') {
 			return { ok: false, detail: `the Entire CLI at ${discovery.path} is not usable: ${discovery.detail}` };
 		}
-		const context = this.pinnedContext;
+		// A login named by the caller (the one that was confirmed) wins over the pinned one.
+		const acting = context ?? this.pinnedContext;
 		return {
 			ok: true,
 			path: discovery.path,
-			args: context ? ['--context', context, ...args] : [...args],
-			env: context ? { ENTIRE_CONTEXT: context } : {},
+			args: acting ? ['--context', acting, ...args] : [...args],
+			env: acting ? { ENTIRE_CONTEXT: acting } : {},
 		};
 	}
 

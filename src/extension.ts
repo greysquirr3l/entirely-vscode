@@ -68,6 +68,8 @@ import { McpServerService } from './services/mcpServer';
 import { PluginService } from './services/plugins';
 import { RecapService } from './services/recap';
 import { registerActivityCommands } from './commands/activityCommands';
+import { registerAnalysisCommands } from './commands/analysisCommands';
+import { registerGeneratedLinks } from './providers/generatedLinks';
 import { registerSelectionCommands, wireSelection } from './commands/selection';
 import { DetailPanel } from './providers/detailPanel';
 import { TrailChangesService } from './services/trailChanges';
@@ -464,6 +466,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			}),
 			ui: generatedUi,
 		},
+	});
+
+	// The token profile, who has touched code, and the multi-agent review.
+	// Each is run by choosing the command; a review also asks first.
+	registerGeneratedLinks(context);
+	registerAnalysisCommands(context, {
+		runner,
+		workspaceRoot,
+		workspaceFolder,
+		documents: generated,
+		git,
+		acting: async () => (await accounts.refresh(workspaceRoot())).acting,
 	});
 
 	// The CLI's log, hook traces, diagnostic bundle and checkpoint migration.
