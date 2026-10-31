@@ -86,7 +86,7 @@ it, so a BYOK or local model works the same as a hosted one.
 
 ## Status
 
-**Version 0.2.0.** Before 1.0, minor versions may change things. The command
+**Version 0.3.0.** Before 1.0, minor versions may change things. The command
 list and the setting names are the surface a user actually touches, so they
 are the most likely thing to change.
 
@@ -726,10 +726,11 @@ be installed on the remote machine.
 
 ## Install
 
-Until it is on the Visual Studio Marketplace, install a `.vsix`
-from a [GitHub release](https://github.com/greysquirr3l/entirely-vscode/releases)
-with **Extensions: Install from VSIX**. Then open a folder that uses Entire.
-If the CLI is not on `PATH`, set `entirely.cliPath`.
+Install it from the Visual Studio Marketplace: search for **Entirely** in the
+Extensions view, or run **Extensions: Install from VSIX** on the `.vsix` from
+a [GitHub release](https://github.com/greysquirr3l/entirely-vscode/releases).
+Then open a folder that uses Entire. If the CLI is not on `PATH`, set
+`entirely.cliPath`.
 
 ## Maintaining
 
@@ -804,7 +805,7 @@ for the people using the extension.
 
 ### Releasing
 
-A release is a tag. Push a tag such as `v0.2.0` and the `Release` workflow builds the
+A release is a tag. Push a tag such as `v0.3.0` and the `Release` workflow builds the
 package, checks what is in it, publishes it to the Visual Studio Marketplace,
 and then makes a GitHub release with the `.vsix` attached. It does not publish to
 Open VSX.

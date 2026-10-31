@@ -7,7 +7,7 @@ sidebar:
 
 ## Versioning
 
-Entirely is pre-1.0 and follows semantic versioning with that caveat: a minor version may carry changes that would be breaking after 1.0. The current version is 0.2.0. Only the latest release gets security fixes. See [Security](/entirely/contributing/security/).
+Entirely is pre-1.0 and follows semantic versioning with that caveat: a minor version may carry changes that would be breaking after 1.0. The current version is 0.3.0. Only the latest release gets security fixes. See [Security](/entirely/contributing/security/).
 
 The version lives in `package.json`. [CHANGELOG.md](https://github.com/greysquirr3l/entirely-vscode/blob/main/CHANGELOG.md) follows Keep a Changelog, with an `Unreleased` section at the top and one section per version. Describe what changed for the user, and update the changelog in the same pull request as the change.
 
@@ -15,7 +15,7 @@ The version lives in `package.json`. [CHANGELOG.md](https://github.com/greysquir
 
 1. Set the new version in `package.json` and move the `Unreleased` notes under a dated version heading in the changelog.
 2. Merge that pull request to `main`.
-3. Push a tag named `v<version>`, for example `v0.2.0`.
+3. Push a tag named `v<version>`, for example `v0.3.0`.
 
 The tag starts `.github/workflows/release.yml`. It can also be started by hand with `workflow_dispatch`, with an optional `version` and a `publish` switch that is off by default. A manual run with `publish` off is a dry run that builds and checks the package without publishing.
 
