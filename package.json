@@ -1510,8 +1510,7 @@
   "overrides": {
     "@azure/msal-node": "^7.1.1",
     "diff": "^8.0.4",
-    "serialize-javascript": "^7.0.6",
-    "minimatch": "^11.0.1"
+    "serialize-javascript": "^7.0.6"
   },
   "allowScripts": {
     "esbuild@0.28.2": true

@@ -198,6 +198,19 @@ export class TrailWatchService {
 			this.changed(key);
 			return;
 		}
+		// An error event that says access is gone ends the watch like a forbidden one.
+		// Only its kind is acted on; the line itself is not kept.
+		if (event.kind === 'error' && isProjectInvisible(line)) {
+			void this.options.trails.workspace().then(workspace => {
+				const project = workspace.kind === 'ok' ? workspace.value.project : undefined;
+				this.finish(key, run, 'no-access', describeDepthFailure('', line, { project, login: this.options.login?.() }));
+			});
+			return;
+		}
+		if (event.kind === 'error' && /forbidden/i.test(line)) {
+			this.finish(key, run, 'forbidden', 'the server revoked access to the change');
+			return;
+		}
 		if (isWatchEnd(event)) {
 			this.finish(key, run, 'forbidden', 'the server revoked access to the change');
 			return;

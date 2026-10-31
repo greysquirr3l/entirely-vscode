@@ -136,6 +136,7 @@ export class TrailFindingService {
 		if (!picked.ok) {
 			return { kind: 'failed', detail: picked.detail };
 		}
+		const previous = await this.found(selector, id, acting);
 		const args = await this.deps.trails.selectorArgs(
 			command,
 			selector,
@@ -145,7 +146,7 @@ export class TrailFindingService {
 		if (!result.ok) {
 			return { kind: 'failed', detail: await failureText(this.deps, result, acting) };
 		}
-		return this.confirmStatus(selector, id, STATUS[change], acting);
+		return this.confirmStatus(selector, id, STATUS[change], acting, previous);
 	}
 
 	/** Changes a finding's body, severity or confidence. */
@@ -220,11 +221,12 @@ export class TrailFindingService {
 		if (prepared.kind === 'failed') {
 			return prepared;
 		}
+		const previous = options.resolve ? await this.found(selector, id, acting) : undefined;
 		const result = await this.deps.runner.run(prepared.args, this.deps.trails.actionOptions([], acting.name));
 		if (!result.ok) {
 			return { kind: 'failed', detail: await failureText(this.deps, result, acting) };
 		}
-		return { kind: 'applied', resolved: options.resolve ? await this.confirmStatus(selector, id, 'resolved', acting) : undefined };
+		return { kind: 'applied', resolved: options.resolve ? await this.confirmStatus(selector, id, 'resolved', acting, previous) : undefined };
 	}
 
 	private async prepareApply(
@@ -260,10 +262,14 @@ export class TrailFindingService {
 		id: string,
 		expected: 'resolved' | 'dismissed' | 'open',
 		acting: ActingLogin,
+		previous: TrailFinding | undefined,
 	): Promise<DepthOutcome> {
 		const found = await this.found(selector, id, acting);
 		if (!found) {
 			return { kind: 'unconfirmed', detail: 'The finding is not in the fresh listing.' };
+		}
+		if (previous && findingStatus(previous) === expected) {
+			return { kind: 'unconfirmed', detail: `The finding already showed as ${expected} before the request, so the fresh read cannot show that the request did anything.` };
 		}
 		return findingStatus(found) === expected
 			? { kind: 'done' }

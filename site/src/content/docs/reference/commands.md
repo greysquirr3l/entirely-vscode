@@ -108,7 +108,7 @@ Merge, check out, link and unlink confirm in a modal prompt that names what they
 | Entirely: Stop Watching All Changes | `entirely.trailStopAllWatches` | palette | No | Ends every watch. |
 | Entirely: Start a Discussion on a Change | `entirely.trailStartDiscussion` | palette; change row | Asks for input | `entire trail comment add`. |
 | Entirely: Reply to a Discussion | `entirely.trailReplyToDiscussion` | palette; discussion row | Asks for input | `entire trail comment reply`. |
-| Entirely: Edit a Discussion Message | `entirely.trailEditMessage` | palette; discussion row menu | Asks for input | `entire trail comment edit`; your own messages. |
+| Entirely: Edit a Discussion Message | `entirely.trailEditMessage` | palette; discussion row menu | Asks for input | `entire trail comment edit`; your own messages, and any with no author listed. |
 | Entirely: Delete a Discussion Message | `entirely.trailDeleteMessage` | palette; discussion row menu | Confirms | `entire trail comment delete`. |
 | Entirely: Resolve a Discussion | `entirely.trailResolveDiscussion` | palette; discussion row | No | `entire trail comment resolve`. |
 | Entirely: Reopen a Discussion | `entirely.trailReopenDiscussion` | palette; discussion row | No | `entire trail comment unresolve`. |

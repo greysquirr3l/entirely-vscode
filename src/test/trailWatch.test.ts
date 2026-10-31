@@ -199,6 +199,39 @@ suite('Watching a change', () => {
 		}
 	});
 
+	test('an error event that says the project cannot be found ends the watch with the access message', async () => {
+		const rig = depthRig({ watchLines: [READY, '{"event":"error","message":"project not found"}'] });
+		try {
+			await rig.watch.start(CHANGE_SELECTOR);
+			await until(() => rig.ended.length === 1, 'the watch to end');
+			assert.match(rig.ended[0].reason, /has no access to the project gh\/greysquirr3l/);
+			assert.strictEqual(rig.watch.count, 0);
+			assert.ok(!rig.logged.join('\n').includes('message'));
+		} finally {
+			rig.watch.dispose();
+		}
+	});
+
+	test('an error event that says forbidden ends the watch, and an ordinary error does not', async () => {
+		const forbidden = depthRig({ watchLines: [READY, '{"event":"error","message":"forbidden"}'] });
+		try {
+			await forbidden.watch.start(CHANGE_SELECTOR);
+			await until(() => forbidden.ended.length === 1, 'the watch to end');
+			assert.match(forbidden.ended[0].reason, /revoked access/);
+		} finally {
+			forbidden.watch.dispose();
+		}
+		const ordinary = depthRig({ watchLines: [READY, '{"event":"error","message":"try again"}'] });
+		try {
+			await ordinary.watch.start(CHANGE_SELECTOR);
+			await new Promise(resolve => setTimeout(resolve, 600));
+			assert.strictEqual(ordinary.watch.count, 1);
+			assert.deepStrictEqual(ordinary.ended, []);
+		} finally {
+			ordinary.watch.dispose();
+		}
+	});
+
 	test('a stream that ends cleanly shows the change as not watched, and is not restarted', async () => {
 		const rig = depthRig({ watchLines: [READY], watchExit: 0 });
 		try {

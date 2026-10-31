@@ -31,7 +31,7 @@ export interface TrailBefore {
 export type DepthAction =
 	| { readonly kind: 'create-trail'; readonly title: string; readonly intentOnly: boolean; readonly repository: string; readonly branch?: string }
 	| { readonly kind: 'update-trail'; readonly trail: string; readonly edit: TrailEdit; readonly before?: TrailBefore }
-	| { readonly kind: 'delete-message'; readonly discussion: string; readonly change: string }
+	| { readonly kind: 'delete-message'; readonly discussion: string; readonly change: string; readonly message?: string }
 	| { readonly kind: 'dismiss-finding'; readonly finding: string; readonly severity?: string }
 	| { readonly kind: 'apply-finding'; readonly finding: string; readonly folder: string }
 	| {
@@ -50,7 +50,7 @@ export type DepthAction =
 
 /** Whether an edit closes the trail. */
 export function closesTrail(edit: TrailEdit): boolean {
-	return edit.status === 'closed';
+	return edit.status?.trim().toLowerCase() === 'closed';
 }
 
 /** Whether an edit replaces or clears the assignee list. Adding and removing one assignee does not. */
@@ -129,7 +129,7 @@ export function confirmTrailDepth(action: DepthAction, acting: ActingLogin): Dep
 		case 'delete-message':
 			return {
 				message: `Delete this message from the discussion '${action.discussion}' on ${action.change}?`,
-				detail: `${as} The message is removed on Entire for everyone and cannot be recovered from the editor.`,
+				detail: `${as}${action.message ? ` The message is ${action.message}.` : ''} The message is removed on Entire for everyone and cannot be recovered from the editor.`,
 				action: 'Delete Message',
 			};
 		case 'dismiss-finding':
@@ -393,4 +393,17 @@ export function describeApplyRefusal(files: readonly UnsavedFile[]): string {
 	const names = files.map(file => file.name ?? file.path);
 	const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 	return `Entirely will not apply a suggestion while ${list} ${names.length === 1 ? 'has' : 'have'} unsaved changes. Save or revert ${names.length === 1 ? 'it' : 'them'} first.`;
+}
+
+/**
+ * Names a message in a question: who wrote it and the start of what it says.
+ *
+ * The question is plain text, so control characters are dropped and the
+ * excerpt is one short line. The text came from the discussion.
+ */
+export function describeMessage(message: DiscussionMessage): string {
+	const clean = (message.body ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim();
+	const excerpt = clean.length > 60 ? `${clean.slice(0, 59).trimEnd()}…` : clean;
+	const author = (message.author ?? 'an unknown author').replace(/[\u0000-\u001f\u007f]+/g, ' ');
+	return excerpt.length > 0 ? `by ${author}: "${excerpt}"` : `by ${author}`;
 }

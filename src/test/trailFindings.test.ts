@@ -63,6 +63,12 @@ suite('Trail finding lifecycle', () => {
 		assert.deepStrictEqual(rig.ui.confirmations, []);
 	});
 
+	test('a status the finding already had is unconfirmed, not done', async () => {
+		const rig = depthRig({}, { inputs: [''] });
+		assert.strictEqual(await setFindingStatus(rig.deps, 'resolve', row(RESOLVED)), 'unconfirmed');
+		assert.match(rig.ui.notices[0].message, /already showed as resolved before the request/);
+	});
+
 	test('reopen and dismiss the listing does not show are unconfirmed too', async () => {
 		const reopen = depthRig({ noEffect: ['trail finding reopen'] }, { inputs: [''] });
 		assert.strictEqual(await setFindingStatus(reopen.deps, 'reopen', row(RESOLVED)), 'unconfirmed');

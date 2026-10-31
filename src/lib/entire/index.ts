@@ -715,6 +715,7 @@ export {
 	closesTrail,
 	confirmTrailDepth,
 	describeApplyRefusal,
+	describeMessage,
 	decodeDiscussion,
 	describeDepthFailure,
 	describeDepthOutcome,

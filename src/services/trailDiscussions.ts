@@ -127,6 +127,17 @@ export class TrailDiscussionService {
 			return { kind: 'failed', detail: await depthFailure(this.deps, before.detail, before.detail, acting) };
 		}
 
+		if (input.kind === 'delete') {
+			// A deletion is only reported if the message was there to delete.
+			const view = await this.reader.discussion(selector, input.id, acting.name);
+			if (view.kind === 'failed') {
+				return { kind: 'failed', detail: await depthFailure(this.deps, view.detail, view.detail, acting) };
+			}
+			if (view.value.messages !== undefined && !view.value.messages.some(item => item.id === input.messageId)) {
+				return { kind: 'failed', detail: 'that message is not in the discussion, so nothing was sent.' };
+			}
+		}
+
 		const args = await this.deps.trails.selectorArgs(command, selector, discussionArguments(picked.flags, input));
 		const result = await this.deps.runner.run(args, this.deps.trails.actionOptions(typedFlags(picked.flags, ['body', 'title']), acting.name));
 		if (!result.ok) {
@@ -206,6 +217,9 @@ export class TrailDiscussionService {
 			case 'unresolve': {
 				if (!row) {
 					return { kind: 'unconfirmed', detail: 'The discussion is no longer in the list.' };
+				}
+				if (before.rows.get(input.id)?.resolved === (input.kind === 'resolve')) {
+					return { kind: 'unconfirmed', detail: `The discussion already showed as ${row.resolved ? 'resolved' : 'open'} before the request, so the fresh read cannot show that the request did anything.` };
 				}
 				return row.resolved === (input.kind === 'resolve')
 					? { kind: 'done' }

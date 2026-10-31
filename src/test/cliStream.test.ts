@@ -130,6 +130,22 @@ suite('CliRunner.stream', () => {
 		assert.throws(() => process.kill(pid, 0), 'the process is gone');
 	});
 
+	test('a process that ignores the stop signal is killed after the grace period, so done settles', async function () {
+		this.timeout(15000);
+		const { runner } = streamingCli(`trap '' TERM; echo ready; sleep 30`);
+		const lines: string[] = [];
+		const handle = runner.stream(['watch'], { onLine: line => lines.push(line) });
+		const started = Date.now();
+		while (!lines.includes('ready')) {
+			assert.ok(Date.now() - started < 5000);
+			await new Promise(resolve => setTimeout(resolve, 10));
+		}
+		handle.stop();
+		const stopped = Date.now();
+		assert.deepStrictEqual(await handle.done, { kind: 'stopped' });
+		assert.ok(Date.now() - stopped >= 1500, 'it was given a grace period first');
+	});
+
 	test('a stop before the process starts means it never runs', async () => {
 		const { runner, dir } = streamingCli(`echo ran > "$PWD/ran"; echo hi`);
 		const handle = runner.stream(['watch'], { onLine: () => undefined, cwd: dir });

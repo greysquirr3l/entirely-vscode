@@ -87,6 +87,23 @@ suite('Applying a finding\'s suggestion', () => {
 		assert.match(rig.ui.notices[0].message, /still shows the finding as open/);
 	});
 
+	test('files that became dirty while the person was deciding refuse the apply', async () => {
+		const rig = depthRig();
+		let asked = false;
+		const confirm = rig.ui.confirm.bind(rig.ui);
+		rig.ui.confirm = async prompt => {
+			asked = true;
+			return confirm(prompt);
+		};
+		rig.ui.unsavedFiles = () => (asked ? [{ path: '/w/late.ts', name: 'late.ts' }] : []);
+		const result = await applyFinding(rig.deps, row());
+
+		assert.strictEqual(result, 'failed');
+		assert.match(rig.ui.notices[0].message, /late\.ts has unsaved changes/);
+		assert.deepStrictEqual(rig.cli.state().applied, []);
+		assert.strictEqual(rig.cli.calls().filter(call => call.line.startsWith('trail finding apply') && !call.args.includes('--check')).length, 0);
+	});
+
 	test('a declined question runs nothing but the check', async () => {
 		const rig = depthRig({}, { confirm: null });
 		assert.strictEqual(await applyFinding(rig.deps, row()), 'cancelled');

@@ -3,6 +3,7 @@ import {
 	changePicks,
 	confirmTrailDepth,
 	describeApplyRefusal,
+	describeMessage,
 	describeChange,
 	describeDepthFailure,
 	describeDepthOutcome,
@@ -614,7 +615,7 @@ export async function deleteMessage(deps: TrailDepthDependencies, target?: unkno
 		const label = discussionLabel(discussion);
 		const name = describeChange(pick.change);
 		return perform(deps, acting, {
-			action: { kind: 'delete-message', discussion: label, change: name },
+			action: { kind: 'delete-message', discussion: label, change: name, message: messages.length > 1 ? describeMessage(message) : undefined },
 			subject: { past: `deleted a message from the discussion '${label}'`, ask: `delete a message from the discussion '${label}'` },
 			progress: `Deleting as ${acting.handle}…`,
 			run: () => deps.discussions.write(pick.selector, { kind: 'delete', id: discussion.id, messageId: message.id }, acting),
@@ -858,6 +859,12 @@ export async function applyFinding(deps: TrailDepthDependencies, target?: unknow
 			return 'cancelled';
 		}
 		const resolve = answer === 'alternative';
+		// The picker, the check and the question all took time; the editor may have changed.
+		const dirtied = ui.unsavedFiles();
+		if (dirtied.length > 0) {
+			ui.notify('error', describeApplyRefusal(dirtied));
+			return 'failed';
+		}
 		const outcome = await ui.withProgress(`Applying as ${acting.handle}…`, () => deps.findings.apply(pick.selector, finding.id, { resolve }, acting));
 		deps.threadsChanged(keyOf(pick));
 		if (outcome.kind === 'failed') {

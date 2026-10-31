@@ -24,7 +24,8 @@ suite('Trail depth in the editor', () => {
 
 		const folder = vscode.workspace.workspaceFolders?.[0];
 		assert.ok(folder);
-		const file = path.join(folder.uri.fsPath, 'unsaved-apply-guard.txt');
+		const directory = fs.mkdtempSync(path.join(folder.uri.fsPath, 'apply-guard-'));
+		const file = path.join(directory, 'unsaved-apply-guard.txt');
 		fs.writeFileSync(file, 'one\n');
 		try {
 			const document = await vscode.workspace.openTextDocument(file);
@@ -39,12 +40,13 @@ suite('Trail depth in the editor', () => {
 			await vscode.commands.executeCommand('workbench.action.files.revert');
 		} finally {
 			await vscode.commands.executeCommand('workbench.action.closeAllEditors');
-			fs.rmSync(file, { force: true });
+			fs.rmSync(directory, { recursive: true, force: true });
 		}
 	});
 
 	test('a dirty file outside the workspace does not block an apply', async () => {
-		const outside = path.join(path.dirname(fs.mkdtempSync(path.join(os.tmpdir(), 'entire-outside-'))), `outside-${Date.now()}.txt`);
+		const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'entire-outside-'));
+		const outside = path.join(directory, 'outside.txt');
 		fs.writeFileSync(outside, 'one\n');
 		try {
 			const document = await vscode.workspace.openTextDocument(outside);
@@ -54,7 +56,7 @@ suite('Trail depth in the editor', () => {
 			await vscode.commands.executeCommand('workbench.action.files.revert');
 		} finally {
 			await vscode.commands.executeCommand('workbench.action.closeAllEditors');
-			fs.rmSync(outside, { force: true });
+			fs.rmSync(directory, { recursive: true, force: true });
 		}
 	});
 

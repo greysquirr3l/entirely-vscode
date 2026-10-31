@@ -7,6 +7,8 @@ import {
 	describeApplyRefusal,
 	describeDepthFailure,
 	describeDepthOutcome,
+	describeMessage,
+	closesTrail,
 	describeWatchState,
 	discussionMarkdown,
 	isAgentSessionRefusal,
@@ -118,6 +120,27 @@ suite('Trail depth confirmation', () => {
 	test('the acting login is named with its login when the two differ', () => {
 		const question = confirmTrailDepth(ACTIONS.delete, ACTING);
 		assert.match(question?.detail ?? '', /ada \(login ada@us\.auth\.entire\.io\)/);
+	});
+});
+
+suite('Trail depth wording', () => {
+	test('closing is recognised whatever the case of the status', () => {
+		assert.strictEqual(closesTrail({ status: 'closed' }), true);
+		assert.strictEqual(closesTrail({ status: 'Closed ' }), true);
+		assert.strictEqual(closesTrail({ status: 'CLOSED' }), true);
+		assert.strictEqual(closesTrail({ status: 'open' }), false);
+		assert.strictEqual(requiresConfirmation({ kind: 'update-trail', trail: 't', edit: { status: 'CLOSED' } }), true);
+	});
+
+	test('a message is named by its author and the start of its text, on one clean line', () => {
+		assert.strictEqual(describeMessage({ id: 'm', author: 'grace', body: 'Rename\nthis\u0000 please' }), 'by grace: "Rename this please"');
+		assert.match(describeMessage({ id: 'm', author: 'g', body: 'x'.repeat(200) }), /^by g: "x{59}…"$/);
+		assert.strictEqual(describeMessage({ id: 'm' }), 'by an unknown author');
+	});
+
+	test('the deletion question names the message when it is given', () => {
+		const question = confirmTrailDepth({ kind: 'delete-message', discussion: 'D', change: 'c', message: 'by grace: "hi"' }, ACTING);
+		assert.match(question?.detail ?? '', /The message is by grace: "hi"\./);
 	});
 });
 

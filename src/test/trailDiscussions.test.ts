@@ -146,6 +146,7 @@ suite('Trail discussion writes', () => {
 		const [question] = rig.ui.confirmations;
 		assert.strictEqual(question.message, "Delete this message from the discussion 'Naming' on shape-probe (entirely-vscode/17) — Shape the thing?");
 		assert.match(question.detail, /Acting as ada/);
+		assert.match(question.detail, /The message is by grace: "Should this be renamed\?"\./);
 		assert.match(question.detail, /removed on Entire for everyone and cannot be recovered from the editor/);
 		assert.strictEqual(question.action, 'Delete Message');
 		const mutations = rig.cli.mutations();
@@ -153,6 +154,22 @@ suite('Trail discussion writes', () => {
 		assert.ok(mutations[0].args.includes('--force'));
 		assert.deepStrictEqual(mutations[0].args.slice(-3), ['--', '01DISC1', '01MSG1']);
 		assert.ok(!rig.cli.state().discussions[0].messages.some(message => message.id === '01MSG1'));
+	});
+
+	test('a message that is not in the discussion is not deleted, and nothing is sent', async () => {
+		const rig = depthRig();
+		const outcome = await rig.discussions.write(CHANGE_SELECTOR, { kind: 'delete', id: '01DISC1', messageId: '01NOPE' }, ACTING);
+		assert.strictEqual(outcome.kind, 'failed');
+		assert.deepStrictEqual(rig.cli.mutations(), []);
+	});
+
+	test('resolving a discussion that was already resolved is unconfirmed, not done', async () => {
+		const rig = depthRig();
+		rig.cli.setState(state => {
+			state.discussions[0].resolved = true;
+		});
+		assert.strictEqual(await setDiscussionResolved(rig.deps, true, row()), 'unconfirmed');
+		assert.match(rig.ui.notices[0].message, /already showed as resolved before the request/);
 	});
 
 	test('a declined delete deletes nothing', async () => {

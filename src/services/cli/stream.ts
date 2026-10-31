@@ -45,6 +45,9 @@ export interface StreamDependencies {
 /** How much of the CLI's stderr is kept for the message that explains a failure. */
 export const STDERR_TAIL_BYTES = 4096;
 
+/** How long a stopped process may take to exit before it is killed outright. */
+export const KILL_GRACE_MS = 2000;
+
 /** The longest unfinished line held while waiting for its line break. */
 const MAX_PENDING_LINE = 1024 * 1024;
 
@@ -154,6 +157,7 @@ export function startStream(deps: StreamDependencies, options: StreamOptions): S
 			const splitter = new LineSplitter();
 			const stderr = new Tail();
 			let settled = false;
+			let grace: NodeJS.Timeout | undefined;
 
 			const child = spawn(discovery.path, effective, {
 				cwd: options.cwd,
@@ -169,6 +173,9 @@ export function startStream(deps: StreamDependencies, options: StreamOptions): S
 					return;
 				}
 				settled = true;
+				if (grace) {
+					clearTimeout(grace);
+				}
 				options.signal?.removeEventListener('abort', stop);
 				record(deps, discovery.path, effective, options, outcome, exitCode, detail, Date.now() - startedAt);
 				resolve(end);
@@ -178,6 +185,11 @@ export function startStream(deps: StreamDependencies, options: StreamOptions): S
 				child.stdout?.destroy();
 				child.stderr?.destroy();
 				child.kill('SIGTERM');
+				// A process that ignores the signal is killed after a grace period,
+				// so `done` always settles. The timer is cleared when it exits.
+				if (!settled && !grace) {
+					grace = setTimeout(() => child.kill('SIGKILL'), KILL_GRACE_MS);
+				}
 			};
 			if (options.signal) {
 				options.signal.addEventListener('abort', stop, { once: true });
