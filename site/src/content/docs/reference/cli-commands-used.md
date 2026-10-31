@@ -156,10 +156,16 @@ These were exercised against a fake CLI. They are not verified against a live En
 | `entire dispatch` | **Generate Dispatch** | Changes (writes a dispatch) |
 | `entire plugin list` | Installed plugins | Read |
 | `entire plugin install` | **Install Plugin** | Changes |
+| `entire plugin info` | **Plugin Info** | Read |
+| `entire plugin search` | **Search Plugin Index** | Read |
+| `entire plugin index update` | **Update Plugin Index** | Changes (the local copy of the index) |
+| `entire plugin upgrade` | **Upgrade Plugin**, **Upgrade All Plugins** | Changes |
+| `entire plugin remove` | **Remove Plugin** | Changes |
+| `entire plugin doctor` | **Check Plugins**, and a line of the doctor report | Read |
 | `entire graph`, `investigate`, `brain` | Plugins, run by name through **Run Plugin Command**. The extension does not model their subcommands | Depends on the plugin |
 | `entire mcp` | The MCP server offered to the editor's agent | Read (a long-running stdio server) |
 
-Dispatch, plugin install and the live MCP server are tested with fake CLIs. They have not been verified against a live Entire account. Plugin commands run as the login the extension is acting as, and the CLI's built-in names are refused. See [Plugins](/entirely/guides/plugins/) and [Integrations and MCP](/entirely/guides/integrations-and-mcp/).
+Dispatch, plugin install, the plugin management commands and the live MCP server are tested with fake CLIs. The output of `plugin search`, `info`, `index update`, `upgrade`, `remove` and of a failing `plugin doctor` was never captured from the real CLI; the fake's text for them is invented. They have not been verified against a live Entire account. Plugin commands run as the login the extension is acting as, and the CLI's built-in names are refused. See [Plugins](/entirely/guides/plugins/) and [Integrations and MCP](/entirely/guides/integrations-and-mcp/).
 
 ## Token profile, experts and review
 

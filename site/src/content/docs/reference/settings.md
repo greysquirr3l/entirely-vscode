@@ -71,7 +71,7 @@ The extension never waits forever on the CLI. Each class of call has its own lim
 | `entirely.controlPlaneTimeout` | `60` | 5 to 900 | Each Control Plane listing, change or API call. A change that times out is read back before it is reported. |
 | `entirely.activityTimeout` | `30` | 5 to 300 | `entire activity` and `entire recap`. |
 | `entirely.dispatchTimeout` | `180` | 10 to 1800 | **Generate Dispatch**. It is never restarted after a timeout. |
-| `entirely.pluginTimeout` | `120` | 10 to 1800 | **Run Plugin Command** and **Install Plugin**. Never restarted after a timeout. |
+| `entirely.pluginTimeout` | `120` | 10 to 1800 | **Run Plugin Command**, **Install Plugin** and the plugin management commands (search, info, index update, upgrade, remove, check). Never restarted after a timeout. |
 | `entirely.doctorReadTimeout` | `30` | 5 to 300 | `entire doctor logs`, `entire doctor trace` and the dry run of `entire doctor migrate-checkpoints`. All three only read local files and git. |
 | `entirely.doctorBundleTimeout` | `120` | 10 to 900 | **Write a Diagnostic Bundle**. It reads every log file and runs several git commands. |
 | `entirely.migrateCheckpointsTimeout` | `300` | 10 to 1800 | **Migrate Checkpoints to Git Refs**. It is never started again after a timeout; running it again is safe because converted checkpoints are skipped. |
@@ -109,6 +109,8 @@ The extension never waits forever on the CLI. Each class of call has its own lim
 | `entirely.mcpServerEnabled` | boolean | `true` | resource | Offer `entire mcp` to the editor as an MCP server. The editor starts and stops the process. Entirely does not write the editor's own MCP configuration. |
 | `entirely.suggestedPlugins` | string array | `["graph", "investigate", "brain"]` | window | Plugins the Integrations view reports on and the picker offers. Each is the part after `entire-` in the executable name. A name that cannot name a plugin is ignored. |
 | `entirely.offerIntegrationInstall` | boolean | `true` | window | Offer once per machine to install missing suggested plugins, and once per project to add the MCP server to `.mcp.json`. The Integrations view still shows status when off. |
+
+The plugin index URL belongs to the CLI (`ENTIRE_PLUGIN_INDEX_URL`, or its built-in default). Entirely passes no `--index` and has no setting for it.
 
 See [Plugins](/entirely/guides/plugins/) and [Integrations and MCP](/entirely/guides/integrations-and-mcp/).
 

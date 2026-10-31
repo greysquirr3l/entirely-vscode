@@ -34,6 +34,8 @@ There is one row per name in `entirely.suggestedPlugins` (default `graph`, `inve
 
 A name can also read `unknown · also an Entire CLI command`. That happens for hidden built-in commands such as `mcp` and `completion`: the CLI answers `--help` for them, so they cannot be told apart from a plugin on your `PATH`. The tooltip says so. Remove such a name from `entirely.suggestedPlugins`.
 
+A managed row (`installed`) has **Info**, **Upgrade** and **Remove**. An `available on PATH` row has **Info** only: the CLI can only upgrade or remove plugins in its managed directory, so the tooltip says the binary must be deleted by hand. A `not installed` row has **Install** and **Info**. See [Manage plugins](/entirely/guides/plugins/#manage-plugins).
+
 If the plugin list cannot be read at all, a **Plugins** row says "could not be listed" with the reason in its tooltip.
 
 ### MCP server row

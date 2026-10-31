@@ -25,7 +25,7 @@ README. Every CLI invocation the extension can make is in section 1.
 | Excluded | A decision: the extension deliberately does not do it. The notes say why. |
 | Gap | Not done, and no decision to leave it out. Listed in section 3. |
 
-**Totals.** Rows: 142 (supported 103, excluded 14, gap 25).
+**Totals.** Rows: 142 (supported 109, excluded 15, gap 18).
 
 The totals line is read by `src/test/coverage.test.ts`, which fails when it
 disagrees with the table.
@@ -136,6 +136,12 @@ row names a command its callers never build.
 | `entire dispatch` | `src/lib/entire/dispatchActions.ts` | Generate Dispatch |
 | `entire plugin list` | `src/services/plugins.ts` | Installed plugins |
 | `entire plugin install` | `src/lib/entire/plugins.ts` | Install Plugin |
+| `entire plugin info` | `src/lib/entire/pluginManagement.ts` | Plugin Info |
+| `entire plugin search` | `src/lib/entire/pluginManagement.ts` | Search Plugin Index |
+| `entire plugin index update` | `src/lib/entire/pluginManagement.ts` | Update Plugin Index |
+| `entire plugin upgrade` | `src/lib/entire/pluginManagement.ts` | Upgrade Plugin, Upgrade All Plugins |
+| `entire plugin remove` | `src/lib/entire/pluginManagement.ts` | Remove Plugin |
+| `entire plugin doctor` | `src/lib/entire/pluginManagement.ts` | Check Plugins, and a line of the doctor report |
 | `entire mcp` | `src/services/mcpServer.ts` | The MCP server offered to the editor's agent |
 | `entire graph` | `src/lib/entire/integrations.ts` | A documented plugin, suggested by default and run by name |
 | `entire investigate` | `src/lib/entire/integrations.ts` | A documented plugin, suggested by default and run by name |
@@ -317,13 +323,13 @@ The three rows below are the plugins the documentation names.
 | `entire dispatch` | Supported | `entirely.generateDispatch`, `src/services/dispatch.ts`, `src/test/dispatch.test.ts` | |
 | `entire plugin list` | Supported | `entirely.runPluginCommand`, `src/services/plugins.ts`, `src/test/plugins.test.ts` | |
 | `entire plugin install` | Supported | `entirely.installPlugin`, `src/services/plugins.ts`, `src/test/plugins.test.ts` | |
-| `entire plugin browse` | Gap | | |
-| `entire plugin doctor` | Gap | | |
-| `entire plugin index update` | Gap | | |
-| `entire plugin info` | Gap | | |
-| `entire plugin remove` | Gap | | |
-| `entire plugin search` | Gap | | |
-| `entire plugin upgrade` | Gap | | |
+| `entire plugin browse` | Excluded | | An interactive picker that needs a terminal; its own help points scripts at `search` and `install`. Search Plugin Index (`plugin search`) lists the same names and descriptions and installs through the existing confirmation. |
+| `entire plugin doctor` | Supported | `entirely.checkPlugins`, `src/services/pluginManagement.ts`, `src/test/pluginManagement.test.ts` | Read-only, no question. The exit status is the verdict and the CLI's text is shown, never judged. Observed against the real CLI 0.12.2: `All plugins healthy.` with exit 0 on three healthy plugins. Not observed: a failing check, its text and exit code (invented in the fake). |
+| `entire plugin index update` | Supported | `entirely.updatePluginIndex`, `src/services/pluginManagement.ts`, `src/test/pluginManagement.test.ts` | Asks first, naming the acting login, and says no plugin changes. The CLI reports nothing to read back, so the message says so. Not run against the real CLI: its output (and every failure exit) is invented in `src/test/support/pluginManagementCli.ts`, so the format is unobserved. |
+| `entire plugin info` | Supported | `entirely.pluginInfo`, `src/services/pluginManagement.ts`, `src/test/pluginManagement.test.ts` | Read-only. A plugin on the PATH gets the unmanaged note first. Not run against the real CLI: its output (and every failure exit) is invented in `src/test/support/pluginManagementCli.ts`, so the format is unobserved. |
+| `entire plugin remove` | Supported | `entirely.removePlugin`, `src/services/pluginManagement.ts`, `src/test/pluginManagement.test.ts` | Asks first, naming the directory and the login; runs once; verified only by a fresh `plugin list`. A refusal over dependents gets a second, separate question using the force flag picked from the help. A plugin outside the managed directory is never offered Remove. Not run against the real CLI: its output (and every failure exit) is invented in `src/test/support/pluginManagementCli.ts`, so the format is unobserved. |
+| `entire plugin search` | Supported | `entirely.searchPluginIndex`, `src/services/pluginManagement.ts`, `src/test/pluginManagement.test.ts` | The typed term is redacted from the invocation record. A pick can show Info or install through the existing install question. Text no row can be read from is shown as the CLI printed it. Not run against the real CLI: its output (and every failure exit) is invented in `src/test/support/pluginManagementCli.ts`, so the format is unobserved. |
+| `entire plugin upgrade` | Supported | `entirely.upgradePlugin`, `src/services/pluginManagement.ts`, `src/test/pluginManagement.test.ts` | Asks first, naming the download, the checksum check, the directory and the login; the all flag is picked from the help. The result is read from a fresh `plugin list`; exit 0 without a changed version is reported as unchanged. `entirely.upgradeAllPlugins` is the all form. Not run against the real CLI: its output (and every failure exit) is invented in `src/test/support/pluginManagementCli.ts`, so the format is unobserved. |
 | `entire graph` | Supported | `entirely.runPluginCommand`, `src/lib/entire/integrations.ts`, `src/test/plugins.test.ts` | A plugin, run by name with its own arguments. The extension does not model the plugin's subcommands. The Integrations view shows whether it is installed in each folder and installs it from its row (`entirely.installIntegration`). The suggested names are the setting `entirely.suggestedPlugins`. |
 | `entire investigate` | Supported | `entirely.runPluginCommand`, `src/lib/entire/integrations.ts`, `src/test/plugins.test.ts` | Same: run by name as a plugin, and shown in the Integrations view. |
 | `entire brain` | Supported | `entirely.runPluginCommand`, `src/lib/entire/integrations.ts`, `src/test/plugins.test.ts` | Same: run by name as a plugin, and shown in the Integrations view. |
@@ -345,7 +351,6 @@ Nothing below is excluded. Each is a capability the CLI has and the editor does 
 
 1. **Checkpoint deletion.** `checkpoint delete`.
 2. **Control plane breadth.** Create and read for organisations and projects (`org create`, `org get`, `project create`, `project get`), organisation invitations (`org invite list`, `revoke`, `send`), and the repository commands `clone`, `mirror add`, `mirror detach`, `mirror remove`, `mirror resync`, `protection add`, `protection list`, `protection remove`, `remote add`, `visibility get`.
-3. **Plugin management.** `plugin browse`, `doctor`, `index update`, `info`, `remove`, `search`, `upgrade`. Only `list` and `install` are wired.
 
 ---
 

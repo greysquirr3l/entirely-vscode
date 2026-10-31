@@ -7,6 +7,11 @@ All notable changes to the Entirely extension are documented in this file. The f
 
 ### Added
 
+- **Search, inspect, upgrade, remove and check plugins from the Integrations view.**
+  - **Search Plugin Index** lists the index's results with descriptions and an installed marker; a pick shows Info or installs through the existing install question. The typed term is kept out of the log, and a name that is also a CLI command cannot be installed.
+  - **Plugin Info**, **Upgrade Plugin**, **Upgrade All Plugins**, **Remove Plugin**, **Update Plugin Index** and **Check Plugins**. Every change asks first, naming the plugin, the directory or download, and the acting login; runs once; and is never retried. Upgrade and remove are reported from a fresh `plugin list` (exit 0 without a changed version is "still at", exit 0 with the plugin still listed is a failure). A refusal over dependents offers a second question for **Remove Anyway**.
+  - A plugin found only on the `PATH` shows Info only and says the CLI cannot upgrade or remove it. The all and force flags are read from the CLI's help; a CLI without a subcommand gets "update the CLI" and nothing runs. The doctor report has a plugin line. `plugin browse` is not offered (it needs a terminal).
+  - **Tested against a fake CLI only.** The output of `plugin search`, `info`, `index update`, `upgrade`, `remove` and of a failing `plugin doctor` was never captured from the real CLI; only the list format and a healthy check were observed.
 - **Create, update and watch trails, and work discussions and findings, from the editor.**
   - **Create a Trail** (the **+** in the Trails view) asks first, naming the title, the login and "on Entire", and says the CLI publishes your current branch (it does not commit or change your checkout). The trail is reported only when a fresh list holds one new trail with that title. **Update a Trail** changes a title, description, type, priority, status or the assignees; closing a trail and replacing the assignee list ask first.
   - A change now expands into **Comments** and **Findings**, read only when expanded. Discussions can be started, replied to, edited (your own messages, and any the listing gives no author), deleted (after the strictest question) and resolved or reopened; findings can be resolved, dismissed (a high-severity one asks first), reopened, updated and shown. Every write is read back before it is reported, and a message recorded under another handle is reported as theirs.
@@ -15,6 +20,10 @@ All notable changes to the Entirely extension are documented in this file. The f
   - For a GitHub collaborator who cannot see the project that holds the trails, every one of these says the login has no access to the project, that this is how the CLI and the forge behave, and points at Entire's web UI and the organisation workaround.
   - New settings `entirely.trailWatchLimit` and `entirely.trailWatchRefreshDelay`. Typed text and watch events are never logged.
   - **Tested against a fake CLI only.** No create, update, discussion write, finding write, apply or watch was run against the real service; the shape of `trail comment show`, the `trail watch --json` event lines and the refusal wording for the discussion verbs are unobserved.
+
+### Fixed
+
+- The plugin list read `Managed plugin directory: …` as a plugin called "Managed", so the Integrations view showed a bogus row.
 
 ## [0.3.0] - 2026-10-30
 

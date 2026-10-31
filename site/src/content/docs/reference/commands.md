@@ -176,6 +176,13 @@ The delete, visibility and access commands are hidden from the palette and live 
 | --- | --- | --- | --- | --- |
 | Entirely: Run Plugin Command | `entirely.runPluginCommand` | palette | Confirms | Runs an installed plugin by name, as the login the extension acts as. The CLI's built-in command names are refused. Arguments are redacted from the log. |
 | Entirely: Install Plugin | `entirely.installPlugin` | palette | Confirms | `entire plugin install`. |
+| Entirely: Plugin Info | `entirely.pluginInfo` | palette; Integrations row (managed, on PATH, not installed) | Read | `entire plugin info`: index and install details. A plugin on the PATH gets the note that the CLI cannot upgrade or remove it. |
+| Entirely: Search Plugin Index | `entirely.searchPluginIndex` | palette; Integrations view title | Read, then Confirms to install | `entire plugin search`. Pick a result for Info or Install; Install runs the existing install question. The typed term is redacted from the log. |
+| Entirely: Update Plugin Index | `entirely.updatePluginIndex` | palette; Integrations view overflow | Confirms | `entire plugin index update`. The CLI reports nothing to read back, and the message says so. |
+| Entirely: Upgrade Plugin | `entirely.upgradePlugin` | Integrations inline icon (managed plugin rows) | Confirms | `entire plugin upgrade NAME`. Reports old and new version from a fresh `plugin list`. |
+| Entirely: Upgrade All Plugins | `entirely.upgradeAllPlugins` | palette; Integrations view overflow | Confirms | `entire plugin upgrade` with the all flag read from the CLI's help. One question lists every plugin. |
+| Entirely: Remove Plugin | `entirely.removePlugin` | Integrations inline icon (managed plugin rows) | Confirms | `entire plugin remove NAME`. Declared done only when a fresh `plugin list` no longer holds it. |
+| Entirely: Check Plugins | `entirely.checkPlugins` | palette; Integrations view overflow | Read | `entire plugin doctor`. The exit status is the verdict; a failing check is a finding with the CLI's text behind Open Details. |
 | Entirely: Refresh Integrations | `entirely.refreshIntegrations` | Integrations view title | Read | Re-checks plugins and the MCP server per workspace folder. |
 | Entirely: Install Plugin | `entirely.installIntegration` | Integrations inline icon (row with a missing plugin) | Confirms | Installs that row's plugin. It has the same title as the palette command above. |
 | Entirely: Turn On MCP Server | `entirely.enableMcpIntegration` | Integrations inline icon (row where MCP is off) | Confirms | Sets `entirely.mcpServerEnabled` in the narrowest scope that takes effect: the folder, then the workspace, then your user settings. |
@@ -183,6 +190,6 @@ The delete, visibility and access commands are hidden from the palette and live 
 | Entirely: Start MCP Server | `entirely.startMcpServer` | palette | Confirms, only if the setting is off | Starts `entire mcp` for the editor's agent. The editor owns the process. If `entirely.mcpServerEnabled` is off, a modal says "The Entire MCP server is turned off." and, on **Turn On**, sets it in your user settings. |
 | Entirely: Copy MCP Server Configuration | `entirely.copyMcpConfig` | palette | Read | Copies the server definition to the clipboard. |
 
-See [Plugins](/entirely/guides/plugins/) and [Integrations and MCP](/entirely/guides/integrations-and-mcp/). Plugin install and the live MCP server are covered by tests against fake CLIs. They have not been verified against a live Entire account.
+See [Plugins](/entirely/guides/plugins/) and [Integrations and MCP](/entirely/guides/integrations-and-mcp/). Plugin install, plugin management and the live MCP server are covered by tests against fake CLIs. They have not been verified against a live Entire account.
 
 The five capture-control commands (disable, remove, configure, clean and runner setup) are described in [Stop, configure and clean capture](/entirely/guides/capture-control/). They run once, as the login the modal names, with no retry, and their flags come from the CLI's help at the time you run them.

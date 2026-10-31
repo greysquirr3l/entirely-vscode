@@ -44,6 +44,7 @@ Entirely (this extension)
 | **Search view** | Past agent work, commits and code, searched by the CLI in this repository or in all of them (`entirely.searchScope`) |
 | **Control Plane view** | Projects, repositories, organisations and clusters you can see, and who has access, with confirmed changes |
 | **Integrations view** | Whether each suggested Entire plugin and the Entire MCP server is available in each workspace folder, with click-to-install and click-to-add |
+| **Plugin management** | Search the plugin index, show a plugin's details, upgrade one or all, remove one and check plugin health from the Integrations view. Each change asks first, runs once as the named login and is read back from a fresh `plugin list` |
 | **MCP server** | Offers `entire mcp` to the editor's agent, and can add it to a project's `.mcp.json` |
 | **Capture control** | Turns capture off, removes Entire, edits the repository's Entire settings, cleans session data and sets up trail runners — each previewed where the CLI offers a preview, confirmed in a modal that names the folder and the login, run once and checked by a fresh read. Tested only against a fake CLI (see below) |
 | **Agent integrations** | Lists the agents the CLI supports, and installs or removes one after you confirm what it will touch; more than one can be installed |
@@ -470,6 +471,15 @@ workspace folders or those settings change. It never polls.
 
 - **Install** on a missing plugin runs the same install as **Entirely: Install
   Plugin**: a dialog names what is downloaded and the login it runs as.
+- **Info**, **Upgrade** and **Remove** appear on a plugin the CLI lists (its managed
+  directory); **Info** alone on one found only on the `PATH`, which the CLI cannot
+  upgrade or remove. Upgrade names the download and its checksum check, Remove names
+  the directory, and both are reported from a fresh `plugin list`. The view title has
+  **Search Plugin Index**, and its overflow menu **Upgrade All Plugins**,
+  **Check Plugins** and **Update Plugin Index**. `plugin browse` is not offered (it
+  needs a terminal; search and install replace it). The output of search, info,
+  index update, upgrade, remove and a failing check was tested against a fake CLI with
+  invented text, not captured from the real one.
 - **Turn On** on an MCP server that is off asks before it changes a setting, and the
   question names which one: the folder's or the workspace's own value when that is
   what keeps the server off, otherwise your user setting.
@@ -708,7 +718,7 @@ remote-machine settings, never workspace settings.
 | `controlPlaneTimeout` | `60` | Each Control Plane and API call |
 | `activityTimeout` | `30` | Activity and recap |
 | `dispatchTimeout` | `180` | Generating a dispatch |
-| `pluginTimeout` | `120` | Running or installing a plugin |
+| `pluginTimeout` | `120` | Running, installing, searching, upgrading, removing or checking plugins |
 | `doctorLogLines` | `200` | Lines of the CLI log shown (10 to 5000, never all) |
 | `doctorTraceCount` | `5` | Hook traces asked for by default (1 to 200) |
 | `doctorOutputMaxKilobytes` | `512` | Size past which a log, trace or report opens cut (16 to 4096) |
