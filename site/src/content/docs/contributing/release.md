@@ -32,8 +32,7 @@ The workflow has four jobs.
    - Runs `npm run compile`, then the extension-host tests under `xvfb-run`.
    - Builds `entirely.vsix` with `vsce package`, runs `npm run package:check`, and uploads the VSIX as an artifact kept for 14 days.
 2. **Publish to the Visual Studio Marketplace.** Runs only if publishing. Uses the `marketplace` environment and the `VSCE_PAT` secret, with `vsce publish --skip-duplicate`.
-3. **Publish to Open VSX.** Same, with the `openvsx` environment and `OVSX_PAT`, using `ovsx publish --skip-duplicate`.
-4. **Publish the release on GitHub.** Runs after both marketplaces accept the package. It attaches the VSIX and generates release notes. A tag on the repository therefore always means the extension is installable.
+3. **Publish the release on GitHub.** Runs after the Marketplace accepts the package. It attaches the VSIX and generates release notes. A tag on the repository therefore always means the extension is installable. There is no Open VSX job: the project does not publish there.
 
 Actions are pinned to commit SHAs, and the top-level permissions are read-only. Only the final job gets `contents: write`. Tokens come from the environment and never appear on a command line.
 
