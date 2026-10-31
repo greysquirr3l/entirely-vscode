@@ -5,6 +5,10 @@ All notable changes to the Entirely extension are documented in this file. The f
 
 ## [Unreleased]
 
+### Changed
+
+- **Releases publish to the Visual Studio Marketplace and GitHub only.** The Open VSX job is removed from the release workflow, because the project does not publish there; the GitHub release now waits for the Marketplace job alone.
+
 ### Added
 
 - **Token profile, experts and multi-agent review from the editor.**

@@ -726,7 +726,7 @@ be installed on the remote machine.
 
 ## Install
 
-Until it is on the Visual Studio Marketplace or Open VSX, install a `.vsix`
+Until it is on the Visual Studio Marketplace, install a `.vsix`
 from a [GitHub release](https://github.com/greysquirr3l/entirely-vscode/releases)
 with **Extensions: Install from VSIX**. Then open a folder that uses Entire.
 If the CLI is not on `PATH`, set `entirely.cliPath`.
@@ -805,24 +805,24 @@ for the people using the extension.
 ### Releasing
 
 A release is a tag. Push a tag such as `v0.2.0` and the `Release` workflow builds the
-package, checks what is in it, publishes it to the Visual Studio Marketplace
-and to Open VSX, and then makes a GitHub release with the `.vsix` attached.
+package, checks what is in it, publishes it to the Visual Studio Marketplace,
+and then makes a GitHub release with the `.vsix` attached. It does not publish to
+Open VSX.
 A tag whose version does not match `package.json` stops the build rather
 than publishing the wrong version.
 
-Two repository secrets are needed:
+One repository secret is needed:
 
 | Secret | What it is |
 |---|---|
 | `VSCE_PAT` | A personal access token for the Marketplace publisher |
-| `OVSX_PAT` | A personal access token for the Open VSX namespace |
 
 The workflow can also be run by hand from the Actions tab. Leave the version
 empty to build the version in the manifest, and leave **Publish** off to
 build and check the package without publishing it — a dry run.
 
-The `marketplace` and `openvsx` jobs use GitHub environments, so either
-one can be made to wait for a review before it publishes.
+The `marketplace` job uses a GitHub environment, so it can be made to wait
+for a review before it publishes.
 
 ## Licence
 
