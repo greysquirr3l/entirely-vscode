@@ -13,6 +13,7 @@ interface ExtensionManifest {
 	publisher?: string;
 	repository?: { type?: string; url?: string };
 	extensionKind?: string[];
+	categories?: string[];
 	galleryBanner?: { color?: string; theme?: string };
 	contributes?: {
 		icons?: Record<string, ProductIconContribution>;
@@ -34,6 +35,33 @@ interface ExtensionManifest {
 }
 
 const ROOT = path.resolve(__dirname, '..', '..');
+
+/**
+ * The categories the Visual Studio Marketplace accepts, as listed in the
+ * extension manifest reference. The Marketplace rejects a publish whose
+ * category is not on this list, and it does so after the package is built
+ * and uploaded, so the rejection arrives when the release is already
+ * halfway through.
+ */
+const MARKETPLACE_CATEGORIES = [
+	'Programming Languages',
+	'Snippets',
+	'Linters',
+	'Themes',
+	'Debuggers',
+	'Formatters',
+	'Keymaps',
+	'SCM Providers',
+	'Other',
+	'Extension Packs',
+	'Language Packs',
+	'Data Science',
+	'Machine Learning',
+	'Visualization',
+	'Notebooks',
+	'Education',
+	'Testing',
+];
 
 function readManifest(): ExtensionManifest {
 	return JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as ExtensionManifest;
@@ -185,6 +213,17 @@ suite('Entirely manifest', () => {
 		assert.ok(manifest.license, 'package.json declares no license');
 		assert.ok(manifest.repository?.url, 'package.json declares no repository URL');
 		assert.ok(manifest.extensionKind?.includes('workspace'), 'the extension does not declare the workspace extension kind');
+	});
+
+	test('uses only categories the Marketplace accepts', () => {
+		const categories = readManifest().categories ?? [];
+		assert.ok(categories.length > 0, 'package.json declares no category');
+		for (const category of categories) {
+			assert.ok(
+				MARKETPLACE_CATEGORIES.includes(category),
+				`the category '${category}' is not one the Marketplace accepts; the publish is rejected after the package is uploaded`,
+			);
+		}
 	});
 
 	test('declares the tree view, configuration and commands', () => {
