@@ -116,6 +116,21 @@ The `--context` flag and the `ENTIRE_CONTEXT` variable are both passed when `ent
 | `entire trail checkout` | **Check Out a Change on a Trail** | Changes (working tree) |
 | `entire trail link` | **Link a Branch to a Trail** | Changes |
 | `entire trail unlink` | **Unlink a Branch from a Trail** | Changes |
+| `entire trail create` | **Create a Trail** | Changes (publishes the branch) |
+| `entire trail update` | **Update a Trail** | Changes |
+| `entire trail watch` | **Watch a Change on a Trail**: one long-running process per change | Read |
+| `entire trail comment show` | **Show a Discussion**, and reading a message before an edit or delete | Read |
+| `entire trail comment reply` | **Reply to a Discussion** | Changes |
+| `entire trail comment edit` | **Edit a Discussion Message** | Changes |
+| `entire trail comment delete` | **Delete a Discussion Message** | Changes |
+| `entire trail comment resolve` | **Resolve a Discussion** | Changes |
+| `entire trail comment unresolve` | **Reopen a Discussion** | Changes |
+| `entire trail finding show` | **Show a Finding** | Read |
+| `entire trail finding apply` | **Apply a Finding's Suggestion**: a check first, then the apply | Changes (working tree) |
+| `entire trail finding dismiss` | **Dismiss a Finding** | Changes |
+| `entire trail finding reopen` | **Reopen a Finding** | Changes |
+| `entire trail finding resolve` | **Resolve a Finding** | Changes |
+| `entire trail finding update` | **Update a Finding** | Changes |
 
 ## Control plane
 

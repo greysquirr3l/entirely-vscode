@@ -25,7 +25,7 @@ Four views are open by default and five start collapsed. A command that shows a 
 | 1 | Sessions | `entirely.sessions` | Open | Show Only This Workspace's Session / Show All Sessions | Every session Entire tracks for the repository, across worktrees. Row menu: transcript, resume, attach, adopt, stop, clean this session. |
 | 2 | Session | `entirely.sessionDetail` | Open | none | Detail for the session selected in Sessions. |
 | 3 | Checkpoints | `entirely.checkpoints` | Open | Search Checkpoints, Clear Checkpoint Search, Show Token Profile | Checkpoint history. A file row opens the native diff editor. |
-| 4 | Trails | `entirely.trails` | Open | none | Trails of the project the repository belongs to; a trail's changes are read when it is expanded. **Has a badge.** |
+| 4 | Trails | `entirely.trails` | Open | none | Trails of the project the repository belongs to; a trail's changes are read when it is expanded, and a change expands into Comments and Findings, read when expanded. **Has a badge.** `+` in the title creates a trail. |
 | 5 | Activity | `entirely.activity` | Collapsed | Show Recent Commits or Sessions, Generate Dispatch, Refresh Activity; overflow menu: the review commands | Recent sessions and commits across your repositories on Entire. |
 | 6 | Search | `entirely.search` | Collapsed | Search Past Work and Code, Clear Search Results | Results of `entire search`. |
 | 7 | Integrations | `entirely.integrations` | Collapsed | Refresh Integrations | Suggested plugins and the MCP server, per workspace folder. |
