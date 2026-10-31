@@ -21,6 +21,8 @@ export interface IntegrationFolder {
 export interface PluginProbe {
 	installed(): Promise<Read<readonly InstalledPlugin[]>>;
 	availability(names: readonly string[]): Promise<ReadonlyMap<string, PluginAvailability>>;
+	/** The managed directory the last `installed()` named, if the probe knows it. */
+	managedDirectory?(): string | undefined;
 }
 
 export interface IntegrationDetectionOptions {
@@ -77,7 +79,7 @@ export class IntegrationDetector implements IntegrationSource {
 	private async detectPlugins(
 		folder: string,
 		suggested: readonly string[],
-	): Promise<{ readonly plugins: readonly PluginRow[]; readonly pluginsDetail?: string }> {
+	): Promise<{ readonly plugins: readonly PluginRow[]; readonly pluginsDetail?: string; readonly managedDirectory?: string }> {
 		const probe = this.options.plugins(folder);
 		const listed = await probe.installed();
 		if (!listed.ok) {
@@ -87,6 +89,7 @@ export class IntegrationDetector implements IntegrationSource {
 			};
 		}
 		const installed = listed.value;
+		const managedDirectory = probe.managedDirectory?.();
 		const held = (name: string) => installed.find(plugin => plugin.name.toLowerCase() === name.toLowerCase());
 		const asked = await probe.availability(suggested.filter(name => held(name) === undefined));
 
@@ -103,7 +106,7 @@ export class IntegrationDetector implements IntegrationSource {
 				rows.push({ name: plugin.name, suggested: false, state: { kind: 'installed', detail: plugin.detail } });
 			}
 		}
-		return { plugins: rows };
+		return { plugins: rows, managedDirectory };
 	}
 
 	private async detectMcp(folder: string): Promise<McpEditorState> {

@@ -163,6 +163,8 @@ export interface FolderIntegrations {
 	readonly plugins: readonly PluginRow[];
 	/** Set when the plugin list could not be read at all. */
 	readonly pluginsDetail?: string;
+	/** The directory the CLI manages plugins in, when `plugin list` named it. */
+	readonly managedDirectory?: string;
 	readonly mcp: {
 		readonly editor: McpEditorState;
 		readonly config: McpConfigState;

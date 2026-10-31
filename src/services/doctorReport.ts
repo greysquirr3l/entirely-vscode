@@ -1,4 +1,4 @@
-import { describeCliDoctor, describeDestination, describeUnsupportedCli, oneLine, type CliDoctorReading, type WorkspaceStatus } from '../lib/entire';
+import { describeCliDoctor, describeDestination, describePluginCheck, describeUnsupportedCli, oneLine, type CliDoctorReading, type PluginCheckReading, type WorkspaceStatus } from '../lib/entire';
 import type { AccountContextReading } from './accountContext';
 import type { CliDiscovery } from './cli/types';
 import type { CheckpointDestinationReport } from './checkpointDestination';
@@ -74,6 +74,8 @@ export interface DoctorFacts {
 	readonly contextMechanism: string;
 	/** What `entire doctor` said about the capture pipeline, when it was asked. */
 	readonly cliDoctor?: CliDoctorReading;
+	/** What `entire plugin doctor` said, when the CLI has it. Only the verdict is kept. */
+	readonly pluginCheck?: PluginCheckReading;
 }
 
 /** How the workspace's tracking state is described. */
@@ -245,6 +247,11 @@ export function renderDoctorReport(facts: DoctorFacts): string {
 	lines.push("### Capture pipeline (the CLI's own doctor)");
 	lines.push('');
 	lines.push(...describeCliDoctor(facts.cliDoctor));
+
+	lines.push('');
+	lines.push("### Plugins (the CLI's plugin check)");
+	lines.push('');
+	lines.push(...describePluginCheck(facts.pluginCheck));
 
 	lines.push('');
 	lines.push('### Effective settings');

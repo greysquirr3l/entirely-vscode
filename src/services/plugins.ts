@@ -5,6 +5,7 @@ import {
 	isPluginName,
 	isMissingPlugin,
 	parseInstalledPlugins,
+	parseManagedDirectory,
 	pickInstallFlags,
 	pluginArguments,
 	pluginInstallArguments,
@@ -74,7 +75,14 @@ export interface PluginOptions {
  * the user's work, so it stays out of the invocation record.
  */
 export class PluginService implements PluginSource {
+	private directory: string | undefined;
+
 	constructor(private readonly options: PluginOptions) {}
+
+	/** The managed directory the last `installed()` read named, if it named one. */
+	managedDirectory(): string | undefined {
+		return this.directory;
+	}
 
 	private get cwd(): string | undefined {
 		return this.options.workspaceRoot();
@@ -85,10 +93,17 @@ export class PluginService implements PluginSource {
 		if (!result.ok) {
 			return { ok: false, detail: describeHelpFailure('plugin', 'list plugins', result.reason, failureDetail(result.stderr, result.stdout, result.detail)) };
 		}
-		return { ok: true, value: parseInstalledPlugins(stripTerminalCodes(result.stdout)) };
+		const text = stripTerminalCodes(result.stdout);
+		this.directory = parseManagedDirectory(text);
+		return { ok: true, value: parseInstalledPlugins(text) };
 	}
 
 	/** The CLI's own command names, or why they could not be read. */
+	/** The CLI's own command names, for a caller that checks many names at once. */
+	builtinNames(): Promise<Read<ReadonlySet<string>>> {
+		return this.builtins();
+	}
+
 	private async builtins(): Promise<Read<ReadonlySet<string>>> {
 		const options = { cwd: this.cwd };
 		const [guide, top] = await Promise.all([this.options.runner.usage('', options), this.options.runner.help('', options)]);
@@ -101,7 +116,8 @@ export class PluginService implements PluginSource {
 		};
 	}
 
-	private async refuseBuiltin(name: string): Promise<string | undefined> {
+	/** Why a name cannot be acted on as a plugin (not a name, or a command of the CLI itself), or undefined. */
+	async refuseBuiltin(name: string): Promise<string | undefined> {
 		if (!isPluginName(name)) {
 			return 'that is not a plugin name; use letters, digits, dashes and underscores';
 		}

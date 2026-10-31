@@ -42,7 +42,7 @@ import type { SessionItemNode, SessionsProvider } from '../providers/sessionsPro
 import type { CheckpointFilter } from '../services/checkpointFilter';
 import type { TrailsProvider } from '../providers/trailsProvider';
 import type { TrailChangesService } from '../services/trailChanges';
-import type { CheckpointDetail } from '../lib/entire';
+import type { CheckpointDetail, PluginCheckReading } from '../lib/entire';
 import type { GitService } from '../services/gitService';
 import type { StatusController } from '../services/statusController';
 import type { AccountContextService } from '../services/accountContext';
@@ -104,6 +104,7 @@ export interface CommandDependencies {
 	readonly recorder: CliInvocationRecorder;
 	/** The CLI's own diagnostics, for the doctor report. */
 	readonly cliDoctor: CliDoctorSource;
+	readonly pluginCheck?: () => Promise<PluginCheckReading>;
 	/** Where the extension's one log is written. */
 	readonly output: vscode.OutputChannel;
 }
@@ -411,6 +412,7 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 				accounts: deps.accounts,
 				recorder: deps.recorder,
 				cliDoctor: deps.cliDoctor,
+				pluginCheck: deps.pluginCheck,
 				workspaceRoot: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
 				output: deps.output,
 			});

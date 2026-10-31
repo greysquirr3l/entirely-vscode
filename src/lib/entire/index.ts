@@ -334,6 +334,34 @@ export {
 	splitWords,
 } from './plugins';
 export type { InstalledPlugin } from './plugins';
+export {
+	PLUGIN_REMOVE_WANTS,
+	PLUGIN_UPGRADE_WANTS,
+	confirmIndexUpdate,
+	confirmPluginRemove,
+	confirmPluginRemoveForce,
+	confirmPluginUpgrade,
+	confirmPluginUpgradeAll,
+	describePluginChange,
+	describeMissingPluginSubcommand,
+	describePluginCheck,
+	describeUnmanagedPlugin,
+	diffVersions,
+	parseManagedDirectory,
+	parseSearchResults,
+	pickRemoveFlags,
+	pickUpgradeFlags,
+	pluginDoctorArguments,
+	pluginIndexUpdateArguments,
+	pluginInfoArguments,
+	pluginPathOf,
+	pluginRemoveArguments,
+	pluginSearchArguments,
+	pluginUpgradeArguments,
+	refusedForDependents,
+	versionOf,
+} from './pluginManagement';
+export type { PluginChange, PluginCheckReading, PluginSubcommand, SearchRow, UpgradeTarget } from './pluginManagement';
 export { MCP_PROVIDER_ID, MCP_SERVER_LABEL, describeMcpUnavailable, describesMcpServer, mcpClientConfig } from './mcp';
 export type { McpLaunch } from './mcp';
 export {

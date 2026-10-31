@@ -68,7 +68,7 @@ export function parseInstalledPlugins(text: string): readonly InstalledPlugin[] 
 	const found: InstalledPlugin[] = [];
 	for (const raw of text.split(/\r?\n/)) {
 		const line = raw.trim();
-		if (line.length === 0 || /^(no plugins|install one)/i.test(line) || isListHeader(line)) {
+		if (line.length === 0 || /^(no plugins|install one|managed plugin directory:)/i.test(line) || isListHeader(line)) {
 			continue;
 		}
 		const [first, ...rest] = line.split(/\s+/);

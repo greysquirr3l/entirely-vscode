@@ -4,6 +4,7 @@ import {
 	decodeWorkspaceStatus,
 	summariseSettings,
 	unwrap,
+	type PluginCheckReading,
 	type WorkspaceStatus,
 } from '../lib/entire';
 import type { CliRunner } from '../services/cli';
@@ -48,6 +49,8 @@ export interface DoctorDependencies {
 	readonly recorder: CliInvocationRecorder;
 	/** The CLI's own diagnostics of the capture pipeline. */
 	readonly cliDoctor?: CliDoctorSource;
+	/** Runs the plugin check; a CLI without `plugin doctor` is tolerated. */
+	readonly pluginCheck?: () => Promise<PluginCheckReading>;
 	/** The folder the workspace is in. */
 	readonly workspaceRoot: () => string | undefined;
 	/** Where the report is written. */
@@ -120,6 +123,7 @@ async function collectFacts(deps: DoctorDependencies): Promise<DoctorFacts> {
 	}
 
 	const cliDoctor = deps.cliDoctor ? await deps.cliDoctor.read() : undefined;
+	const pluginCheck = deps.pluginCheck ? await deps.pluginCheck() : undefined;
 
 	return {
 		generatedAt: new Date(),
@@ -141,6 +145,7 @@ async function collectFacts(deps: DoctorDependencies): Promise<DoctorFacts> {
 		accountContext,
 		contextMechanism: CONTEXT_MECHANISM,
 		cliDoctor,
+		pluginCheck,
 	};
 }
 
