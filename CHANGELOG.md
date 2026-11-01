@@ -7,6 +7,12 @@ All notable changes to the Entirely extension are documented in this file. The f
 
 ### Added
 
+- **Entire's agent skill, installed into the repository you are working in.**
+  - **Entirely: Install the Agent Skill in This Repository** writes `.github/skills/entire/SKILL.md`, one file that tells an agent working in that repository what Entire already knows: why a line exists (`entire why`), what a previous agent did (`entire session info`), what a checkpoint changed (`entire checkpoint explain`), and whether the task at hand was done before (`entire search`).
+  - The skill names the commands and the two flags that shape what an agent reads — `--json` and `--compact`. Every other flag comes from `entire agent-help <command>`, so the text stays true as the CLI changes instead of going stale with it.
+  - Everything the skill points at only reads. It says that the commands which change something belong to the person, and that the editor already reports the agent's activity when the compatible integration is installed, so `entire hooks` is not run by hand.
+  - The file is the person's. A file that is already there is replaced only after a question that names it, nothing else in the repository is touched, and a link in its place is refused.
+
 - **The README now says what is supported and what is not, by area.**
   - One table covers the whole CLI surface: sessions, checkpoints, trails, activity, the control plane, plugins, agents, capture, review and experts, accounts, diagnostics, and the CLI's own commands. Each row names what the extension does and what it deliberately leaves out, with the reason.
   - The totals it quotes (142 commands and flags: 127 supported, 15 excluded, none missing) are the ones in [docs/coverage.md](docs/coverage.md), and a test fails when the two disagree.

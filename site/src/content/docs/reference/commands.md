@@ -211,3 +211,12 @@ The delete, visibility and access commands are hidden from the palette and live 
 See [Plugins](/entirely/guides/plugins/) and [Integrations and MCP](/entirely/guides/integrations-and-mcp/). Plugin install, plugin management and the live MCP server are covered by tests against fake CLIs. They have not been verified against a live Entire account.
 
 The five capture-control commands (disable, remove, configure, clean and runner setup) are described in [Stop, configure and clean capture](/entirely/guides/capture-control/). They run once, as the login the modal names, with no retry, and their flags come from the CLI's help at the time you run them.
+
+## The agent skill
+
+| Palette title | Id | Where | Changes | What it does |
+| --- | --- | --- | --- | --- |
+| Entirely: Install the Agent Skill in This Repository | `entirely.installAgentSkill` | palette | Confirms before it replaces a file | Writes `.github/skills/entire/SKILL.md` into the repository that is open: one file that tells an agent working there what Entire already knows, and which commands only read. |
+
+The skill names the commands and the two flags that shape what an agent reads — `--json` and `--compact`. Every other flag comes from `entire agent-help <command>`, so the text stays true as the CLI changes. A file that is already there is the person's, and it is replaced only after they are asked. Nothing else in the repository is touched.
+

@@ -667,6 +667,11 @@
         "category": "Entirely"
       },
       {
+        "command": "entirely.installAgentSkill",
+        "title": "Install the Agent Skill in This Repository",
+        "category": "Entirely"
+      },
+      {
         "command": "entirely.refreshIntegrations",
         "title": "Refresh Integrations",
         "category": "Entirely",

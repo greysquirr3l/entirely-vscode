@@ -64,6 +64,7 @@ import { GENERATED_SCHEME, GeneratedDocuments } from './providers/generatedDocum
 import { ActivityService } from './services/activity';
 import { DispatchService } from './services/dispatch';
 import { registerPluginCommands } from './commands/pluginCommands';
+import { registerAgentSkill } from './commands/agentSkillCommands';
 import { registerIntegrations } from './commands/integrationCommands';
 import { registerPluginManagementCommands } from './commands/pluginManagementCommands';
 import { readPluginCheck } from './services/pluginManagement';
@@ -481,6 +482,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			ui: generatedUi,
 		},
 	});
+
+	// The skill that tells an agent in the repository what Entire already
+	// knows. It is one file in the repository, and the person can read it,
+	// see it in the diff, and delete it.
+	registerAgentSkill(context);
 
 	// The token profile, who has touched code, and the multi-agent review.
 	// Each is run by choosing the command; a review also asks first.

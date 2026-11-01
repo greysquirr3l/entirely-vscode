@@ -50,6 +50,7 @@ Entirely (this extension)
 | **Capture control** | Turns capture off, removes Entire, edits the repository's Entire settings, cleans session data and sets up trail runners — each previewed where the CLI offers a preview, confirmed in a modal that names the folder and the login, run once and checked by a fresh read. Tested only against a fake CLI (see below) |
 | **Agent integrations** | Lists the agents the CLI supports, and installs or removes one after you confirm what it will touch; more than one can be installed |
 | **Hook bridge** | Reports the editor's own agent activity to the compatible `copilot-cli` integration; other integrations record their own activity |
+| **Agent skill** | Writes one file into the repository — `.github/skills/entire/SKILL.md` — that tells an agent working there what Entire already knows: why a line exists, what a previous agent did, and what a checkpoint changed. A file that is already there is replaced only after you are asked |
 | **Terminal PATH repair** | Puts the Entire CLI on the integrated terminal's PATH, through the editor's own settings — no shell profile, no shell command |
 | **BYOK models** | Works with whatever model Copilot Chat is using (hosted, BYOK or local) without the extension knowing the model exists |
 | **Doctor** | A copyable diagnostic report: CLI version, repository state, effective settings, last error. Also reads the CLI's log and hook traces, writes a diagnostic bundle to a file you choose, and migrates checkpoints to git refs (see below) |
@@ -304,6 +305,35 @@ and removal refresh them immediately. `agent add` has no preview, so the install
 confirmation says it cannot list the files in advance and Entirely shows the CLI's own
 list afterwards.
 `entirely.lifecycleActionTimeout` sets how long an install or removal may take.
+
+## The agent skill
+
+**Entirely: Install the Agent Skill in This Repository** writes one file into the
+repository you have open: `.github/skills/entire/SKILL.md`. An agent working there
+picks it up, and it tells that agent what Entire already knows — why a line exists,
+what a previous agent did, what a checkpoint changed, and whether the task at hand
+was done before.
+
+```markdown
+entire why <file>:<line>          why a line is the way it is
+entire search "<your own words>"  whether this has been done before
+entire checkpoint explain <id>    what that checkpoint changed
+entire session info               what that session did
+```
+
+The skill names the commands and the two flags that shape what an agent reads —
+`--json` and `--compact`. Every other flag comes from `entire agent-help <command>`,
+so the text stays true as the CLI changes rather than going stale with it. Everything it points at only reads; the commands that change something
+are the person's, and the skill says to suggest them rather than run them.
+
+It also says not to run `entire hooks` by hand when the editor has the compatible
+integration installed, because the editor already reports that activity and a second
+report would be a duplicate.
+
+The file is yours. Read it before you commit it, keep it out of the way if you would
+rather not have it, and delete it whenever you like: nothing else in the repository is
+touched. A file that is already there is replaced only after you are asked, and the
+question names the file.
 
 ## Stopping, configuring and cleaning capture
 

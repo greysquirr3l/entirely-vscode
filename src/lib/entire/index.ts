@@ -364,6 +364,14 @@ export {
 } from './controlPlaneActions';
 export type { ControlAction, ControlConfirmation, ControlOutcome } from './controlPlaneActions';
 export {
+	AGENT_SKILL_DESCRIPTION,
+	AGENT_SKILL_NAME,
+	AGENT_SKILL_RELATIVE_PATH,
+	agentSkillDocument,
+	agentSkillPath,
+	confirmAgentSkillOverwrite,
+} from './agentSkill';
+export {
 	ACTIVITY_WANTS,
 	DISPATCH_WANTS,
 	RECAP_WANTS,
