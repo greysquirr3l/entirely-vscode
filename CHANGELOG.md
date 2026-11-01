@@ -5,7 +5,13 @@ All notable changes to the Entirely extension are documented in this file. The f
 
 ## [Unreleased]
 
-### Added
+### Changed
+
+- **The Activity Bar and the status bar show VS Code's robot instead of Entire's logo.**
+  - The Entirely container in the Activity Bar uses `images/codicon-robot.svg`, the shape VS Code draws for agents, and the status bar item starts with `$(robot)`. Nothing of Entire's own is drawn in either place.
+  - The marketplace listing and the Extensions view keep Entire's logo (`images/logo.png`), and the detail panel's tab keeps the official symbol (`images/entirely-view.svg`), both unmodified.
+  - The one-glyph icon font and its `contributes.icons` entry are gone: nothing declared them, and the editor gains no font from this extension now. `docs/icons.md` says where each mark comes from.
+
 
 - **Entire's agent skill, installed into the repository you are working in.**
   - **Entirely: Install the Agent Skill in This Repository** writes `.github/skills/entire/SKILL.md`, one file that tells an agent working in that repository what Entire already knows: why a line exists (`entire why`), what a previous agent did (`entire session info`), what a checkpoint changed (`entire checkpoint explain`), and whether the task at hand was done before (`entire search`).

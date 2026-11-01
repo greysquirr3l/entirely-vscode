@@ -2,11 +2,6 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
 
-interface ProductIconContribution {
-	description?: string;
-	default?: { fontPath?: string; fontCharacter?: string };
-}
-
 interface ExtensionManifest {
 	icon?: string;
 	license?: string;
@@ -17,7 +12,7 @@ interface ExtensionManifest {
 	overrides?: Record<string, string>;
 	galleryBanner?: { color?: string; theme?: string };
 	contributes?: {
-		icons?: Record<string, ProductIconContribution>;
+		icons?: Record<string, unknown>;
 		commands?: { command: string }[];
 		viewsContainers?: Record<string, { id: string; icon?: string }[]>;
 		views?: Record<string, { id: string }[]>;
@@ -155,35 +150,32 @@ suite('Entirely manifest', () => {
 		assert.ok(banner.theme === 'dark' || banner.theme === 'light', 'the gallery banner theme is not dark or light');
 	});
 
-	test('declares and packages the single Entire logo glyph', () => {
-		const manifest = readManifest();
-		const icons = manifest.contributes?.icons;
-		assert.ok(icons, 'package.json declares no custom product icons');
-		assert.deepStrictEqual(Object.keys(icons), ['entire-logo'], 'the logo is the only product icon');
-
-		const fontPath = 'assets/entire-icons.woff';
-		const productIcon: ProductIconContribution | undefined = icons['entire-logo'];
-		assert.ok(productIcon?.description, 'the logo icon is not described');
-		assert.strictEqual(productIcon.default?.fontPath, fontPath);
-		assert.strictEqual(productIcon.default?.fontCharacter, '\\e001');
-
-		const font = path.join(ROOT, fontPath);
-		assert.ok(fs.existsSync(font), `the icon font '${fontPath}' is not on disk`);
-		assert.strictEqual(fs.readFileSync(font).subarray(0, 4).toString('ascii'), 'wOFF', 'the icon font is not a WOFF file');
-
-		const patterns = ignorePatterns(path.join(ROOT, '.vscodeignore'));
-		assert.ok(!isIgnored(fontPath, patterns), `the icon font '${fontPath}' is excluded by .vscodeignore`);
+	test('declares no product icon of its own', () => {
+		const icons = readManifest().contributes?.icons;
+		assert.deepStrictEqual(Object.keys(icons ?? {}), [], 'the extension contributes no product icon');
+		assert.ok(
+			!fs.existsSync(path.join(ROOT, 'assets', 'entire-icons.woff')),
+			'the icon font is still on disk, with nothing declaring it',
+		);
 	});
 
-	test('vendors Entire\'s official symbol the font is built from', () => {
+	test('vendors Entire\'s official symbol, the source of the detail panel\'s icon', () => {
 		const symbol = path.join(ROOT, 'assets', 'brand', 'entire-symbol-icon.svg');
 		assert.ok(fs.existsSync(symbol), 'assets/brand/entire-symbol-icon.svg is missing');
 		assert.match(fs.readFileSync(symbol, 'utf8'), /<svg[^>]*viewBox="0 0 32 32"/);
 		assert.ok(fs.existsSync(path.join(ROOT, 'assets', 'brand', 'README.md')), 'the symbol has no provenance note');
+
+		const panelIcon = path.join(ROOT, 'images', 'entirely-view.svg');
+		assert.ok(fs.existsSync(panelIcon), 'images/entirely-view.svg is missing');
+		const unsized = (source: string): string => source.replace(/ (width|height)="[^"]*"/g, '');
+		assert.strictEqual(
+			unsized(fs.readFileSync(panelIcon, 'utf8')),
+			unsized(fs.readFileSync(symbol, 'utf8')),
+			'the detail panel icon differs from the official symbol',
+		);
 	});
 
-	test('declares every Entire product icon the source uses', () => {
-		const declared = new Set(Object.keys(readManifest().contributes?.icons ?? {}));
+	test('uses only VS Code\'s own icons in labels', () => {
 		const used = new Set<string>();
 
 		const scan = (directory: string): void => {
@@ -202,25 +194,19 @@ suite('Entirely manifest', () => {
 		};
 		scan(path.join(ROOT, 'src'));
 
-		assert.ok(used.size > 0, 'the source uses no Entire product icons');
-		for (const id of used) {
-			assert.ok(declared.has(id), `the source uses $(${id}), which contributes.icons does not declare`);
-		}
+		assert.deepStrictEqual([...used], [], 'the source still uses an icon of the extension\'s own');
 	});
 
-	test('uses Entire\'s official symbol, unaltered, for the Activity Bar', () => {
+	test('uses VS Code\'s robot in the Activity Bar', () => {
 		const container = readManifest().contributes?.viewsContainers?.activitybar?.find(view => view.id === 'entirely');
 		assert.ok(container, 'the Entirely Activity Bar container is not declared');
-		assert.strictEqual(container.icon, 'images/entirely-view.svg', 'the Activity Bar does not use the symbol');
+		assert.strictEqual(container.icon, 'images/codicon-robot.svg', 'the Activity Bar does not use the robot');
 
 		const icon = path.join(ROOT, container.icon);
 		assert.ok(fs.existsSync(icon), `the Activity Bar icon '${container.icon}' is not on disk`);
 		const svg = fs.readFileSync(icon, 'utf8');
-		const official = fs.readFileSync(path.join(ROOT, 'assets', 'brand', 'entire-symbol-icon.svg'), 'utf8');
-		// Only the rendered size may differ from the vendored official file.
-		const unsized = (source: string): string => source.replace(/ (width|height)="[^"]*"/g, '');
-		assert.strictEqual(unsized(svg), unsized(official), 'the Activity Bar icon differs from the official symbol');
-		assert.match(svg, /viewBox="0 0 32 32"/, 'the symbol viewBox was changed');
+		assert.match(svg, /<svg[^>]*viewBox="0 0 16 16"/, 'the robot is not VS Code\'s codicon shape');
+		assert.match(svg, /M12 9H4C3\.173 9/, 'the robot is not the codicon robot path');
 
 		const patterns = ignorePatterns(path.join(ROOT, '.vscodeignore'));
 		assert.ok(!isIgnored(container.icon, patterns), `the Activity Bar icon '${container.icon}' is excluded by .vscodeignore`);

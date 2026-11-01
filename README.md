@@ -25,7 +25,7 @@ Entirely (this extension)
 
 | Surface | What it shows |
 |---|---|
-| **Status bar** | Whether the workspace is tracked by Entire, and whether an agent session is live right now: `$(entire-logo) Entire` followed by a codicon for the state |
+| **Status bar** | Whether the workspace is tracked by Entire, and whether an agent session is live right now: `$(robot) Entire` followed by a codicon for the state |
 | **Sessions view** | Every session Entire tracks for the repository, across all worktrees, not just the open folder. It can also appear in the Explorer |
 | **Session detail** | The selected session in full, ended ones included: agent, model, tokens, files touched and tool calls, with the transcript opening in a read-only editor |
 | **Detail panel** | Whatever you select in Sessions, Trails or Activity, by click or by keyboard, opens in one panel beside your code without taking focus: a session in full, a trail or a change with its gate, a commit, an activity session line or a repository. It is reused by every selection, caches what it loaded, and opens the same detail as a read-only document |
@@ -92,8 +92,9 @@ so where it is described.
 ## Views
 
 Entirely adds an **Entirely for Entire** container to the activity bar, with
-Entire's symbol as its icon. Four views are open by default and five start
-collapsed. Commands that show a collapsed view expand it.
+VS Code's own robot icon — the one it uses for agents — as its icon. Four
+views are open by default and five start collapsed. Commands that show a
+collapsed view expand it.
 
 | View | Default | Holds |
 |---|---|---|
@@ -108,7 +109,7 @@ collapsed. Commands that show a collapsed view expand it.
 | Account | Collapsed | The login the CLI is using |
 | Entirely Sessions (Explorer) | Hidden | The sessions tree, in the Explorer, when `entirely.showSessionsInExplorer` is on |
 
-The status bar item reads `$(entire-logo) Entire` plus a state codicon:
+The status bar item reads `$(robot) Entire` plus a state codicon:
 `$(pulse)` for a running session, `$(warning)` for a checkpoint problem or an
 unreadable CLI, `$(circle-slash)` when the workspace is not set up,
 `$(circle-outline)` for a folder that is not a repository, `$(eye-closed)` when
@@ -931,7 +932,7 @@ MIT
 Entire and the Entire symbol are trademarks of Entire Inc. Entirely uses the
 symbol unmodified, only to identify the integration. Entirely is not affiliated
 with or endorsed by Entire. See [assets/brand/README.md](assets/brand/README.md)
-and [docs/icon-font.md](docs/icon-font.md).
+and [docs/icons.md](docs/icons.md).
 
 ## Issues
 

@@ -14,7 +14,7 @@ Entirely adds one view container to the Activity Bar and one view to the Explore
 | Id | `entirely` |
 | Title | Entirely for Entire |
 | Location | Activity Bar |
-| Icon | `images/entirely-view.svg`, Entire's official symbol, unmodified. See [Status bar](/entirely/reference/status-bar/#the-entire-symbol). |
+| Icon | `images/codicon-robot.svg`, VS Code's own robot codicon. See [Status bar](/entirely/reference/status-bar/#the-icon). |
 
 Four views are open by default and five start collapsed. A command that shows a collapsed view expands it, for example **Entirely: Open Activity**.
 

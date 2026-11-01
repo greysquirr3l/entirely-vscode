@@ -132,10 +132,14 @@ function contextLine(context: string | undefined): string {
 const PRIORITY = 100;
 
 /**
- * Entire's logo, from the product icon font. It is Entire's official
- * symbol, shown unmodified; every state is a codicon beside it.
+ * The icon the item starts with.
+ *
+ * It is VS Code's own robot codicon, the one it uses for agents, so the
+ * status bar does not carry a second mark of Entire's own; the word
+ * `Entire` beside it says whose it is, and every state is a codicon
+ * after that.
  */
-const LOGO = '$(entire-logo)';
+const LOGO = '$(robot)';
 
 /** The command the item runs when it is clicked. */
 const CLICK_COMMAND = 'entirely.statusBar';
