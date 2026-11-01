@@ -5,6 +5,12 @@ All notable changes to the Entirely extension are documented in this file. The f
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-31
+
+The trail-depth release. It adds the ability to create and update a trail, to
+watch a change's events, and to work a change's discussions and findings from
+the editor.
+
 ### Added
 
 - **Create, update and watch trails, and work discussions and findings, from the editor.**
@@ -15,6 +21,14 @@ All notable changes to the Entirely extension are documented in this file. The f
   - For a GitHub collaborator who cannot see the project that holds the trails, every one of these says the login has no access to the project, that this is how the CLI and the forge behave, and points at Entire's web UI and the organisation workaround.
   - New settings `entirely.trailWatchLimit` and `entirely.trailWatchRefreshDelay`. Typed text and watch events are never logged.
   - **Tested against a fake CLI only.** No create, update, discussion write, finding write, apply or watch was run against the real service; the shape of `trail comment show`, the `trail watch --json` event lines and the refusal wording for the discussion verbs are unobserved.
+
+### Fixed
+
+- **Two build-time dependencies were held at versions with known advisories.** `minimatch`
+  had a denial of service through pattern amplification, fixed in 11.0.1, and `glob` had a
+  cancellation bypass, fixed in 14.0.2. Neither version was reachable from the versions
+  their dependents asked for, so both are now pinned. Neither package reaches the packaged
+  extension, and the extension never calls them.
 
 ## [0.3.0] - 2026-10-30
 
