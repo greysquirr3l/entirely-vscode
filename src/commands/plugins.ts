@@ -48,18 +48,31 @@ export type PluginResult = 'shown' | 'cancelled' | 'busy' | 'no-login' | 'missin
 const NO_LOGIN = 'No Entire login is available, so Entirely cannot say who the plugin would run as. Sign in first.';
 const sharedRunning = { active: false };
 
-async function exclusive(deps: PluginDependencies, work: () => Promise<PluginResult>): Promise<PluginResult> {
-	const running = deps.running ?? sharedRunning;
-	if (running.active) {
-		await deps.ui.warn('A plugin command is already running.');
-		return 'busy';
+/**
+ * Runs one plugin action at a time, across the install, run and management flows.
+ * `running` is the object the extension shares; without one, a module-wide flag is used.
+ */
+export async function exclusiveAction<T>(
+	running: { active: boolean } | undefined,
+	onBusy: () => Promise<void>,
+	busy: T,
+	work: () => Promise<T>,
+): Promise<T> {
+	const flag = running ?? sharedRunning;
+	if (flag.active) {
+		await onBusy();
+		return busy;
 	}
-	running.active = true;
+	flag.active = true;
 	try {
 		return await work();
 	} finally {
-		running.active = false;
+		flag.active = false;
 	}
+}
+
+function exclusive(deps: PluginDependencies, work: () => Promise<PluginResult>): Promise<PluginResult> {
+	return exclusiveAction(deps.running, () => deps.ui.warn('A plugin command is already running.'), 'busy', work);
 }
 
 async function choosePlugin(deps: PluginDependencies, installOnly: boolean): Promise<string | undefined | 'failed'> {

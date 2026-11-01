@@ -13,9 +13,9 @@ The audit was derived against Entire CLI 0.12.2 on 2026-10-30. Its sources are E
 
 | Mark | Rows | Meaning |
 | --- | --- | --- |
-| Supported | 88 | The extension calls it, you can reach it from the editor, and a test in the repository covers it. |
-| Excluded | 14 | A decision: the extension deliberately does not do it. |
-| Gap | 40 | Not done, and no decision to leave it out. |
+| Supported | 109 | The extension calls it, you can reach it from the editor, and a test in the repository covers it. |
+| Excluded | 15 | A decision: the extension deliberately does not do it. |
+| Gap | 18 | Not done, and no decision to leave it out. |
 | **Total** | **142** | |
 
 `review`, `experts` and `tokens profile` are supported. `tokens profile --json` and `review --show-config --json` were observed against the real CLI and their fixtures are copied from it. `experts` and the review run were never run for real (one sends a query to Entire's servers, the other starts agents that spend tokens), and `review --list` for a configured profile and `review --findings` with saved runs were not observed, so those are tested against a fake CLI only.
@@ -38,6 +38,7 @@ The audit was derived against Entire CLI 0.12.2 on 2026-10-30. Its sources are E
 | `entire review --trust-target` | Approves loading the hooks and MCP servers of code you did not write. Only you, in a terminal, may decide that. |
 | `entire review --agents`, `--models` | They may start agent programs to list what they offer, so they were not run. Available in a terminal. |
 | `entire experts --tui` | An interactive viewer that needs a terminal. |
+| `entire plugin browse` | An interactive picker that needs a terminal. **Search Plugin Index** lists the same names and descriptions and installs through the existing confirmation. |
 
 ## Gaps
 
@@ -45,8 +46,8 @@ None of these is excluded. Each is something the CLI can do and the editor does 
 
 1. **Checkpoint deletion.** `checkpoint delete`. It is destructive and would need the same confirmation care as the control-plane deletes.
 2. **Control plane breadth.** Create and read for organisations and projects, organisation invitations, and repository `clone`, `mirror add`, `detach`, `remove`, `resync`, `protection`, `remote add` and `visibility get`.
-3. **Plugin management.** `plugin browse`, `doctor`, `index update`, `info`, `remove`, `search`, `upgrade`. Only `list` and `install` are wired.
-4. **Trail depth.** `trail create`, `update`, `watch`, and the comment and finding commands that edit, reply, resolve or dismiss.
+
+`plugin info`, `search`, `index update`, `upgrade`, `remove` and `doctor` are supported but were tested against a fake CLI with invented output: running them for real would change the machine. Only `plugin doctor` with healthy plugins and `plugin list` were observed.
 
 A gap is a finding, not a failure. Closing one means a command in `package.json`, a service, a test, and a move of the row from Gap to Supported.
 

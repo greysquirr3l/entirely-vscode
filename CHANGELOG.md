@@ -5,6 +5,18 @@ All notable changes to the Entirely extension are documented in this file. The f
 
 ## [Unreleased]
 
+### Added
+
+- **Search, inspect, upgrade, remove and check plugins from the Integrations view.**
+  - **Search Plugin Index** lists the index's results with descriptions and an installed marker; a pick shows Info or installs through the existing install question. The typed term is kept out of the log, and a name that is also a CLI command cannot be installed.
+  - **Plugin Info**, **Upgrade Plugin**, **Upgrade All Plugins**, **Remove Plugin**, **Update Plugin Index** and **Check Plugins**. Every change asks first, naming the plugin, the directory or download, and the acting login; runs once; and is never retried. Upgrade and remove are reported from a fresh `plugin list` (exit 0 without a changed version is "still at", exit 0 with the plugin still listed is a failure). A refusal over dependents offers a second question for **Remove Anyway**.
+  - A plugin found only on the `PATH` shows Info only and says the CLI cannot upgrade or remove it. The all and force flags are read from the CLI's help; a CLI without a subcommand gets "update the CLI" and nothing runs. The doctor report has a plugin line. `plugin browse` is not offered (it needs a terminal).
+  - **Tested against a fake CLI only.** The output of `plugin search`, `info`, `index update`, `upgrade`, `remove` and of a failing `plugin doctor` was never captured from the real CLI; only the list format and a healthy check were observed.
+
+### Fixed
+
+- The plugin list read `Managed plugin directory: …` as a plugin called "Managed", so the Integrations view showed a bogus row.
+
 ## [0.4.0] - 2026-10-31
 
 The trail-depth release. It adds the ability to create and update a trail, to

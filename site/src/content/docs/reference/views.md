@@ -28,7 +28,7 @@ Four views are open by default and five start collapsed. A command that shows a 
 | 4 | Trails | `entirely.trails` | Open | none | Trails of the project the repository belongs to; a trail's changes are read when it is expanded, and a change expands into Comments and Findings, read when expanded. **Has a badge.** `+` in the title creates a trail. |
 | 5 | Activity | `entirely.activity` | Collapsed | Show Recent Commits or Sessions, Generate Dispatch, Refresh Activity; overflow menu: the review commands | Recent sessions and commits across your repositories on Entire. |
 | 6 | Search | `entirely.search` | Collapsed | Search Past Work and Code, Clear Search Results | Results of `entire search`. |
-| 7 | Integrations | `entirely.integrations` | Collapsed | Refresh Integrations | Suggested plugins and the MCP server, per workspace folder. |
+| 7 | Integrations | `entirely.integrations` | Collapsed | Search Plugin Index, Refresh Integrations; overflow menu: Upgrade All Plugins, Check Plugins, Update Plugin Index | Suggested plugins and the MCP server, per workspace folder. Managed plugin rows have Info, Upgrade and Remove; a plugin found only on the PATH has Info. |
 | 8 | Control Plane | `entirely.controlPlane` | Collapsed | Create Repository, Call the Entire API, Refresh Control Plane | Organisations, projects, repositories and clusters you can see, and who has access. |
 | 9 | Account | `entirely.authentication` | Collapsed | Sign In to Entire / Sign Out of Entire | Who the CLI is signed in as. |
 

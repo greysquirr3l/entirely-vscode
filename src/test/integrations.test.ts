@@ -44,6 +44,7 @@ import type { PluginDependencies, PluginUi } from '../commands/plugins';
 import {
 	MCP_CONFIG_ADDABLE,
 	MCP_OFF,
+	PLUGIN_MANAGED,
 	PLUGIN_MISSING,
 	IntegrationsProvider,
 	buildIntegrationNodes,
@@ -1170,7 +1171,8 @@ suite('Entire integrations view', () => {
 		const withAction = nodes.flatMap(node => (node.kind === 'row' && node.contextValue ? [node.contextValue] : []));
 		assert.deepStrictEqual(withAction, [PLUGIN_MISSING, MCP_OFF, MCP_CONFIG_ADDABLE]);
 		const quiet = rows(buildIntegrationNodes({ kind: 'folders', folders: [sample('a', '/a', { kind: 'installed', detail: '' }, { kind: 'offered' }, { kind: 'configured', file: '.mcp.json' })] }));
-		assert.ok(quiet.every(node => node.kind === 'group' || node.contextValue === undefined));
+		// An installed plugin is managed: it has Info, Upgrade and Remove, and no install action.
+		assert.deepStrictEqual(quiet.flatMap(node => (node.kind === 'row' && node.contextValue ? [node.contextValue] : [])), [PLUGIN_MANAGED]);
 		const targets = rows(buildIntegrationNodes({ kind: 'folders', folders: [sample('a', '/a', { kind: 'missing' }, { kind: 'off' }, { kind: 'unreadable', file: '.mcp.json', detail: 'x' })] }));
 		assert.deepStrictEqual(
 			targets.flatMap(node => (node.kind === 'row' && node.target ? [node.target.kind] : [])),
@@ -1319,7 +1321,14 @@ suite('Entire integration manifest', () => {
 		assert.deepStrictEqual(properties['entirely.suggestedPlugins'].default, ['graph', 'investigate', 'brain']);
 		assert.strictEqual(properties['entirely.offerIntegrationInstall'].default, true);
 		const inline = manifest.contributes.menus['view/item/context'].filter(item => item.when?.includes('entirely.integrations')).map(item => item.command);
-		assert.deepStrictEqual(inline.sort(), ['entirely.addMcpToProject', 'entirely.enableMcpIntegration', 'entirely.installIntegration']);
+		assert.deepStrictEqual([...new Set(inline)].sort(), [
+			'entirely.addMcpToProject',
+			'entirely.enableMcpIntegration',
+			'entirely.installIntegration',
+			'entirely.pluginInfo',
+			'entirely.removePlugin',
+			'entirely.upgradePlugin',
+		]);
 		assert.ok(manifest.contributes.menus['view/title'].some(item => item.command === 'entirely.refreshIntegrations'));
 	});
 });

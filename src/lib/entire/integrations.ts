@@ -91,6 +91,8 @@ export interface PluginRow {
 	/** Whether the name is one of the suggested plugins, rather than one that was found installed. */
 	readonly suggested: boolean;
 	readonly state: PluginState;
+	/** An installed plugin whose name is also a command of the CLI: nothing can be done to it from here. */
+	readonly builtIn?: boolean;
 }
 
 /** The words for a plugin's state. */
@@ -163,6 +165,8 @@ export interface FolderIntegrations {
 	readonly plugins: readonly PluginRow[];
 	/** Set when the plugin list could not be read at all. */
 	readonly pluginsDetail?: string;
+	/** The directory the CLI manages plugins in, when `plugin list` named it. */
+	readonly managedDirectory?: string;
 	readonly mcp: {
 		readonly editor: McpEditorState;
 		readonly config: McpConfigState;

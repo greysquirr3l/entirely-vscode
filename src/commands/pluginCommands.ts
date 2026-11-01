@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { neutraliseLinks } from '../lib/entire';
 import type { GeneratedDocuments } from '../providers/generatedDocuments';
 import type { EntireMcpProvider } from '../services/mcpProvider';
 import type { McpServerSource } from '../services/mcpServer';
@@ -12,12 +13,12 @@ const MCP_SETTING = 'mcpServerEnabled';
 /** The MCP commands' questions, asked in the editor. */
 export class EditorMcpUi implements McpUi {
 	warn(message: string): Promise<void> {
-		void vscode.window.showWarningMessage(message);
+		void vscode.window.showWarningMessage(neutraliseLinks(message));
 		return Promise.resolve();
 	}
 
 	inform(message: string): Promise<void> {
-		void vscode.window.showInformationMessage(message);
+		void vscode.window.showInformationMessage(neutraliseLinks(message));
 		return Promise.resolve();
 	}
 

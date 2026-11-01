@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import type { ControlConfirmation, McpConfigFile } from '../lib/entire';
+import { neutraliseLinks, type ControlConfirmation, type McpConfigFile } from '../lib/entire';
 import type { IntegrationFolder } from '../services/integrationDetection';
 import type { OfferUi, PluginOfferAnswer, ProjectOfferAnswer } from '../services/integrationOffers';
 import type { IntegrationUi } from './integrations';
@@ -13,18 +13,18 @@ export class EditorIntegrationUi implements IntegrationUi, OfferUi {
 	}
 
 	inform(message: string): Promise<void> {
-		void vscode.window.showInformationMessage(message);
+		void vscode.window.showInformationMessage(neutraliseLinks(message));
 		return Promise.resolve();
 	}
 
 	warn(message: string): Promise<void> {
-		void vscode.window.showWarningMessage(message);
+		void vscode.window.showWarningMessage(neutraliseLinks(message));
 		return Promise.resolve();
 	}
 
 	async showSnippet(message: string, snippet: string): Promise<void> {
 		const copy = 'Copy';
-		const choice = await vscode.window.showWarningMessage(`${message}\n${snippet}`, copy);
+		const choice = await vscode.window.showWarningMessage(neutraliseLinks(`${message}\n${snippet}`), copy);
 		if (choice === copy) {
 			await vscode.env.clipboard.writeText(snippet);
 		}
@@ -53,7 +53,7 @@ export class EditorIntegrationUi implements IntegrationUi, OfferUi {
 		const never = "Don't ask for this project";
 		const editorNote = file === '.vscode/mcp.json' ? ' VS Code already gets the server from this extension, so it may show twice.' : '';
 		const choice = await vscode.window.showInformationMessage(
-			`Add the Entire MCP server to ${file} in ${folder.name}, so other agents can use it? This adds an "entire" entry and leaves every other entry as it is.${editorNote}`,
+			`Add the Entire MCP server to ${file} in ${neutraliseLinks(folder.name)}, so other agents can use it? This adds an "entire" entry and leaves every other entry as it is.${editorNote}`,
 			add,
 			'Not now',
 			never,

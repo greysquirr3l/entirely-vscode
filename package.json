@@ -735,6 +735,47 @@
         "command": "entirely.reviewSetup",
         "title": "Set Up Review in a Terminal",
         "category": "Entirely"
+      },
+      {
+        "command": "entirely.pluginInfo",
+        "title": "Plugin Info",
+        "category": "Entirely"
+      },
+      {
+        "command": "entirely.searchPluginIndex",
+        "title": "Search Plugin Index",
+        "category": "Entirely",
+        "icon": "$(search)"
+      },
+      {
+        "command": "entirely.updatePluginIndex",
+        "title": "Update Plugin Index",
+        "category": "Entirely",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "entirely.upgradePlugin",
+        "title": "Upgrade Plugin",
+        "category": "Entirely",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "entirely.upgradeAllPlugins",
+        "title": "Upgrade All Plugins",
+        "category": "Entirely",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "entirely.removePlugin",
+        "title": "Remove Plugin",
+        "category": "Entirely",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "entirely.checkPlugins",
+        "title": "Check Plugins",
+        "category": "Entirely",
+        "icon": "$(checklist)"
       }
     ],
     "configuration": {
@@ -1165,6 +1206,26 @@
           "command": "entirely.trailCreate",
           "when": "view == entirely.trails",
           "group": "navigation@1"
+        },
+        {
+          "command": "entirely.searchPluginIndex",
+          "when": "view == entirely.integrations",
+          "group": "navigation@2"
+        },
+        {
+          "command": "entirely.upgradeAllPlugins",
+          "when": "view == entirely.integrations",
+          "group": "1_plugins@1"
+        },
+        {
+          "command": "entirely.checkPlugins",
+          "when": "view == entirely.integrations",
+          "group": "1_plugins@2"
+        },
+        {
+          "command": "entirely.updatePluginIndex",
+          "when": "view == entirely.integrations",
+          "group": "1_plugins@3"
         }
       ],
       "commandPalette": [
@@ -1230,6 +1291,14 @@
         },
         {
           "command": "entirely.trailRetryThreads",
+          "when": "false"
+        },
+        {
+          "command": "entirely.upgradePlugin",
+          "when": "false"
+        },
+        {
+          "command": "entirely.removePlugin",
           "when": "false"
         }
       ],
@@ -1447,6 +1516,31 @@
           "command": "entirely.trailRetryThreads",
           "when": "view == entirely.trails && viewItem == entirely.threadFailed",
           "group": "inline@1"
+        },
+        {
+          "command": "entirely.pluginInfo",
+          "when": "view == entirely.integrations && viewItem == entirely.integrationPluginManaged",
+          "group": "inline@1"
+        },
+        {
+          "command": "entirely.upgradePlugin",
+          "when": "view == entirely.integrations && viewItem == entirely.integrationPluginManaged",
+          "group": "inline@2"
+        },
+        {
+          "command": "entirely.removePlugin",
+          "when": "view == entirely.integrations && viewItem == entirely.integrationPluginManaged",
+          "group": "inline@3"
+        },
+        {
+          "command": "entirely.pluginInfo",
+          "when": "view == entirely.integrations && viewItem == entirely.integrationPluginOnPath",
+          "group": "inline"
+        },
+        {
+          "command": "entirely.pluginInfo",
+          "when": "view == entirely.integrations && viewItem == entirely.integrationPluginMissing",
+          "group": "inline@2"
         }
       ],
       "explorer/context": [

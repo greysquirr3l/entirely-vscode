@@ -1,6 +1,6 @@
 ---
-title: Run and install plugins
-description: Run an Entire plugin command from the editor, read its output, and install plugins from the plugin index.
+title: Run, install and manage plugins
+description: Run an Entire plugin command from the editor, search the plugin index, install, upgrade, remove and check plugins.
 sidebar:
   order: 7
 ---
@@ -92,11 +92,41 @@ Visible commands are read from the CLI's help at the time. Hidden commands such 
 
 `entire plugin list` shows only the managed plugin directory. A plugin that lives only on your `PATH` as `entire-NAME` is not listed. The Integrations view can show it as `available on PATH`. **Run Plugin Command** may still refuse it, because the same check that catches hidden built-ins sees a name the CLI answers and the list does not hold. If that is your plugin, run it in a terminal, or install it through `entire plugin install` so the CLI lists it. This is a known limitation, and no hardcoded list of built-ins is kept to work around it.
 
+## Manage plugins
+
+These commands are on the Integrations view and in the palette. Each one that changes something asks first, in a modal that names the plugin and the login it runs as, runs once, and is never retried. The result is read from a fresh `entire plugin list`, so a change is reported only when the list shows it.
+
+<Aside type="caution" title="Tested against a fake CLI">
+The real CLI's output for `plugin search`, `plugin info`, `plugin index update`, `plugin upgrade`, `plugin remove` and a failing `plugin doctor` was never captured, because running them would change the machine. They are tested against a fake CLI with invented output. The listing format and a healthy `plugin doctor` were observed.
+</Aside>
+
+| Command | What it does |
+|---|---|
+| **Entirely: Search Plugin Index** | Asks for a term (it may be empty), runs `entire plugin search`, and lists the results with their descriptions and an `installed` marker. Pick one to see its Info or to Install it. Install runs the same question as **Install Plugin**. A name that is also a CLI command cannot be installed. If the CLI's text has no row Entirely can read, you see the text itself. The term is kept out of the log. |
+| **Entirely: Plugin Info** | Shows what the index and the install manifest say about a plugin (`entire plugin info`). Works for a plugin that is not installed. No question. |
+| **Entirely: Upgrade Plugin** | On a managed row. The modal names the plugin, its installed version, that the newest release is downloaded and checked against `checksums.txt` when one is published, the managed directory and the login. The CLI has no dry run, so the newest version is not shown. Afterwards: "graph upgraded from v0.4.0 to v0.5.0", or "graph is still at v0.4.0" (pinned and linked plugins are skipped, and a plugin already on its newest tag stays). Exit 0 alone is never taken as a change. |
+| **Entirely: Upgrade All Plugins** | One modal lists every installed plugin and version. The all flag is read from `entire agent-help plugin upgrade`. The result lists each plugin as changed or unchanged; more than three lines open in a document. |
+| **Entirely: Remove Plugin** | On a managed row. The modal names the plugin, the directory and the file it is deleted from, and the login. Success is declared only when a fresh `plugin list` no longer holds it. If the CLI refuses because other plugins depend on it, its text is shown and a second, separate question offers **Remove Anyway** (a new action using the force flag read from the help, not a retry). If a copy is still on your `PATH`, you are told. |
+| **Entirely: Update Plugin Index** | Asks, naming the login and saying no plugin is installed or changed, then runs `entire plugin index update`. A failure shows the CLI's reason and "The index was not refreshed." The CLI says nothing about what changed, so a success says there is nothing to read back. |
+| **Entirely: Check Plugins** | Runs `entire plugin doctor`. The exit status is the verdict: 0 shows "Plugins: healthy", anything else shows "Plugin check found problems." with **Open Details** for the CLI's text. The doctor report gets a line with the verdict. |
+
+### Plugins outside the managed directory
+
+A plugin that sits on your `PATH` and not in the managed directory shows **Info** only. The CLI cannot upgrade or remove it, and says so: "delete this binary by hand to remove it." Remove and Upgrade are not offered on it, and asking for them by name runs nothing.
+
+### Older CLIs
+
+Each command checks `entire agent-help plugin <subcommand>` first. A CLI without it gets "this version of the Entire CLI has no "plugin remove"; update the CLI" and nothing runs. No flag is written into the extension: the all and force flags are found in the help text.
+
+### The plugin index
+
+The index URL belongs to the CLI (`ENTIRE_PLUGIN_INDEX_URL` or its built-in default). Entirely passes no `--index` and has no setting for it. `plugin browse` is not offered: it is an interactive picker that needs a terminal, and search plus install replace it.
+
 ## Settings
 
 | Setting | Default | Range | What it does |
 |---|---|---|---|
-| `entirely.pluginTimeout` | `120` | 10 to 1800 | Seconds to wait for a plugin to run or a download to finish. A plugin is never started again after a timeout. |
+| `entirely.pluginTimeout` | `120` | 10 to 1800 | Seconds to wait for a plugin to run, or for a download, search, upgrade, removal or check to finish. A plugin is never started again after a timeout. |
 | `entirely.suggestedPlugins` | `["graph", "investigate", "brain"]` | | Names offered in the picker and shown in the Integrations view. |
 
 ## Failure messages
@@ -107,6 +137,9 @@ Visible commands are read from the CLI's help at the time. Hidden commands such 
 | "That is not a plugin name. Use letters, digits, dashes and underscores." | The name does not fit the rule above. |
 | "Plugins cannot be listed: …" | `entire plugin list` failed. |
 | "The NAME plugin cannot be run: …" | Its help could not be read, or the name is refused. |
+| "The index was not refreshed: …" | `entire plugin index update` failed. |
+| "NAME was not removed: …" / "NAME was not upgraded: …" | The CLI refused or failed; its reason follows. |
+| "The CLI said it removed NAME, but NAME is still listed." | Exit 0 with the plugin still in a fresh list. |
 | "The NAME plugin failed: …" | The plugin exited non-zero. A timeout adds a hint to raise `entirely.pluginTimeout`. |
 
 ## Related

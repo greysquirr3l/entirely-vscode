@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import type { ControlConfirmation } from '../lib/entire';
+import { neutraliseLinks, type ControlConfirmation } from '../lib/entire';
 import type { HelpFlag } from '../lib/entire/search';
 import type { GeneratedDocuments } from '../providers/generatedDocuments';
 import type { PluginChoice, PluginUi } from './plugins';
@@ -17,7 +17,7 @@ export class EditorPluginUi implements PluginUi {
 				...choices.map(choice => ({
 					label: choice.name,
 					description: choice.installed ? 'installed' : 'not installed',
-					detail: choice.detail.length > 0 && choice.installed ? choice.detail : undefined,
+					detail: choice.detail.length > 0 && choice.installed ? neutraliseLinks(choice.detail) : undefined,
 				})),
 				{ label: OTHER, description: 'type a plugin name' },
 			],
@@ -73,13 +73,13 @@ export class EditorPluginUi implements PluginUi {
 	}
 
 	warn(message: string): Promise<void> {
-		void vscode.window.showWarningMessage(message);
+		void vscode.window.showWarningMessage(neutraliseLinks(message));
 		return Promise.resolve();
 	}
 
 	async offerInstall(message: string, name: string): Promise<boolean> {
 		const action = `Install ${name}`;
-		const choice = await vscode.window.showWarningMessage(message, action);
+		const choice = await vscode.window.showWarningMessage(neutraliseLinks(message), action);
 		return choice === action;
 	}
 
@@ -90,7 +90,7 @@ export class EditorPluginUi implements PluginUi {
 	}
 
 	inform(message: string): Promise<void> {
-		void vscode.window.showInformationMessage(message);
+		void vscode.window.showInformationMessage(neutraliseLinks(message));
 		return Promise.resolve();
 	}
 }

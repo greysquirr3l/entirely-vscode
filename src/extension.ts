@@ -63,6 +63,8 @@ import { ActivityService } from './services/activity';
 import { DispatchService } from './services/dispatch';
 import { registerPluginCommands } from './commands/pluginCommands';
 import { registerIntegrations } from './commands/integrationCommands';
+import { registerPluginManagementCommands } from './commands/pluginManagementCommands';
+import { readPluginCheck } from './services/pluginManagement';
 import { EntireMcpProvider, registerMcpProvider } from './services/mcpProvider';
 import { McpServerService } from './services/mcpServer';
 import { PluginService } from './services/plugins';
@@ -533,6 +535,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		log: { warn: line => log.warn(line) },
 	});
 
+	// Search the plugin index, then upgrade, remove, inspect and check plugins.
+	// Every change asks first, runs once as the confirmed login and is read back.
+	const pluginManagement = registerPluginManagementCommands(context, {
+		runner,
+		plugins: pluginFlows.plugins,
+		documents: generated,
+		refresh: () => integrations.refresh(),
+	});
+
 	// Creating and updating trails, the discussions and findings under a
 	// change, and watching a change. The commands are registered before the
 	// view exists; the services behind them are disposed with the extension.
@@ -571,6 +582,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	registerCommands(context, {
 		search,
 		cliDoctor,
+		pluginCheck: () => readPluginCheck(pluginManagement.checkSource()),
 		agentIntegrations: {
 			agents: agentIntegrations,
 			ui: new EditorAgentUi(),
