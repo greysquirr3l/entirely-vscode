@@ -87,7 +87,7 @@ it, so a BYOK or local model works the same as a hosted one.
 
 ## Status
 
-**Version 0.3.0.** Before 1.0, minor versions may change things. The command
+**Version 0.4.0.** Before 1.0, minor versions may change things. The command
 list and the setting names are the surface a user actually touches, so they
 are the most likely thing to change.
 
@@ -808,7 +808,7 @@ for the people using the extension.
 
 ### Releasing
 
-A release is a tag. Push a tag such as `v0.3.0` and the `Release` workflow builds the
+A release is a tag. Push a tag such as `v0.4.0` and the `Release` workflow builds the
 package, checks what is in it, publishes it to the Visual Studio Marketplace,
 and then makes a GitHub release with the `.vsix` attached. It does not publish to
 Open VSX.
@@ -825,8 +825,9 @@ The workflow can also be run by hand from the Actions tab. Leave the version
 empty to build the version in the manifest, and leave **Publish** off to
 build and check the package without publishing it — a dry run.
 
-The `marketplace` job uses a GitHub environment, so it can be made to wait
-for a review before it publishes.
+The `marketplace` job uses a GitHub environment that requires a review, and only
+a version tag may deploy to it. A publish therefore waits for an approval,
+and a run from a branch is refused before it starts.
 
 ## Licence
 
