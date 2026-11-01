@@ -7,6 +7,10 @@ All notable changes to the Entirely extension are documented in this file. The f
 
 ### Added
 
+- **The README now says what is supported and what is not, by area.**
+  - One table covers the whole CLI surface: sessions, checkpoints, trails, activity, the control plane, plugins, agents, capture, review and experts, accounts, diagnostics, and the CLI's own commands. Each row names what the extension does and what it deliberately leaves out, with the reason.
+  - The totals it quotes (142 commands and flags: 127 supported, 15 excluded, none missing) are the ones in [docs/coverage.md](docs/coverage.md), and a test fails when the two disagree.
+
 - **The control plane reaches the whole of it: organisations, projects, invitations, protection, mirrors, clones and remotes.**
   - Opening an organisation, a project or a repository in the **Control Plane** view shows what the CLI knows about it, read when the node is opened and never polled: the identifiers and regions, a repository's visibility, its branch protection rules, the clusters it is mirrored on, and an organisation's invitations. A row that cannot be read says why instead of showing nothing.
   - **Create Organisation** and **Create Project** make the objects the CLI offers, always in the flag form and never in the CLI's wizard, and report done only when a fresh listing holds them. The project is named by its ULID, never by its name, because the CLI refuses a name that contains a colon.

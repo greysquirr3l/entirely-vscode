@@ -1,6 +1,6 @@
 ---
 title: CLI coverage
-description: Which parts of the Entire CLI the extension covers, what it leaves out on purpose, and the gaps.
+description: Which parts of the Entire CLI the extension covers, what it leaves out on purpose, and what is not left out by accident.
 sidebar:
   order: 6
 ---
@@ -13,9 +13,9 @@ The audit was derived against Entire CLI 0.12.2 on 2026-10-30. Its sources are E
 
 | Mark | Rows | Meaning |
 | --- | --- | --- |
-| Supported | 109 | The extension calls it, you can reach it from the editor, and a test in the repository covers it. |
+| Supported | 127 | The extension calls it, you can reach it from the editor, and a test in the repository covers it. |
 | Excluded | 15 | A decision: the extension deliberately does not do it. |
-| Gap | 18 | Not done, and no decision to leave it out. |
+| Gap | 0 | Not done, and no decision to leave it out. |
 | **Total** | **142** | |
 
 `review`, `experts` and `tokens profile` are supported. `tokens profile --json` and `review --show-config --json` were observed against the real CLI and their fixtures are copied from it. `experts` and the review run were never run for real (one sends a query to Entire's servers, the other starts agents that spend tokens), and `review --list` for a configured profile and `review --findings` with saved runs were not observed, so those are tested against a fake CLI only.
@@ -42,14 +42,11 @@ The audit was derived against Entire CLI 0.12.2 on 2026-10-30. Its sources are E
 
 ## Gaps
 
-None of these is excluded. Each is something the CLI can do and the editor does not.
-
-1. **Checkpoint deletion.** `checkpoint delete`. It is destructive and would need the same confirmation care as the control-plane deletes.
-2. **Control plane breadth.** Create and read for organisations and projects, organisation invitations, and repository `clone`, `mirror add`, `detach`, `remove`, `resync`, `protection`, `remote add` and `visibility get`.
+None. Every command the CLI has that the editor can act on is now either supported or excluded on purpose, and the exclusion says why.
 
 `plugin info`, `search`, `index update`, `upgrade`, `remove` and `doctor` are supported but were tested against a fake CLI with invented output: running them for real would change the machine. Only `plugin doctor` with healthy plugins and `plugin list` were observed.
 
-A gap is a finding, not a failure. Closing one means a command in `package.json`, a service, a test, and a move of the row from Gap to Supported.
+A gap is a finding, not a failure. Closing one means a command in `package.json`, a service, a test, and a move of the row from Gap to Supported. There are none left.
 
 ## How the matrix is enforced
 
@@ -61,7 +58,8 @@ A gap is a finding, not a failure. Closing one means a command in `package.json`
 - a supported row cites a source file or command id that does not exist;
 - an excluded row has no reason;
 - a supported row's cited test never mentions the command's words;
-- the installed CLI is present and `entire help -t` lists a command the matrix lacks. This check skips where `entire` is not installed.
+- the installed CLI is present and `entire help -t` lists a command the matrix lacks. This check skips where `entire` is not installed;
+- the summary in the README quotes totals that disagree with the table.
 
 The citation check proves a test names the command. It does not prove the test runs the call against a real CLI, which is why the Notes column says where a test covers only part. After each Entire release, the maintainers pull `llms.txt` again, diff the CLI reference against the matrix, and update the version and date.
 

@@ -57,6 +57,37 @@ Entirely (this extension)
 If the CLI is missing, the extension degrades to a clear message with a link
 to the install instructions rather than failing obscurely.
 
+## What is supported, and what is not
+
+The CLI does a great deal, and the extension does not do all of it. This is
+the whole of it, by area. Command by command, with the evidence for each
+line, it is in [docs/coverage.md](docs/coverage.md): 142 commands and flags,
+127 supported, 15 deliberately left out, and none missing.
+
+| Area | Supported | Not supported |
+|---|---|---|
+| Sessions | The session tree, the workspace's own session, session detail and transcripts, token usage, stopping, attaching, adopting and resuming a session, and importing past agent history | — |
+| Checkpoints | The checkpoint tree, filtering and search, where checkpoints are uploaded to, the token profile, why a line exists, blame, and deleting a checkpoint with every copy of it | — |
+| Trails and changes | Listing, creating, updating and watching a trail; approving, merging, checking out, linking and unlinking; comments, findings and their suggestions | `trail resume` — **Resume Session** already resumes a branch's session in a terminal |
+| Activity | The activity view, the recap and a generated dispatch | — |
+| The control plane | Organisations, projects, repositories, clusters, who has access, invitations, branch protection, mirrors, cloning and git remotes, as reads and as changes, and one controlled call to the Entire API | — |
+| Plugins | The index, search, a plugin's details, install, upgrade, remove and a health check; the MCP server and the plugins Entire documents, offered to the editor's agent | `plugin browse` — an interactive picker; **Search Plugin Index** lists the same names and installs them |
+| Agents | The integrations the CLI supports, installing or removing one, and reporting the editor's own agent activity to a compatible integration | — |
+| Capture | Turning capture on and off, removing Entire, editing the repository's settings, cleaning session data and setting up trail runners | — |
+| Review and experts | The token profile over committed history, who has touched a path, the review profiles, what a review would run, and a confirmed review in a terminal | `review --configure`, `--edit`, `--agents` and `--models` need a terminal; `--set-*` writes a profile; `--trust-target` approves code the person did not write |
+| Accounts | Signing in and out, the saved logins, and a login pinned to one workspace | `auth switch` changes the machine's login for every tool; `auth token` prints a credential, which is never shown or stored |
+| Diagnostics | The CLI's own report, its log, its hook traces, a diagnostic bundle written where you choose, and the move to per-checkpoint git refs | — |
+| The CLI's own surface | `agent-help`, which every flag is read from at run time, and `version`, which the extension checks before it uses anything | `help`, `completion` and `global-flags` have no place in the editor, and `labs` only lists commands that each have their own row |
+
+Nothing is left out by accident. A command that is neither supported nor
+excluded fails the build, and where the extension chose not to do something,
+the reason is written down in its row.
+
+The reads were run against the real CLI. Several of the changes — the ones
+that write to a real project, the mirrors, the protection rules, the clone
+and the remote — were tested against a fake CLI only, and each of them says
+so where it is described.
+
 ## Views
 
 Entirely adds an **Entirely for Entire** container to the activity bar, with
@@ -94,9 +125,9 @@ list and the setting names are the surface a user actually touches, so they
 are the most likely thing to change.
 
 What the extension covers of the Entire CLI, what it leaves out on purpose,
-and what is still a gap is tracked command by command in
-[docs/coverage.md](docs/coverage.md). The changes in each version are in the
-[changelog](CHANGELOG.md).
+and what is still a gap is summarised [above](#what-is-supported-and-what-is-not)
+and tracked command by command in [docs/coverage.md](docs/coverage.md). The
+changes in each version are in the [changelog](CHANGELOG.md).
 
 ## Screenshots
 

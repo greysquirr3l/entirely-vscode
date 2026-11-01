@@ -62,6 +62,21 @@ suite('Coverage matrix (docs/coverage.md)', () => {
 		);
 	});
 
+	test('the README summary quotes the same totals', () => {
+		const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+		const summary = /(\d+) commands and flags,\s*(\d+) supported,\s*(\d+) deliberately left out/.exec(readme);
+		assert.ok(summary, 'the README has no supported/not-supported summary with its totals');
+		assert.deepStrictEqual(
+			{
+				rows: Number(summary[1]),
+				supported: Number(summary[2]),
+				excluded: Number(summary[3]),
+			},
+			{ rows: coverage.matrix.length, supported: countStatuses(coverage.matrix).supported, excluded: countStatuses(coverage.matrix).excluded },
+			'update the summary in README.md',
+		);
+	});
+
 	test('every row has a known status and no command appears twice', () => {
 		for (const row of coverage.matrix) {
 			assert.ok((STATUSES as readonly string[]).includes(row.status), `${row.command}: unknown status "${row.status}"`);
