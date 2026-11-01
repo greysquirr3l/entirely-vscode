@@ -18,7 +18,7 @@ All notable changes to the Entirely extension are documented in this file. The f
   - **Search Plugin Index** lists the index's results with descriptions and an installed marker; a pick shows Info or installs through the existing install question. The typed term is kept out of the log, and a name that is also a CLI command cannot be installed.
   - **Plugin Info**, **Upgrade Plugin**, **Upgrade All Plugins**, **Remove Plugin**, **Update Plugin Index** and **Check Plugins**. Every change asks first, naming the plugin, the directory or download, and the acting login; runs once; and is never retried. Upgrade and remove are reported from a fresh `plugin list` (exit 0 without a changed version is "still at", exit 0 with the plugin still listed is a failure). A refusal over dependents offers a second question for **Remove Anyway**.
   - A plugin found only on the `PATH` shows Info only and says the CLI cannot upgrade or remove it. The all and force flags are read from the CLI's help; a CLI without a subcommand gets "update the CLI" and nothing runs. The doctor report has a plugin line. `plugin browse` is not offered (it needs a terminal).
-  - **Tested against a fake CLI only.** The output of `plugin search`, `info`, `index update`, `upgrade`, `remove` and of a failing `plugin doctor` was never captured from the real CLI; only the list format and a healthy check were observed.
+  - **Observed against the real CLI 0.12.2**: `plugin list` prints the managed plugin directory and one line per plugin, and the help for `plugin install`, `upgrade` and `remove` describes every flag the extension writes. The output of `plugin search`, `info`, `index update` and of a failing `plugin doctor` was not captured, because those change the machine's plugin directory.
 
 ### Fixed
 
@@ -39,7 +39,7 @@ the editor.
   - **Watch a Change on a Trail** runs one owned `entire trail watch` process per change, stopped from the row, from the palette and when the editor closes, with no polling. Events refresh the change's Comments and Findings once per `entirely.trailWatchRefreshDelay`. A watch that ends (revoked access, an invisible project, the end of the stream) says why and is not restarted.
   - For a GitHub collaborator who cannot see the project that holds the trails, every one of these says the login has no access to the project, that this is how the CLI and the forge behave, and points at Entire's web UI and the organisation workaround.
   - New settings `entirely.trailWatchLimit` and `entirely.trailWatchRefreshDelay`. Typed text and watch events are never logged.
-  - **Tested against a fake CLI only.** No create, update, discussion write, finding write, apply or watch was run against the real service; the shape of `trail comment show`, the `trail watch --json` event lines and the refusal wording for the discussion verbs are unobserved.
+  - **Tested against a fake CLI only.** No create, update, discussion write, finding write, apply or watch was run against the real service: they write to a real project on Entire, and a throwaway repository has no project to write to. The shape of `trail comment show`, the `trail watch --json` event lines and the refusal wording for the discussion verbs are unobserved, so they are read tolerantly and the CLI's own text is shown as it is.
 
 ### Fixed
 
@@ -68,7 +68,7 @@ described below.
   - **Review**: **List Review Profiles**, **Show What a Review Would Run** and **Show Saved Review Findings** start no agent and ask nothing. **Run Multi-Agent Review** asks for a profile, a branch and optional instructions, then confirms in a modal that names the profile, the branch, the login "on Entire", the CLI's own description, that agents run on your machine and spend your tokens, and the time limit. Only then does it open one terminal running the CLI as the confirmed login. It is never started again. **Set Up Review in a Terminal** asks first and opens the CLI's own wizard. Entirely never passes `--trust-target` or any `--set-*` flag.
   - Flags are read from each command's `--help` at run time, and a CLI without the command gets a message that names it and says to update the CLI.
   - Settings: `entirely.tokenProfileCheckpoints`, `entirely.tokenProfileTimeout`, `entirely.expertsLimit`, `entirely.expertsTimeout`, `entirely.reviewReadTimeout` and `entirely.reviewReviewerTimeoutMinutes` (default `0`, no limit).
-  - Tested against a fake CLI for `experts` and the review run, which the real CLI could not safely be asked to do. `tokens profile --json` and `review --show-config --json` were observed against the real CLI.
+  - `tokens profile --json` and `review --show-config --json` were observed against the real CLI 0.12.2. `experts` and the review run were not: they spawn real agents against a real project and cost real model calls.
 
 - **Clicking a row opens its detail in a panel beside the editor.** Selecting a session, a
   trail, a trail change or an Activity commit, session line or repository, by click or
@@ -150,13 +150,18 @@ described below.
   too old or lacks the command is named and nothing runs.
 - Two settings: `entirely.captureControlTimeout` and `entirely.runnerSetupTimeout`.
 
-These flows were tested only against a fake CLI. `entire disable`, `configure`, `clean`
-and `runner setup` were not run against the real CLI, so their real output, exit codes and
-the exact settings keys `configure` writes are unobserved.
+**Observed against the real CLI 0.12.2**, in a throwaway copy of a repository: `disable --local` printed `Entire is now disabled (.entire/settings.local.json).`, `configure --telemetry=false --local` printed `✓ Settings updated (.entire/settings.local.json)` and the setting was in the file afterwards, and `clean --dry-run` printed what it would clean and how many of those still hold agent work that has not been committed. The help of every one of these commands describes the flags the extension writes, and every flag was found in it.
 
-The doctor flows above were also tested only against a fake CLI. The real CLI's output formats for
-`doctor logs`, `trace`, `bundle` and `migrate-checkpoints` were not observed, and the
-bundle and migration were not run against it.
+`runner setup` was not run: it writes the agent's own configuration files under the user's
+home directory, and a throwaway repository does not make that safe.
+
+The doctor flows were observed too: `doctor bundle --out <path>` writes the archive to the
+path given, a hidden `.entirely-<random>.zip` name included, and prints
+`Bundle written (redacted): <path>`; `doctor logs --tail <n>` prints the last lines of the
+CLI's own log; `doctor trace` prints a hook, its duration and the steps it took; and
+`doctor migrate-checkpoints` prints `The git-refs store is already the primary checkpoint
+store — nothing to migrate.` when there is nothing to migrate. The help of each describes
+the flags the extension offers, and each flag was found in it.
 
 ### Fixed
 
