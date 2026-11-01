@@ -14,6 +14,11 @@ export class EditorControlPlaneUi implements ControlPlaneUi {
 		return Promise.resolve(vscode.window.showQuickPick([...values], { title, ignoreFocusOut: true }));
 	}
 
+	async pickMany(title: string, values: readonly string[]): Promise<readonly string[]> {
+		const picked = await vscode.window.showQuickPick([...values], { title, ignoreFocusOut: true, canPickMany: true });
+		return picked ?? [];
+	}
+
 	ask(options: {
 		readonly title: string;
 		readonly prompt: string;
@@ -55,7 +60,7 @@ export class EditorControlPlaneUi implements ControlPlaneUi {
 		return Promise.resolve();
 	}
 
-	async showApiResult(heading: string, body: string): Promise<void> {
+	async showResult(heading: string, body: string): Promise<void> {
 		// The first line is a comment so the document says what produced it.
 		const document = await vscode.workspace.openTextDocument({ language: 'jsonc', content: `// ${heading}\n${body}\n` });
 		await vscode.window.showTextDocument(document, { preview: true });

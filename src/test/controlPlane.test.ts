@@ -383,13 +383,73 @@ suite('Control plane view', () => {
 		const cli = fakeControlCli({ out: { ...READS, repo_list_PRJ2: '[]' } });
 		const provider = providerFor(cli);
 		const empty = await provider.getChildren({ kind: 'project', project: { id: 'PRJ2', name: 'sandbox' } });
-		assert.match(provider.getTreeItem(empty[0]).label as string, /No repositories are visible to this login/);
+		const labels = empty.map(node => provider.getTreeItem(node).label as string);
+		assert.ok(labels.some(label => /No repositories are visible to this login/.test(label)), 'the project says it holds no repositories');
 
 		const failing = providerFor(fakeControlCli({ out: {} }));
 		const failed = await failing.getChildren({ kind: 'group', group: 'organisations' });
 		assert.match(failed[0].kind === 'message' ? failed[0].text : '', /Could not read the organisations: permission denied/);
 		provider.dispose();
 		failing.dispose();
+	});
+
+	test('opening an organisation shows its detail, its invitations and its grants', async () => {
+		const cli = fakeControlCli({
+			out: {
+				org_get_Acme: JSON.stringify({ id: 'ORG1', name: 'Acme', region: 'eu' }),
+				org_invite_list_Acme: JSON.stringify([{ email: 'dev@example.com', role: 'member', status: 'open' }]),
+				org_grant_list_Acme: '[]',
+			},
+		});
+		const provider = providerFor(cli);
+		const rows = await provider.getChildren(ORG_NODE);
+		const detail = rows.find(node => node.kind === 'detail' && node.label === 'Region');
+		assert.ok(detail);
+		assert.strictEqual(detail.kind === 'detail' ? detail.value : '', 'eu');
+		const invitation = rows.find(node => node.kind === 'invitation');
+		assert.ok(invitation);
+		assert.strictEqual(provider.getTreeItem(invitation).label, 'dev@example.com');
+		assert.match(String(provider.getTreeItem(invitation).description), /member/);
+		provider.dispose();
+	});
+
+	test('opening a repository shows its visibility, its protection and where it is mirrored', async () => {
+		const cli = fakeControlCli({
+			out: {
+				repo_visibility_get_R1: JSON.stringify({ repo: '/et/widgets/web', visibility: 'private' }),
+				repo_protection_list_R1: JSON.stringify([{ id: 'rule-1', level: 'server-side-merge-only' }]),
+				repo_mirror_list: JSON.stringify([{ repo: '/et/widgets/web', placements: [{ cluster: 'aws-us-east-2.entire.io', status: 'ready' }] }]),
+				repo_grant_list__et_widgets_web: '[]',
+			},
+		});
+		const provider = providerFor(cli);
+		const rows = await provider.getChildren(WEB);
+		const detail = rows.find(node => node.kind === 'detail' && node.label === 'Visibility');
+		assert.ok(detail);
+		assert.strictEqual(detail.kind === 'detail' ? detail.value : '', 'private');
+		const rule = rows.find(node => node.kind === 'protection');
+		assert.ok(rule);
+		assert.strictEqual(provider.getTreeItem(rule).label, 'rule-1');
+		const placement = rows.find(node => node.kind === 'placement');
+		assert.ok(placement);
+		assert.strictEqual(provider.getTreeItem(placement).label, 'aws-us-east-2.entire.io');
+		provider.dispose();
+	});
+
+	test('a row that cannot be read says why, instead of showing nothing', async () => {
+		const provider = providerFor(fakeControlCli({ out: {} }));
+		const rows = await provider.getChildren(WEB);
+		const messages = rows.filter(node => node.kind === 'message').map(node => (node.kind === 'message' ? node.text : ''));
+		assert.ok(messages.some(text => /Could not read the visibility/.test(text)), 'the visibility says why');
+		assert.ok(messages.some(text => /Could not read the protection/.test(text)), 'the protection says why');
+		provider.dispose();
+	});
+
+	test('an account with no organisations is told why, and offered a way to make one', async () => {
+		const provider = providerFor(fakeControlCli({ out: { org_list: '[]' } }));
+		const rows = await provider.getChildren({ kind: 'group', group: 'organisations' });
+		assert.match(rows[0].kind === 'message' ? rows[0].text : '', /personal account has no account-wide membership/);
+		provider.dispose();
 	});
 
 	test('with no login the view says to sign in and reads nothing', async () => {
@@ -422,7 +482,10 @@ suite('Control plane view', () => {
 		});
 		const provider = providerFor(cli);
 		const onRepo = await provider.getChildren(WEB);
-		assert.deepStrictEqual(onRepo.map(node => node.kind === 'grant' && node.grant.role), ['writer']);
+		assert.deepStrictEqual(
+			onRepo.filter(node => node.kind === 'grant').map(node => node.kind === 'grant' && node.grant.role),
+			['writer'],
+		);
 		await provider.getChildren({ kind: 'access', scope: 'project', target: 'PRJ1', label: 'widgets' });
 		await provider.getChildren(ORG_NODE);
 		assert.strictEqual(cli.callsTo('repo grant list').length, 1);
@@ -894,18 +957,20 @@ suite('Control plane projects with a colon in their name', () => {
 		assert.deepStrictEqual(cli.callsTo('repo list'), [`none|repo list --json --all --project=${MIRROR_PROJECT.id}`]);
 	});
 
-	test('opening the project and its Access row sends the id and shows no error row', async () => {
+	test('opening a project of mirrors says that its access is GitHub\'s, and reads no grants', async () => {
 		const cli = world();
 		const provider = new ControlPlaneProvider(serviceFor(cli), () => 'alice');
 		const children = await provider.getChildren(MIRROR_NODE);
-		assert.deepStrictEqual(children.map(node => node.kind), ['repository', 'access']);
-		const access = children[1];
-		assert.ok(access.kind === 'access');
-		assert.strictEqual(access.target, MIRROR_PROJECT.id);
-		assert.strictEqual(access.label, MIRROR_PROJECT.name);
-		const grants = await provider.getChildren(access);
-		assert.deepStrictEqual(grants.map(node => node.kind), ['grant']);
-		assert.deepStrictEqual(cli.callsTo('project grant list'), [`none|project grant list --json -- ${MIRROR_PROJECT.id}`]);
+		assert.deepStrictEqual(
+			children.filter(node => node.kind === 'repository' || node.kind === 'access').map(node => node.kind),
+			['repository'],
+		);
+		const messages = children.filter(node => node.kind === 'message').map(node => (node.kind === 'message' ? node.text : ''));
+		assert.ok(
+			messages.some(text => /read-only projection of what GitHub grants/.test(text)),
+			'the access is said to be GitHub\'s',
+		);
+		assert.deepStrictEqual(cli.callsTo('project grant list'), []);
 		assert.strictEqual(provider.getTreeItem(MIRROR_NODE).label, MIRROR_PROJECT.name);
 		provider.dispose();
 	});
@@ -914,7 +979,7 @@ suite('Control plane projects with a colon in their name', () => {
 		const provider = new ControlPlaneProvider(serviceFor(world()), () => 'alice');
 		const nameOnly: ControlNode = { kind: 'project', project: { id: MIRROR_PROJECT.name, name: MIRROR_PROJECT.name } };
 		const rows = await provider.getChildren(nameOnly);
-		const text = rows[0].kind === 'message' ? rows[0].text : '';
+		const text = rows.map(row => (row.kind === 'message' ? row.text : '')).find(row => /Could not read the repositories/.test(row)) ?? '';
 		assert.match(text, /^Could not read the repositories: the Entire CLI did not accept the project gh:mirrors:/);
 		assert.match(text, /listing gave no id, so the name was sent/);
 		assert.match(text, /refresh the Control Plane view/);
@@ -942,26 +1007,37 @@ suite('Control plane projects with a colon in their name', () => {
 		assert.deepStrictEqual(cli.calls(), []);
 	});
 
-	test('granting and revoking on the project send the id and the questions name the project', async () => {
+	test('granting on a project of mirrors is refused, because the access is GitHub\'s', async () => {
 		const listKey = `project_grant_list_${MIRROR_PROJECT.id}`;
-		const grantCli = world({ [listKey]: '[]' });
+		const grantWorld = fakeControlCli({ out: { [listKey]: '[]' }, after: { [`${listKey}.project_grant_add`]: '[]' } });
+		const grantUi = fakeUi({ asks: ['github:bob'], picks: ['reader'] });
+		assert.strictEqual(await grantAccess(depsFor(grantWorld, grantUi), MIRROR_NODE), 'cancelled');
+		assert.strictEqual(grantWorld.callsTo('project grant add').length, 0);
+		assert.match(grantUi.informed[0], /read-only projection of what GitHub grants/);
+	});
+
+	test('granting and revoking on the project send the id and the questions name the project', async () => {
+		// A project whose name the CLI would refuse, but whose id it takes.
+		const project: ControlNode = { kind: 'project', project: { id: 'PRJ9', name: 'team:widgets' } };
+		const listKey = 'project_grant_list_PRJ9';
+		const grantCli = world({});
 		const granted = JSON.stringify([{ granteeName: 'github:bob', role: 'reader', source: 'project' }]);
 		const grantWorld = fakeControlCli({ out: { [listKey]: '[]' }, after: { [`${listKey}.project_grant_add`]: granted } });
 		const grantUi = fakeUi({ asks: ['github:bob'], picks: ['reader'] });
-		assert.strictEqual(await grantAccess(depsFor(grantWorld, grantUi), MIRROR_NODE), 'done');
-		assert.deepStrictEqual(grantWorld.callsTo('project grant add'), [`alice@us.auth.entire.io|project grant add --role=reader -- ${MIRROR_PROJECT.id} github:bob`]);
-		assert.match(grantUi.confirmations[0].message, /github:bob.*reader.*gh:mirrors:01M5X7JD9EAZW0E76M9SWG9FSB/);
-		assert.ok(!grantUi.confirmations[0].message.includes(MIRROR_PROJECT.id));
+		assert.strictEqual(await grantAccess(depsFor(grantWorld, grantUi), project), 'done');
+		assert.deepStrictEqual(grantWorld.callsTo('project grant add'), [`alice@us.auth.entire.io|project grant add --role=reader -- PRJ9 github:bob`]);
+		assert.match(grantUi.confirmations[0].message, /github:bob.*reader.*team:widgets/);
+		assert.ok(!grantUi.confirmations[0].message.includes('PRJ9'));
 		assert.deepStrictEqual(grantCli.calls(), []);
 
 		const grant: AccessGrant = { granteeName: 'github:bob', role: 'reader', source: 'project' };
 		const revokeWorld = fakeControlCli({ out: { [listKey]: JSON.stringify([grant]) }, after: { [`${listKey}.project_grant_remove`]: '[]' } });
 		const revokeUi = fakeUi();
-		const node: ControlNode = { kind: 'grant', scope: 'project', target: MIRROR_PROJECT.id, label: MIRROR_PROJECT.name, grant };
+		const node: ControlNode = { kind: 'grant', scope: 'project', target: 'PRJ9', label: 'gh:team:widgets', grant };
 		assert.strictEqual(await revokeAccess(depsFor(revokeWorld, revokeUi), node), 'done');
-		assert.deepStrictEqual(revokeWorld.callsTo('project grant remove'), [`alice@us.auth.entire.io|project grant remove -- ${MIRROR_PROJECT.id} github:bob`]);
-		assert.match(revokeUi.confirmations[0].message, /gh:mirrors:01M5X7JD9EAZW0E76M9SWG9FSB/);
-		assert.match(revokeUi.informed[0], /gh:mirrors:01M5X7JD9EAZW0E76M9SWG9FSB/);
+		assert.deepStrictEqual(revokeWorld.callsTo('project grant remove'), [`alice@us.auth.entire.io|project grant remove -- PRJ9 github:bob`]);
+		assert.match(revokeUi.confirmations[0].message, /team:widgets/);
+		assert.match(revokeUi.informed[0], /team:widgets/);
 	});
 
 	test('creating, changing and deleting a repository check the listing by the project id', async () => {

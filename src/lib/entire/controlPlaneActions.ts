@@ -54,6 +54,85 @@ export type ControlAction =
 			readonly target: string;
 			readonly label?: string;
 			readonly grantee: string;
+	  }
+	| {
+			readonly kind: 'create-organisation';
+			readonly name: string;
+			/** The jurisdiction the organisation is created in, when one was chosen. */
+			readonly region?: string;
+	  }
+	| {
+			readonly kind: 'create-project';
+			readonly name: string;
+			/** The owning organisation's name, or the account that owns it. */
+			readonly owner: string;
+			/** The kind of owner: `org` or `account`. */
+			readonly ownerType?: string;
+			readonly region?: string;
+	  }
+	| {
+			readonly kind: 'invite';
+			/** The organisation the invitation is for. */
+			readonly org: string;
+			readonly email: string;
+			readonly role?: string;
+	  }
+	| { readonly kind: 'revoke-invitation'; readonly org: string; readonly email: string }
+	| {
+			readonly kind: 'add-mirror';
+			/** The repository, in the form the CLI addresses it. */
+			readonly repo: string;
+			/** The clusters to place it on. */
+			readonly clusters: readonly string[];
+	  }
+	| {
+			readonly kind: 'detach-mirror';
+			readonly repo: string;
+			/** The native repository it becomes. */
+			readonly into: string;
+	  }
+	| {
+			readonly kind: 'remove-mirror';
+			readonly repo: string;
+			readonly clusters: readonly string[];
+	  }
+	| { readonly kind: 'resync-mirror'; readonly repo: string }
+	| {
+			readonly kind: 'add-protection';
+			readonly repo: string;
+			/** The branch the rule is about: `HEAD`, a branch name, or a pattern such as `release/*`. */
+			readonly branch: string;
+			/** Whether every direct push is refused. */
+			readonly serverSideMergeOnly?: boolean;
+	  }
+	| {
+			readonly kind: 'remove-protection';
+			readonly repo: string;
+			/** The branch the rule is about. */
+			readonly branch: string;
+	  }
+	| {
+			readonly kind: 'clone-repository';
+			readonly repo: string;
+			/** The directory it is cloned into, relative to the workspace. */
+			readonly target?: string;
+			/** Where that directory is on this machine, as the person saw it. */
+			readonly resolved?: string;
+			/** The cluster it is cloned from, when one was chosen. */
+			readonly cluster?: string;
+	  }
+	| {
+			readonly kind: 'add-remote';
+			/** The name the remote is given in this checkout. */
+			readonly name: string;
+			/** The repository it points at, when one was named. */
+			readonly repo?: string;
+			/** The cluster it points at, when one was chosen. */
+			readonly cluster?: string;
+			/** Whether an occupied name is repointed. */
+			readonly override?: boolean;
+			/** The URL the name already points at, with any credentials removed. */
+			readonly previous?: string;
 	  };
 
 /** What a person is asked to agree to. */
@@ -101,6 +180,34 @@ export function describeControlAction(action: ControlAction): string {
 			return `give ${action.grantee} the ${action.role} role on the ${scopeWord(action.scope)} ${shownTarget(action)}`;
 		case 'revoke':
 			return `remove ${action.grantee}'s access to the ${scopeWord(action.scope)} ${shownTarget(action)}`;
+		case 'create-organisation':
+			return `create the organisation ${action.name}`;
+		case 'create-project':
+			return `create the project ${action.name} under ${action.owner}`;
+		case 'invite':
+			return `invite ${action.email} to the organisation ${action.org}`;
+		case 'revoke-invitation':
+			return `revoke the invitation to ${action.email} in the organisation ${action.org}`;
+		case 'add-mirror':
+			return `mirror ${action.repo} onto ${action.clusters.length === 1 ? action.clusters[0] : action.clusters.join(', ')}`;
+		case 'detach-mirror':
+			return `detach ${action.repo} into ${action.into}`;
+		case 'remove-mirror':
+			return `remove the mirror of ${action.repo} from ${action.clusters.length === 1 ? action.clusters[0] : action.clusters.join(', ')}`;
+		case 'resync-mirror':
+			return `resync the mirror of ${action.repo}`;
+		case 'add-protection':
+			return action.serverSideMergeOnly === false
+				? `lower the protection on ${action.branch} of ${action.repo}`
+				: `refuse every direct push to ${action.branch} of ${action.repo}`;
+		case 'remove-protection':
+			return `remove the protection on ${action.branch} of ${action.repo}`;
+		case 'clone-repository':
+			return `clone ${action.repo}`;
+		case 'add-remote':
+			return action.repo === undefined
+				? `add the remote ${action.name} to this checkout`
+				: `add the remote ${action.name} for ${action.repo} to this checkout`;
 	}
 }
 
@@ -170,6 +277,101 @@ export function confirmationFor(action: ControlAction, acting: Pick<AccountConte
 				detail: `${as} ${action.grantee} loses the access they hold directly on the ${scopeWord(action.scope)} ${shownTarget(action)}. Access they inherit from elsewhere is not affected. ${remote}`,
 				action: 'Revoke Access',
 			};
+		case 'create-organisation':
+			return {
+				message: `Create the organisation ${action.name}?`,
+				detail: `${as} The organisation is created on Entire${action.region ? ` in the ${action.region} jurisdiction` : ''}. ${remote} It cannot be undone from the editor.`,
+				action: 'Create Organisation',
+			};
+		case 'create-project':
+			return {
+				message: `Create the project ${action.name} under ${action.owner}?`,
+				detail: `${as} The project is created on Entire${action.ownerType ? ` and is owned by ${action.ownerType === 'account' ? 'the account' : 'the organisation'} ${action.owner}` : ` under ${action.owner}`}${action.region ? `, in the ${action.region} jurisdiction` : ''}. ${remote} It cannot be undone from the editor.`,
+				action: 'Create Project',
+			};
+		case 'invite':
+			return {
+				message: `Invite ${action.email} to ${action.org}?`,
+				detail:
+					`${as} An invitation is sent to ${action.email}${action.role ? ` with the ${action.role} role` : ''}. ` +
+					'Entire sends it by email to that address, and it can be revoked afterwards. ' +
+					'An invitation already open for that address is mailed again at the role it was opened with, not the one chosen here. ' +
+					remote,
+				action: 'Send Invitation',
+			};
+		case 'revoke-invitation':
+			return {
+				message: `Revoke the invitation to ${action.email}?`,
+				detail: `${as} The open invitation to ${action.email} in the organisation ${action.org} is revoked. The address keeps whatever access it already had. ${remote}`,
+				action: 'Revoke Invitation',
+			};
+		case 'add-mirror':
+			return {
+				message: `Mirror ${action.repo} onto ${action.clusters.join(', ')}?`,
+				detail: `${as} A copy of ${action.repo} is placed on ${action.clusters.join(', ')}, and the whole history is copied there. ${remote} It cannot be undone from the editor.`,
+				action: 'Add Mirror',
+			};
+		case 'detach-mirror':
+			return {
+				message: `Detach ${action.repo} into ${action.into}?`,
+				detail:
+					`${as} ${action.repo} stops being a mirror and becomes the native repository ${action.into}. ` +
+					'It stops taking anything from GitHub, so the access GitHub gave it is lost, and it never syncs with GitHub again. ' +
+					'The remote history is rewritten, and the mirrors on other clusters are left alone. ' +
+					`${remote} It cannot be undone from the editor.`,
+				action: 'Detach Mirror',
+			};
+		case 'remove-mirror':
+			return {
+				message: `Remove the mirror of ${action.repo} from ${action.clusters.join(', ')}?`,
+				detail: `${as} The copy of ${action.repo} on ${action.clusters.join(', ')} is torn down, and the history that is only there is lost. ${remote} It cannot be undone from the editor.`,
+				action: 'Remove Mirror',
+			};
+		case 'resync-mirror':
+			return {
+				message: `Resync the mirror of ${action.repo}?`,
+				detail: `${as} The mirror of ${action.repo} is fetched again and brought up to date with its source. Nothing is deleted. ${remote}`,
+				action: 'Resync Mirror',
+			};
+		case 'add-protection':
+			return {
+				message:
+					action.serverSideMergeOnly === false
+						? `Lower the protection on ${action.branch}?`
+						: `Refuse every direct push to ${action.branch}?`,
+				detail:
+					`${as} ` +
+					(action.serverSideMergeOnly === false
+						? `The rule on ${action.branch} of ${action.repo} is lowered, so direct pushes are allowed again. `
+						: `Every direct push to ${action.branch} of ${action.repo} is refused, and the branch moves only through a merge Entire performs. `) +
+					remote,
+				action: action.serverSideMergeOnly === false ? 'Lower Protection' : 'Add Protection',
+			};
+		case 'remove-protection':
+			return {
+				message: `Remove the protection on ${action.branch}?`,
+				detail: `${as} The rule on ${action.branch} of ${action.repo} is removed, and direct pushes are allowed again. ${remote} It cannot be undone from the editor.`,
+				action: 'Remove Protection',
+			};
+		case 'clone-repository':
+			return {
+				message: `Clone ${action.repo}?`,
+				detail:
+					`${as} The repository is cloned to this machine, into ${action.resolved ?? action.target ?? 'the workspace'}` +
+					`${action.cluster ? `, from the cluster ${action.cluster}` : ''}. Nothing is changed on Entire.`,
+				action: 'Clone Repository',
+			};
+		case 'add-remote':
+			return {
+				message: action.repo === undefined ? `Add the remote ${action.name}?` : `Add the remote ${action.name} for ${action.repo}?`,
+				detail:
+					`${as} The remote ${action.name} is added to this checkout's git configuration` +
+					(action.repo === undefined ? ', pointing at the repository this checkout is on' : `, pointing at ${action.repo}`) +
+					(action.cluster ? ` on the cluster ${action.cluster}` : '') +
+					(action.override ? `. The name is already taken, so it is repointed from ${action.previous ?? 'where it points now'}` : '') +
+					'. Nothing is changed on Entire.',
+				action: 'Add Remote',
+			};
 	}
 }
 
@@ -193,6 +395,7 @@ export type ControlOutcome =
 	| { readonly kind: 'done'; readonly summary: string }
 	| { readonly kind: 'unconfirmed'; readonly summary: string; readonly detail: string }
 	| { readonly kind: 'refused-mirrors'; readonly detail: string }
+	| { readonly kind: 'refused-github'; readonly detail: string }
 	| { readonly kind: 'failed'; readonly detail: string };
 
 /** The sentence reported after a change, naming the login it was made as. */
@@ -203,6 +406,8 @@ export function describeControlOutcome(action: ControlAction, outcome: ControlOu
 			return `Done: ${describeControlAction(action)} ${as}. The Entire CLI now lists it that way.`;
 		case 'unconfirmed':
 			return `The Entire CLI accepted the request to ${describeControlAction(action)} ${as}, but the result could not be checked: ${outcome.detail}.`;
+		case 'refused-github':
+			return `Could not ${describeControlAction(action)} ${as}: ${outcome.detail}. It belongs to GitHub, and is changed there.`;
 		case 'refused-mirrors':
 		case 'failed':
 			return `Could not ${describeControlAction(action)} ${as}: ${outcome.detail}.`;

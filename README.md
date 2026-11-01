@@ -449,6 +449,27 @@ confirmed first. The response opens in a document and is not written to the
 `Entire` output channel. The call runs once and is never retried, and no view or
 background task can reach it.
 
+Opening an organisation, a project or a repository shows what the CLI knows
+about it: the identifiers and regions, a repository's visibility, its branch
+protection rules, where it is mirrored, and an organisation's invitations. A row
+that cannot be read says why instead of showing nothing.
+
+From the same view you can create an organisation and a project, invite someone
+to an organisation and revoke that invitation, protect a branch and remove the
+rule, place a repository on clusters and take it off them, turn a GitHub mirror
+into a repository of Entire's own, ask the CLI to fetch a mirror again, clone a
+repository onto this machine, and point a git remote at Entire. Each asks first
+in a dialog that names what it affects and the login it acts as.
+
+Where a change belongs to GitHub, the extension says so and does not offer it:
+the protection of a GitHub mirror is GitHub's, and a repository of Entire's own
+has no upstream to fetch from. A detach shows the CLI's own plan before it asks,
+and the plan's conditions are met or nothing is detached. A clone is written
+only into a folder that does not exist or is empty, and the remote it adds is
+never given a name that is already taken unless you say so, with the address it
+would replace shown first. An invitation is sent by Entire to the address you
+give, and that address is never written to the output channel.
+
 Flags and the values they take (roles, visibility, backends) are read from
 `entire agent-help` for each command, never from a list in the extension. A CLI
 that lacks a command, or does not describe a flag the extension needs, is

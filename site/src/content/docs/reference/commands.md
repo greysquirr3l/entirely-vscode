@@ -169,6 +169,24 @@ The delete, visibility and access commands are hidden from the palette and live 
 | Entirely: Give Access | `entirely.grantAccess` | organisation, project, repository and access row context; hidden | Confirms | `grant add` on the row's scope. |
 | Entirely: Remove Access | `entirely.revokeAccess` | grant row context; hidden | Confirms | `grant remove` on the row's scope. |
 | Entirely: Call the Entire API | `entirely.runApiCall` | Control Plane view title | Confirms for non-GET | `entire api`: one call at a time, path confined to `/api`, no retry. A GET runs without a prompt. |
+| Entirely: Show Organisation | `entirely.showOrganisation` | organisation row context | Read | `entire org get`. |
+| Entirely: Show Project | `entirely.showProject` | project row context | Read | `entire project get`. |
+| Entirely: Show Repository Visibility | `entirely.showRepositoryVisibility` | repository row context | Read | `entire repo visibility get`. |
+| Entirely: List Protection Rules | `entirely.listProtectionRules` | repository row context | Read | `entire repo protection list`. |
+| Entirely: List Mirrors | `entirely.listMirrors` | repository row context | Read | `entire repo mirror list`. |
+| Entirely: List Organisation Invitations | `entirely.listInvitations` | organisation row context | Read | `entire org invite list`. |
+| Entirely: Create Organisation | `entirely.createOrganisation` | Control Plane view title; hidden | Confirms | `entire org create`, in its flag form. |
+| Entirely: Create Project | `entirely.createProject` | Control Plane view title; hidden | Confirms | `entire project create`, in its flag form. |
+| Entirely: Invite to Organisation | `entirely.inviteToOrganisation` | organisation row context | Confirms | `entire org invite send`. The address is never written to the log. |
+| Entirely: Revoke Invitation | `entirely.revokeInvitation` | organisation row context | Confirms | `entire org invite revoke`. |
+| Entirely: Add Protection Rule | `entirely.addProtectionRule` | repository row context | Confirms | `entire repo protection add`. Not offered for a GitHub mirror. |
+| Entirely: Remove Protection Rule | `entirely.removeProtectionRule` | repository row context | Confirms | `entire repo protection remove`. Not offered for a GitHub mirror. |
+| Entirely: Add Mirror | `entirely.addMirror` | repository row context | Confirms | `entire repo mirror add`, with the clusters named. |
+| Entirely: Remove Mirror | `entirely.removeMirror` | repository row context | Confirms | `entire repo mirror remove`. |
+| Entirely: Detach Mirror | `entirely.detachMirror` | repository row context | Confirms | `entire repo mirror detach`, after the CLI's own plan is shown. |
+| Entirely: Resync Mirror | `entirely.resyncMirror` | repository row context | Confirms | `entire repo mirror resync`. Not offered for a native repository. |
+| Entirely: Clone Repository | `entirely.cloneRepository` | repository row context | Confirms | `entire repo clone`, into a folder that is new or empty. |
+| Entirely: Add Remote | `entirely.addRemote` | repository row context | Confirms | `entire repo remote add`, in this checkout's git configuration. |
 
 ## Plugins, integrations and MCP
 

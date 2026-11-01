@@ -36,6 +36,21 @@ export interface Project {
 /** What names a project: the id the CLI is given, and the name people read. */
 export type ProjectRef = Pick<Project, 'id' | 'name'>;
 
+/**
+ * Whether what a row is about comes from GitHub.
+ *
+ * A project whose name starts `gh:` holds mirrors of GitHub
+ * repositories, and a repository whose provider is not `entire` is one
+ * of those mirrors. The access of either is a read-only projection of
+ * what GitHub grants, so it is managed on GitHub and not here.
+ */
+export function isGithubSourced(what: ProjectRef | ControlRepository): boolean {
+	if ('provider' in what) {
+		return what.provider !== undefined && what.provider !== 'entire';
+	}
+	return what.name.startsWith('gh:');
+}
+
 /** A repository inside a project. */
 export interface ControlRepository {
 	readonly id: string;
@@ -45,6 +60,8 @@ export interface ControlRepository {
 	/** The project's id, which is what the CLI is handed to find the project. */
 	readonly projectId: string;
 	readonly provider?: string;
+	/** The forge's own name for the repository, such as `owner/name`. A mirror has one; a native repository does not. */
+	readonly fullName?: string;
 	readonly visibility?: string;
 	readonly state?: string;
 	readonly clusterSlug?: string;
@@ -197,6 +214,7 @@ export function decodeControlRepositories(value: unknown, project: ProjectRef): 
 			project: project.name,
 			projectId: project.id,
 			provider: text(record, 'provider'),
+			fullName: text(record, 'fullName'),
 			visibility: text(record, 'visibility'),
 			state: text(record, 'state'),
 			clusterSlug: text(record, 'clusterSlug'),

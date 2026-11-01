@@ -781,6 +781,114 @@
         "title": "Check Plugins",
         "category": "Entirely",
         "icon": "$(checklist)"
+      },
+      {
+        "command": "entirely.showOrganisation",
+        "title": "Show Organisation Details",
+        "category": "Entirely",
+        "icon": "$(info)"
+      },
+      {
+        "command": "entirely.showProject",
+        "title": "Show Project Details",
+        "category": "Entirely",
+        "icon": "$(info)"
+      },
+      {
+        "command": "entirely.listInvitations",
+        "title": "List Organisation Invitations",
+        "category": "Entirely",
+        "icon": "$(list-unordered)"
+      },
+      {
+        "command": "entirely.showRepositoryVisibility",
+        "title": "Show Repository Visibility",
+        "category": "Entirely",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "entirely.listProtectionRules",
+        "title": "List Repository Protection Rules",
+        "category": "Entirely",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "entirely.listMirrors",
+        "title": "Show Where a Repository Is Mirrored",
+        "category": "Entirely",
+        "icon": "$(server-environment)"
+      },
+      {
+        "command": "entirely.createOrganisation",
+        "title": "Create Organisation",
+        "category": "Entirely",
+        "icon": "$(add)"
+      },
+      {
+        "command": "entirely.inviteToOrganisation",
+        "title": "Invite Someone to an Organisation",
+        "category": "Entirely",
+        "icon": "$(person-add)"
+      },
+      {
+        "command": "entirely.revokeInvitation",
+        "title": "Revoke an Invitation",
+        "category": "Entirely",
+        "icon": "$(close)"
+      },
+      {
+        "command": "entirely.createProject",
+        "title": "Create Project",
+        "category": "Entirely",
+        "icon": "$(add)"
+      },
+      {
+        "command": "entirely.addProtectionRule",
+        "title": "Protect a Branch from Direct Pushes",
+        "category": "Entirely",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "entirely.removeProtectionRule",
+        "title": "Remove a Branch Protection Rule",
+        "category": "Entirely",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "entirely.addMirror",
+        "title": "Mirror a Repository to a Cluster",
+        "category": "Entirely",
+        "icon": "$(server-environment)"
+      },
+      {
+        "command": "entirely.removeMirror",
+        "title": "Remove a Mirror",
+        "category": "Entirely",
+        "icon": "$(close)"
+      },
+      {
+        "command": "entirely.detachMirror",
+        "title": "Detach a Mirror into an Entire Repository",
+        "category": "Entirely",
+        "icon": "$(arrow-swap)"
+      },
+      {
+        "command": "entirely.resyncMirror",
+        "title": "Resync a Mirror",
+        "category": "Entirely",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "entirely.cloneRepository",
+        "title": "Clone a Repository from Entire",
+        "category": "Entirely",
+        "icon": "$(clone)"
+      },
+      {
+        "command": "entirely.addRemote",
+        "title": "Add an Entire Remote to This Checkout",
+        "category": "Entirely",
+        "icon": "$(remote)"
       }
     ],
     "configuration": {
@@ -1238,6 +1346,16 @@
           "command": "entirely.updatePluginIndex",
           "when": "view == entirely.integrations",
           "group": "1_plugins@3"
+        },
+        {
+          "command": "entirely.createOrganisation",
+          "when": "view == entirely.controlPlane",
+          "group": "1_manage"
+        },
+        {
+          "command": "entirely.createProject",
+          "when": "view == entirely.controlPlane",
+          "group": "1_manage"
         }
       ],
       "commandPalette": [
@@ -1558,6 +1676,141 @@
           "command": "entirely.pluginInfo",
           "when": "view == entirely.integrations && viewItem == entirely.integrationPluginMissing",
           "group": "inline@2"
+        },
+        {
+          "command": "entirely.showOrganisation",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpOrganisation",
+          "group": "1_manage@2"
+        },
+        {
+          "command": "entirely.listInvitations",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpOrganisation",
+          "group": "1_manage@3"
+        },
+        {
+          "command": "entirely.inviteToOrganisation",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpOrganisation",
+          "group": "2_invite@1"
+        },
+        {
+          "command": "entirely.revokeInvitation",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpOrganisation",
+          "group": "2_invite@2"
+        },
+        {
+          "command": "entirely.showProject",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpProject",
+          "group": "1_manage@3"
+        },
+        {
+          "command": "entirely.showRepositoryVisibility",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpRepository",
+          "group": "1_manage@3"
+        },
+        {
+          "command": "entirely.listProtectionRules",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpRepository",
+          "group": "2_read@1"
+        },
+        {
+          "command": "entirely.listMirrors",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpRepository",
+          "group": "2_read@2"
+        },
+        {
+          "command": "entirely.addProtectionRule",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpRepository",
+          "group": "3_protection@1"
+        },
+        {
+          "command": "entirely.removeProtectionRule",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpRepository",
+          "group": "3_protection@2"
+        },
+        {
+          "command": "entirely.addMirror",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpRepository",
+          "group": "4_mirrors@1"
+        },
+        {
+          "command": "entirely.removeMirror",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpRepository",
+          "group": "4_mirrors@2"
+        },
+        {
+          "command": "entirely.detachMirror",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpRepository",
+          "group": "4_mirrors@3"
+        },
+        {
+          "command": "entirely.resyncMirror",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpRepository",
+          "group": "4_mirrors@4"
+        },
+        {
+          "command": "entirely.cloneRepository",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpRepository",
+          "group": "5_copy@1"
+        },
+        {
+          "command": "entirely.createOrganisation",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpGroup.organisations",
+          "group": "1_manage@1"
+        },
+        {
+          "command": "entirely.createProject",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpGroup.projects",
+          "group": "1_manage@1"
+        },
+        {
+          "command": "entirely.showProject",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpMirroredProject",
+          "group": "1_manage@1"
+        },
+        {
+          "command": "entirely.deleteProject",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpMirroredProject",
+          "group": "3_destructive@1"
+        },
+        {
+          "command": "entirely.showRepositoryVisibility",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpMirroredRepository",
+          "group": "1_manage@1"
+        },
+        {
+          "command": "entirely.listProtectionRules",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpMirroredRepository",
+          "group": "2_read@1"
+        },
+        {
+          "command": "entirely.listMirrors",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpMirroredRepository",
+          "group": "2_read@2"
+        },
+        {
+          "command": "entirely.addMirror",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpMirroredRepository",
+          "group": "4_mirrors@1"
+        },
+        {
+          "command": "entirely.removeMirror",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpMirroredRepository",
+          "group": "4_mirrors@2"
+        },
+        {
+          "command": "entirely.detachMirror",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpMirroredRepository",
+          "group": "4_mirrors@3"
+        },
+        {
+          "command": "entirely.resyncMirror",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpMirroredRepository",
+          "group": "4_mirrors@4"
+        },
+        {
+          "command": "entirely.cloneRepository",
+          "when": "view == entirely.controlPlane && viewItem == entirely.cpMirroredRepository",
+          "group": "5_copy@1"
         }
       ],
       "explorer/context": [

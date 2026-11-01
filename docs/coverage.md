@@ -40,7 +40,7 @@ are listed in section 3 as the cost of not having run them.
 | Excluded | A decision: the extension deliberately does not do it. The notes say why. |
 | Gap | Not done, and no decision to leave it out. Listed in section 3. |
 
-**Totals.** Rows: 142 (supported 110, excluded 15, gap 17).
+**Totals.** Rows: 142 (supported 127, excluded 15, gap 0).
 
 The totals line is read by `src/test/coverage.test.ts`, which fails when it
 disagrees with the table.
@@ -135,12 +135,29 @@ row names a command its callers never build.
 | `entire repo grant add` | `src/lib/entire/controlPlaneFlags.ts` | Grant Access |
 | `entire repo grant remove` | `src/lib/entire/controlPlaneFlags.ts` | Revoke Access |
 | `entire repo mirror list` | `src/services/checkpointDestination.ts` | Whether the CLI can reach the checkpoint repository |
+| `entire repo clone` | `src/lib/entire/controlPlaneBreadth.ts` | Clone a repository from Entire |
+| `entire repo mirror add` | `src/lib/entire/controlPlaneBreadth.ts` | Place a repository on a cluster |
+| `entire repo mirror detach` | `src/lib/entire/controlPlaneBreadth.ts` | Turn a mirror into a repository of Entire own |
+| `entire repo mirror remove` | `src/lib/entire/controlPlaneBreadth.ts` | Take a repository off a cluster |
+| `entire repo mirror resync` | `src/lib/entire/controlPlaneBreadth.ts` | Fetch a mirror's changes again |
+| `entire repo protection add` | `src/lib/entire/controlPlaneBreadth.ts` | Protect a branch from direct pushes |
+| `entire repo protection list` | `src/lib/entire/controlPlaneBreadth.ts` | The branch protection rules of a repository |
+| `entire repo protection remove` | `src/lib/entire/controlPlaneBreadth.ts` | Remove a branch protection rule |
+| `entire repo remote add` | `src/lib/entire/controlPlaneBreadth.ts` | Point a git remote at Entire |
+| `entire repo visibility get` | `src/lib/entire/controlPlaneBreadth.ts` | Whether a repository is public or private |
 | `entire org list` | `src/lib/entire/controlPlaneFlags.ts` | The control plane tree |
+| `entire org create` | `src/lib/entire/controlPlaneBreadth.ts` | Create Organisation |
+| `entire org get` | `src/lib/entire/controlPlaneBreadth.ts` | One organisation, as the CLI reports it |
+| `entire org invite list` | `src/lib/entire/controlPlaneBreadth.ts` | The invitations of an organisation |
+| `entire org invite revoke` | `src/lib/entire/controlPlaneBreadth.ts` | Revoke an invitation |
+| `entire org invite send` | `src/lib/entire/controlPlaneBreadth.ts` | Invite somebody to an organisation |
 | `entire org delete` | `src/lib/entire/controlPlaneFlags.ts` | Delete Organisation |
 | `entire org grant list` | `src/lib/entire/controlPlaneFlags.ts` | Who holds access to an organisation |
 | `entire org grant add` | `src/lib/entire/controlPlaneFlags.ts` | Grant Access |
 | `entire org grant remove` | `src/lib/entire/controlPlaneFlags.ts` | Revoke Access |
 | `entire project list` | `src/lib/entire/controlPlaneFlags.ts` | The control plane tree |
+| `entire project create` | `src/lib/entire/controlPlaneBreadth.ts` | Create Project |
+| `entire project get` | `src/lib/entire/controlPlaneBreadth.ts` | One project, as the CLI reports it |
 | `entire project delete` | `src/lib/entire/controlPlaneFlags.ts` | Delete Project |
 | `entire project grant list` | `src/lib/entire/controlPlaneFlags.ts` | Who holds access to a project |
 | `entire project grant add` | `src/lib/entire/controlPlaneFlags.ts` | Grant Access |
@@ -259,18 +276,18 @@ The three rows below are the plugins the documentation names.
 | Command | Status | Evidence | Notes |
 | --- | --- | --- | --- |
 | `entire org list` | Supported | `entirely.openControlPlane`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
-| `entire org create` | Gap | | |
-| `entire org get` | Gap | | The tree shows what `list` returns. |
+| `entire org create` | Supported | `entirely.createOrganisation`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | Create Organisation |
+| `entire org get` | Supported | `entirely.showOrganisation`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | One organisation, as the CLI reports it |
 | `entire org delete` | Supported | `entirely.deleteOrganisation`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
-| `entire org invite list` | Gap | | |
-| `entire org invite revoke` | Gap | | |
-| `entire org invite send` | Gap | | |
+| `entire org invite list` | Supported | `entirely.listInvitations`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | The invitations of an organisation |
+| `entire org invite revoke` | Supported | `entirely.revokeInvitation`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | Revoke an invitation |
+| `entire org invite send` | Supported | `entirely.inviteToOrganisation`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | Invite somebody to an organisation |
 | `entire org grant list` | Supported | `entirely.openControlPlane`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
 | `entire org grant add` | Supported | `entirely.grantAccess`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
 | `entire org grant remove` | Supported | `entirely.revokeAccess`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | Not run against the real CLI: it takes a grant away from a real organization, and there is no throwaway organization to take it from. See section 3. |
 | `entire project list` | Supported | `entirely.openControlPlane`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
-| `entire project create` | Gap | | |
-| `entire project get` | Gap | | |
+| `entire project create` | Supported | `entirely.createProject`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | Create Project |
+| `entire project get` | Supported | `entirely.showProject`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | One project, as the CLI reports it |
 | `entire project delete` | Supported | `entirely.deleteProject`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
 | `entire project grant list` | Supported | `entirely.openControlPlane`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
 | `entire project grant add` | Supported | `entirely.grantAccess`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
@@ -280,20 +297,20 @@ The three rows below are the plugins the documentation names.
 | `entire repo create` | Supported | `entirely.createRepository`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
 | `entire repo edit` | Supported | `entirely.setRepositoryVisibility`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | Visibility only. |
 | `entire repo delete` | Supported | `entirely.deleteRepository`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
-| `entire repo clone` | Gap | | |
+| `entire repo clone` | Supported | `entirely.cloneRepository`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | Clone a repository from Entire |
 | `entire repo grant list` | Supported | `entirely.openControlPlane`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
 | `entire repo grant add` | Supported | `entirely.grantAccess`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
 | `entire repo grant remove` | Supported | `entirely.revokeAccess`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | |
 | `entire repo mirror list` | Supported | `entirely.checkpointDestination`, `src/services/checkpointDestination.ts`, `src/test/checkpointDestination.test.ts` | Observed against the real CLI 0.12.2: `repo mirror list --forge <forge> --name <name> --json` was run and decoded by `decodeVisibleRepos`. |
-| `entire repo mirror add` | Gap | | |
-| `entire repo mirror detach` | Gap | | |
-| `entire repo mirror remove` | Gap | | |
-| `entire repo mirror resync` | Gap | | |
-| `entire repo protection add` | Gap | | |
-| `entire repo protection list` | Gap | | |
-| `entire repo protection remove` | Gap | | |
-| `entire repo remote add` | Gap | | |
-| `entire repo visibility get` | Gap | | `repo view` already carries the visibility the tree shows. |
+| `entire repo mirror add` | Supported | `entirely.addMirror`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | Place a repository on a cluster |
+| `entire repo mirror detach` | Supported | `entirely.detachMirror`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | Turn a mirror into a repository of Entire own |
+| `entire repo mirror remove` | Supported | `entirely.removeMirror`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | Take a repository off a cluster |
+| `entire repo mirror resync` | Supported | `entirely.resyncMirror`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | Fetch a mirror changes again |
+| `entire repo protection add` | Supported | `entirely.addProtectionRule`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | Protect a branch from direct pushes |
+| `entire repo protection list` | Supported | `entirely.listProtectionRules`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | The branch protection rules of a repository |
+| `entire repo protection remove` | Supported | `entirely.removeProtectionRule`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | Remove a branch protection rule |
+| `entire repo remote add` | Supported | `entirely.addRemote`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | Point a git remote at Entire |
+| `entire repo visibility get` | Supported | `entirely.showRepositoryVisibility`, `src/services/controlPlane.ts`, `src/test/controlPlaneBreadth.test.ts` | Whether a repository is public or private |
 | `entire cluster list` | Supported | `entirely.openControlPlane`, `src/services/controlPlane.ts`, `src/test/controlPlane.test.ts` | Observed against the real CLI 0.12.2: the command prints a table of region, cluster and host. |
 | `entire api` | Supported | `entirely.runApiCall`, `src/services/controlApi.ts`, `src/test/controlPlane.test.ts` | One call at a time, behind a confirmation for anything but GET, no retry, path confined to `/api`. Nothing else uses `api`. |
 
@@ -363,9 +380,12 @@ The three rows below are the plugins the documentation names.
 
 ## 3. Gaps, by what they cost the user
 
-Nothing below is excluded. Each is a capability the CLI has and the editor does not.
-
-1. **Control plane breadth.** Create and read for organisations and projects (`org create`, `org get`, `project create`, `project get`), organisation invitations (`org invite list`, `revoke`, `send`), and the repository commands `clone`, `mirror add`, `mirror detach`, `mirror remove`, `mirror resync`, `protection add`, `protection list`, `protection remove`, `remote add`, `visibility get`.
+Nothing is left out. Every command the CLI has that the editor can act on is
+in the matrix above, and the last of them, the control plane's breadth, is
+now covered: organisations and projects can be read and created, invitations
+can be listed, sent and revoked, and a repository's visibility, protection
+and mirrors can be read, protected, mirrored, detached, resynced, cloned and
+given a remote.
 
 ### What was not run, and what that costs
 
@@ -380,6 +400,10 @@ change something outside it:
 | `disable --uninstall` | It removes the agent integration from the machine, not only from the repository. | The extension's flow is covered by a fake CLI; what is left behind is not observed. |
 | `login`, `logout` | They change the account the machine acts as. | The extension's flow is covered by a fake CLI. |
 | `review`, `experts` | They spawn real agents against a real project and cost real model calls. | The extension's flow is covered by a fake CLI; the reply shape is read tolerantly and the raw reply opens. |
+| `org create`, `org invite send`, `org invite revoke`, `project create` | They write to a real organisation or project, and a throwaway repository has none. | The extension's flow is covered by a fake CLI, and every flag is read from the CLI's own help, so a CLI that renames one is followed. |
+| `repo mirror add`, `repo mirror remove`, `repo mirror detach`, `repo mirror resync` | They place and tear down copies of a repository on a real cluster. | The extension's flow is covered by a fake CLI; the placements it waits for are read back from the CLI's own listing. |
+| `repo protection add`, `repo protection remove` | They change the protection of a branch on a real repository. | The extension's flow is covered by a fake CLI, and the rule is read back from the CLI's own listing. |
+| `repo clone`, `repo remote add` | They write into the checkout they are run from. | The extension's flow is covered by a fake CLI; the clone is checked on disk and the remote in the checkout's own git configuration. |
 
 ---
 

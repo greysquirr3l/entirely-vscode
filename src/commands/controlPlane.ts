@@ -7,6 +7,7 @@ import {
 	grantHandle,
 	isApiPath,
 	isGrantee,
+	isGithubSourced,
 	isReadMethod,
 	isRepositoryName,
 	repositoryPath,
@@ -26,6 +27,8 @@ export interface ControlPlaneUi {
 	/** True only when the person chose to go ahead. */
 	confirm(prompt: ControlConfirmation): Promise<boolean>;
 	pick(title: string, values: readonly string[]): Promise<string | undefined>;
+	/** Picks any number of values, and none when the person chooses none. */
+	pickMany(title: string, values: readonly string[]): Promise<readonly string[]>;
 	ask(options: {
 		readonly title: string;
 		readonly prompt: string;
@@ -36,8 +39,8 @@ export interface ControlPlaneUi {
 	withProgress<T>(title: string, work: () => Promise<T>): Promise<T>;
 	inform(message: string): Promise<void>;
 	warn(message: string): Promise<void>;
-	/** Shows an API response in a read-only document of its own. */
-	showApiResult(heading: string, body: string): Promise<void>;
+	/** Shows a result in a read-only document of its own. */
+	showResult(heading: string, body: string): Promise<void>;
 }
 
 /** What the commands need. */
@@ -60,7 +63,13 @@ const sharedRunning = { active: false };
 
 const NO_LOGIN = 'No Entire login is available, so Entirely cannot say who this would be done as. Sign in first.';
 
-async function guarded(deps: ControlPlaneDependencies, work: () => Promise<ControlResult>): Promise<ControlResult> {
+/**
+ * Runs one command at a time.
+ *
+ * A second change is refused while one is running, because two changes
+ * making the same listing at once would report each other wrongly.
+ */
+export async function guarded(deps: ControlPlaneDependencies, work: () => Promise<ControlResult>): Promise<ControlResult> {
 	const running = deps.running ?? sharedRunning;
 	if (running.active) {
 		await deps.ui.inform('A control plane change is already running.');
@@ -82,7 +91,7 @@ async function guarded(deps: ControlPlaneDependencies, work: () => Promise<Contr
  * while the command runs as another. Nothing runs until the person agrees;
  * a repository that has mirrors gets a second, plainer question naming them.
  */
-async function change(deps: ControlPlaneDependencies, action: ControlAction): Promise<ControlResult> {
+export async function change(deps: ControlPlaneDependencies, action: ControlAction): Promise<ControlResult> {
 	const { ui, source } = deps;
 	const acting = await deps.acting();
 	if (!acting) {
@@ -258,12 +267,35 @@ function accessTarget(node: ControlNode | undefined): { readonly scope: GrantSco
 	}
 }
 
+/**
+ * Whether the access of what a command is about belongs to GitHub.
+ *
+ * The access of a project of GitHub mirrors is a read-only projection of
+ * what GitHub grants, so it is changed there and not here.
+ */
+function accessBelongsToGithub(node: ControlNode | undefined): boolean {
+	if (node?.kind === 'project') {
+		return isGithubSourced(node.project);
+	}
+	if (node?.kind === 'repository') {
+		return isGithubSourced(node.repository);
+	}
+	return false;
+}
+
 /** Gives a person a role on a repository, project or organisation. */
 export async function grantAccess(deps: ControlPlaneDependencies, node?: ControlNode): Promise<ControlResult> {
 	return guarded(deps, async () => {
 		const where = accessTarget(node);
 		if (!where) {
 			await deps.ui.inform('Pick a repository, project or organisation in the Control Plane view to share it.');
+			return 'cancelled';
+		}
+		if (accessBelongsToGithub(node)) {
+			await deps.ui.inform(
+				'The access of a project of GitHub mirrors is GitHub\'s: it is a read-only projection of what GitHub grants. ' +
+					'Give and take access on GitHub.',
+			);
 			return 'cancelled';
 		}
 		const grantee = await deps.ui.ask({
@@ -292,6 +324,13 @@ export async function revokeAccess(deps: ControlPlaneDependencies, node?: Contro
 	return guarded(deps, async () => {
 		if (node?.kind !== 'grant') {
 			await deps.ui.inform('Pick a person under Access in the Control Plane view to remove their access.');
+			return 'cancelled';
+		}
+		if (accessBelongsToGithub(node)) {
+			await deps.ui.inform(
+				'The access of a project of GitHub mirrors is GitHub\'s: it is a read-only projection of what GitHub grants. ' +
+					'Give and take access on GitHub.',
+			);
 			return 'cancelled';
 		}
 		let grantee = grantHandle(node.grant);
@@ -369,7 +408,7 @@ export async function runApiCall(deps: ControlPlaneDependencies): Promise<Contro
 			await ui.warn(`The ${method} ${call.path} call as ${describeActingLogin(acting)} failed: ${outcome.detail}.`);
 			return 'failed';
 		}
-		await ui.showApiResult(`${method} ${call.path} as ${describeActingLogin(acting)}`, formatApiBody(outcome.body));
+		await ui.showResult(`${method} ${call.path} as ${describeActingLogin(acting)}`, formatApiBody(outcome.body));
 		return 'done';
 	});
 }
