@@ -7,7 +7,7 @@ sidebar:
 
 ## Versioning
 
-Entirely is pre-1.0 and follows semantic versioning with that caveat: a minor version may carry changes that would be breaking after 1.0. The current version is 0.3.0. Only the latest release gets security fixes. See [Security](/entirely/contributing/security/).
+Entirely is pre-1.0 and follows semantic versioning with that caveat: a minor version may carry changes that would be breaking after 1.0. The current version is 0.4.0. Only the latest release gets security fixes. See [Security](/entirely/contributing/security/).
 
 The version lives in `package.json`. [CHANGELOG.md](https://github.com/greysquirr3l/entirely-vscode/blob/main/CHANGELOG.md) follows Keep a Changelog, with an `Unreleased` section at the top and one section per version. Describe what changed for the user, and update the changelog in the same pull request as the change.
 
@@ -15,7 +15,7 @@ The version lives in `package.json`. [CHANGELOG.md](https://github.com/greysquir
 
 1. Set the new version in `package.json` and move the `Unreleased` notes under a dated version heading in the changelog.
 2. Merge that pull request to `main`.
-3. Push a tag named `v<version>`, for example `v0.3.0`.
+3. Push a tag named `v<version>`, for example `v0.4.0`.
 
 The tag starts `.github/workflows/release.yml`. It can also be started by hand with `workflow_dispatch`, with an optional `version` and a `publish` switch that is off by default. A manual run with `publish` off is a dry run that builds and checks the package without publishing.
 
@@ -31,7 +31,7 @@ The workflow has four jobs.
    - Decides whether to publish: a tag always publishes, a manual run publishes only if asked.
    - Runs `npm run compile`, then the extension-host tests under `xvfb-run`.
    - Builds `entirely.vsix` with `vsce package`, runs `npm run package:check`, and uploads the VSIX as an artifact kept for 14 days.
-2. **Publish to the Visual Studio Marketplace.** Runs only if publishing. Uses the `marketplace` environment and the `VSCE_PAT` secret, with `vsce publish --skip-duplicate`.
+2. **Publish to the Visual Studio Marketplace.** Runs only if publishing. Uses the `marketplace` environment and the `VSCE_PAT` secret, with `vsce publish --skip-duplicate`. The environment requires a review, so the job waits for an approval before it runs, and it is restricted to version tags: a run from a branch is refused before any step starts.
 3. **Publish the release on GitHub.** Runs after the Marketplace accepts the package. It attaches the VSIX and generates release notes. A tag on the repository therefore always means the extension is installable. There is no Open VSX job: the project does not publish there.
 
 Actions are pinned to commit SHAs, and the top-level permissions are read-only. Only the final job gets `contents: write`. Tokens come from the environment and never appear on a command line.

@@ -12,6 +12,19 @@ All notable changes to the Entirely extension are documented in this file. The f
   - **Plugin Info**, **Upgrade Plugin**, **Upgrade All Plugins**, **Remove Plugin**, **Update Plugin Index** and **Check Plugins**. Every change asks first, naming the plugin, the directory or download, and the acting login; runs once; and is never retried. Upgrade and remove are reported from a fresh `plugin list` (exit 0 without a changed version is "still at", exit 0 with the plugin still listed is a failure). A refusal over dependents offers a second question for **Remove Anyway**.
   - A plugin found only on the `PATH` shows Info only and says the CLI cannot upgrade or remove it. The all and force flags are read from the CLI's help; a CLI without a subcommand gets "update the CLI" and nothing runs. The doctor report has a plugin line. `plugin browse` is not offered (it needs a terminal).
   - **Tested against a fake CLI only.** The output of `plugin search`, `info`, `index update`, `upgrade`, `remove` and of a failing `plugin doctor` was never captured from the real CLI; only the list format and a healthy check were observed.
+
+### Fixed
+
+- The plugin list read `Managed plugin directory: …` as a plugin called "Managed", so the Integrations view showed a bogus row.
+
+## [0.4.0] - 2026-10-31
+
+The trail-depth release. It adds the ability to create and update a trail, to
+watch a change's events, and to work a change's discussions and findings from
+the editor.
+
+### Added
+
 - **Create, update and watch trails, and work discussions and findings, from the editor.**
   - **Create a Trail** (the **+** in the Trails view) asks first, naming the title, the login and "on Entire", and says the CLI publishes your current branch (it does not commit or change your checkout). The trail is reported only when a fresh list holds one new trail with that title. **Update a Trail** changes a title, description, type, priority, status or the assignees; closing a trail and replacing the assignee list ask first.
   - A change now expands into **Comments** and **Findings**, read only when expanded. Discussions can be started, replied to, edited (your own messages, and any the listing gives no author), deleted (after the strictest question) and resolved or reopened; findings can be resolved, dismissed (a high-severity one asks first), reopened, updated and shown. Every write is read back before it is reported, and a message recorded under another handle is reported as theirs.
@@ -23,7 +36,11 @@ All notable changes to the Entirely extension are documented in this file. The f
 
 ### Fixed
 
-- The plugin list read `Managed plugin directory: …` as a plugin called "Managed", so the Integrations view showed a bogus row.
+- **Two build-time dependencies were held at versions with known advisories.** `minimatch`
+  had a denial of service through pattern amplification, fixed in 11.0.1, and `glob` had a
+  cancellation bypass, fixed in 14.0.2. Neither version was reachable from the versions
+  their dependents asked for, so both are now pinned. Neither package reaches the packaged
+  extension, and the extension never calls them.
 
 ## [0.3.0] - 2026-10-30
 

@@ -14,6 +14,7 @@ interface ExtensionManifest {
 	repository?: { type?: string; url?: string };
 	extensionKind?: string[];
 	categories?: string[];
+	overrides?: Record<string, string>;
 	galleryBanner?: { color?: string; theme?: string };
 	contributes?: {
 		icons?: Record<string, ProductIconContribution>;
@@ -62,6 +63,23 @@ const MARKETPLACE_CATEGORIES = [
 	'Education',
 	'Testing',
 ];
+
+/**
+ * The build-time packages whose advisory has no fixed version inside the
+ * range their dependents ask for, and so are pinned here instead.
+ *
+ * `minimatch` has a pattern-amplification denial of service, fixed in
+ * 11.0.1, but every dependent asks for `^10`, `^9` or `^3`, so the
+ * resolver can never reach it on its own. `glob` has a cancellation
+ * bypass, fixed in 14.0.2, and the tree asked for `^13` and `^10`.
+ *
+ * Both are build-time only: neither reaches the packaged extension, and
+ * the extension's own code never calls them.
+ */
+const PINNED_OVERRIDES: Record<string, string> = {
+	minimatch: '^11.0.1',
+	glob: '^14.0.2',
+};
 
 function readManifest(): ExtensionManifest {
 	return JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as ExtensionManifest;
@@ -222,6 +240,21 @@ suite('Entirely manifest', () => {
 			assert.ok(
 				MARKETPLACE_CATEGORIES.includes(category),
 				`the category '${category}' is not one the Marketplace accepts; the publish is rejected after the package is uploaded`,
+			);
+		}
+	});
+
+	test('keeps the build-time packages pinned past their advisories', () => {
+		const overrides = readManifest().overrides ?? {};
+		for (const [name, pinned] of Object.entries(PINNED_OVERRIDES)) {
+			assert.ok(
+				overrides[name],
+				`package.json no longer pins '${name}'; without the pin the resolver cannot reach the version that fixes its advisory`,
+			);
+			assert.strictEqual(
+				overrides[name],
+				pinned,
+				`the pin on '${name}' moved; it must stay on '${pinned}', the first version past the advisory`,
 			);
 		}
 	});
