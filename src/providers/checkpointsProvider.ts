@@ -213,6 +213,10 @@ export class CheckpointsProvider implements vscode.TreeDataProvider<CheckpointTr
 				label,
 				vscode.TreeItemCollapsibleState.Collapsed,
 			);
+			// The row's id is the checkpoint's, so a command can be told
+			// which checkpoint was clicked without the tree item having to
+			// carry the whole checkpoint.
+			item.id = checkpoint.id;
 			// A search hit carries no marking of its own; the listed checkpoint does.
 			const listed = this.checkpoints.find(candidate => candidate.id === checkpoint.id);
 			const imported =
@@ -290,6 +294,11 @@ export class CheckpointsProvider implements vscode.TreeDataProvider<CheckpointTr
 	/** The detail of a checkpoint, once it has been read. */
 	detailFor(id: string): CheckpointDetail | undefined {
 		return this.details.get(id);
+	}
+
+	/** The checkpoint with this id, when the tree lists it. */
+	find(id: string): Checkpoint | undefined {
+		return this.visible.find(checkpoint => checkpoint.id === id);
 	}
 
 	/** Reads a checkpoint's detail, once. */

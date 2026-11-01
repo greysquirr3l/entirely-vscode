@@ -37,6 +37,8 @@ export interface ExtensionSettings {
 	readonly transcriptTimeout: number;
 	/** How long, in seconds, a session lifecycle command (stop, attach, adopt) may take. */
 	readonly lifecycleActionTimeout: number;
+	/** How long, in seconds, a checkpoint deletion may take. */
+	readonly checkpointDeletionTimeout: number;
 	/** How long, in seconds, `entire doctor` may take when the doctor report asks it. */
 	readonly cliDoctorTimeout: number;
 	/** How long, in seconds, a control plane call (a listing, a change, an API call) may take. */
@@ -175,6 +177,26 @@ export function clampLifecycleTimeout(seconds: number): number {
 	return Math.min(
 		MAX_LIFECYCLE_TIMEOUT_SECONDS,
 		Math.max(MIN_LIFECYCLE_TIMEOUT_SECONDS, Math.floor(seconds)),
+	);
+}
+
+/**
+ * The bounds of the time a checkpoint deletion may take, in seconds.
+ *
+ * A deletion that reaches a checkpoint remote talks to the network, and a
+ * slow one can take longer than a read.
+ */
+export const MIN_CHECKPOINT_DELETION_TIMEOUT_SECONDS = 5;
+export const MAX_CHECKPOINT_DELETION_TIMEOUT_SECONDS = 900;
+
+/** Puts the checkpoint deletion timeout inside the range the extension will wait for. */
+export function clampCheckpointDeletionTimeout(seconds: number): number {
+	if (!Number.isFinite(seconds)) {
+		return 120;
+	}
+	return Math.min(
+		MAX_CHECKPOINT_DELETION_TIMEOUT_SECONDS,
+		Math.max(MIN_CHECKPOINT_DELETION_TIMEOUT_SECONDS, Math.floor(seconds)),
 	);
 }
 
@@ -560,6 +582,9 @@ export function readExtensionSettings(): ExtensionSettings {
 		refreshInterval: clampRefreshInterval(configuration.get<number>('refreshInterval', 30)),
 		transcriptTimeout: clampTranscriptTimeout(configuration.get<number>('transcriptTimeout', 60)),
 		lifecycleActionTimeout: clampLifecycleTimeout(configuration.get<number>('lifecycleActionTimeout', 60)),
+		checkpointDeletionTimeout: clampCheckpointDeletionTimeout(
+			configuration.get<number>('checkpointDeletionTimeout', 120),
+		),
 		cliDoctorTimeout: clampCliDoctorTimeout(configuration.get<number>('cliDoctorTimeout', 30)),
 		controlPlaneTimeout: clampControlPlaneTimeout(configuration.get<number>('controlPlaneTimeout', 60)),
 		activityTimeout: clampActivityTimeout(configuration.get<number>('activityTimeout', 30)),

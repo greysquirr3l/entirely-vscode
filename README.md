@@ -31,6 +31,7 @@ Entirely (this extension)
 | **Detail panel** | Whatever you select in Sessions, Trails or Activity, by click or by keyboard, opens in one panel beside your code without taking focus: a session in full, a trail or a change with its gate, a commit, an activity session line or a repository. It is reused by every selection, caches what it loaded, and opens the same detail as a read-only document |
 | **Session actions** | Stop, attach, adopt and resume a session from the palette or its context menu, each only when you ask |
 | **Checkpoint history** | Recorded checkpoints, opening straight into the native diff editor |
+| **Checkpoint deletion** | Delete one checkpoint from the Checkpoints view or the palette: the scope is chosen first, the CLI's own dry-run is shown before anything is deleted, and a deletion that reaches a remote is not confirmed until the full checkpoint id has been typed |
 | **Why this line** | Which agent edit introduced the line under the cursor, and why |
 | **File blame** | `entire blame` for the active file: every line marked as attributed, recorded but not synced, or not attributed to any recorded change |
 | **Trails view** | The trails of the project this repository belongs to. A trail's changes are read when you expand it, and a badge counts the changes that await an approval among the open trails it has read |

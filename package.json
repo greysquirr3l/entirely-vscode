@@ -253,6 +253,11 @@
         "category": "Entirely"
       },
       {
+        "command": "entirely.deleteCheckpoint",
+        "title": "Delete Checkpoint",
+        "category": "Entirely"
+      },
+      {
         "command": "entirely.attachSession",
         "title": "Attach Session to a Commit",
         "category": "Entirely"
@@ -890,6 +895,13 @@
           "maximum": 600,
           "markdownDescription": "How long, in seconds, to wait for `entire session stop`, `attach` or `adopt` before giving up. Attaching a session to a pushed commit uploads the transcript, so raise this on a slow connection."
         },
+        "entirely.checkpointDeletionTimeout": {
+          "type": "number",
+          "default": 120,
+          "minimum": 5,
+          "maximum": 900,
+          "markdownDescription": "How long, in seconds, to wait for `entire checkpoint delete` before giving up. A deletion that reaches a checkpoint remote talks to the network, so raise this on a slow connection. The deletion is never run a second time."
+        },
         "entirely.cliDoctorTimeout": {
           "type": "number",
           "default": 30,
@@ -1381,6 +1393,11 @@
           "command": "entirely.cleanSessionData",
           "when": "view == entirely.sessions && viewItem == entirely.session",
           "group": "3_destructive@2"
+        },
+        {
+          "command": "entirely.deleteCheckpoint",
+          "when": "view == entirely.checkpoints && viewItem == entirely.checkpoint",
+          "group": "3_destructive@1"
         },
         {
           "command": "entirely.createRepository",

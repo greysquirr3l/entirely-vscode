@@ -32,6 +32,7 @@ interface ExtensionManifest {
 				}
 			>;
 		};
+		menus?: Record<string, { command: string; when?: string; group?: string }[]>;
 	};
 }
 
@@ -286,5 +287,21 @@ suite('Entirely manifest', () => {
 		for (const { command } of commands) {
 			assert.ok(command.startsWith('entirely.'), `the command '${command}' is not namespaced to the extension`);
 		}
+	});
+
+	test('offers the checkpoint deletion on a checkpoint row and not on an imported one', () => {
+		const contributes = readManifest().contributes;
+		const menus = contributes?.menus ?? {};
+
+		const itemMenus = menus['view/item/context'] ?? [];
+		const entries = itemMenus.filter(entry => entry.command === 'entirely.deleteCheckpoint');
+		assert.strictEqual(entries.length, 1, 'the deletion is offered exactly once in a tree');
+		const when = entries[0].when ?? '';
+		assert.match(when, /view == entirely\.checkpoints/, 'the deletion belongs to the Checkpoints view');
+		assert.match(when, /viewItem == entirely\.checkpoint/, 'the deletion belongs to a checkpoint row');
+		assert.ok(
+			!when.includes('entirely.importedCheckpoint'),
+			'imported history is read-only and must not be offered for deletion',
+		);
 	});
 });

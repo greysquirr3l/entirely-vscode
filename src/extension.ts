@@ -48,8 +48,10 @@ import { BlameService } from './services/blameService';
 import { TrailService } from './services/trailService';
 import { WhyService } from './services/whyService';
 import { EditorLifecycleUi } from './commands/lifecycleUi';
+import { EditorCheckpointDeletionUi } from './commands/checkpointDeletionUi';
 import { CliDoctorService } from './services/cliDoctor';
 import { SessionLifecycleService } from './services/sessionLifecycle';
+import { CheckpointDeletionService } from './services/checkpointDeletion';
 import { launchInTerminal } from './services/resumeTerminal';
 import { EditorImportUi } from './commands/importUi';
 import { HistoryImportService } from './services/historyImport';
@@ -228,9 +230,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	context.subscriptions.push(panel);
 	registerSelectionCommands(context, { selection, documents: generated, panel });
 
+	const checkpointSource = createCheckpointSource(runner, workspaceRoot);
+	const checkpointDetail = createCheckpointDetailSource(runner, workspaceRoot);
+	const checkpointDeletion = new CheckpointDeletionService({
+		runner,
+		workspaceRoot,
+		timeoutSeconds: () => readExtensionSettings().checkpointDeletionTimeout,
+	});
+
 	const checkpoints = new CheckpointsProvider(
-		createCheckpointSource(runner, workspaceRoot),
-		createCheckpointDetailSource(runner, workspaceRoot),
+		checkpointSource,
+		checkpointDetail,
 		() => readExtensionSettings().refreshInterval,
 		tokenUsage,
 	);
@@ -597,6 +607,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			},
 			running: { active: false },
 		},
+		checkpointDeletion: {
+			checkpoints: checkpointSource,
+			detail: checkpointDetail,
+			deletion: checkpointDeletion,
+			acting: async () => (await accounts.refresh(workspaceRoot())).acting,
+			ui: new EditorCheckpointDeletionUi(),
+			refresh: async () => {
+				await checkpoints.refresh();
+			},
+		},
 		lifecycle: {
 			watching: new Set<string>(),
 			signal: resumeWatches.signal,
@@ -628,7 +648,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		trailChanges,
 		runner,
 		accounts,
-		checkpointDetail: createCheckpointDetailSource(runner, workspaceRoot),
+		checkpointDetail,
 		recorder,
 		output,
 	});

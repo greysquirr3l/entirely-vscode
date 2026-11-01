@@ -29,6 +29,27 @@ export {
 	isCheckpointId,
 } from './checkpoint';
 export {
+	DELETE_SCOPE_WORDS,
+	checkpointDeleteArguments,
+	classifyReadBack,
+	decodeDryRun,
+	decideDeletable,
+	deletionConfirmation,
+	planDeleteFlags,
+} from './checkpointDeletion';
+export type {
+	DeleteFlags,
+	DeleteMode,
+	DeletePlan,
+	DeleteScope,
+	DeletableDecision,
+	DeletableRefusal,
+	DeletionConfirmation,
+	DeletionConfirmationInput,
+	DryRunReading,
+	ReadBack,
+} from './checkpointDeletion';
+export {
 	endsWithLineSuffix,
 	fileArguments,
 	fileOperand,
