@@ -114,6 +114,18 @@ suite("Entire's agent skill", () => {
 		assert.match(ui.warnings[0], /Open the repository/);
 	});
 
+	test('the skill in this repository is the one this extension writes', () => {
+		const dogfooded = path.resolve(__dirname, '..', '..', '.github', 'skills', AGENT_SKILL_NAME, 'SKILL.md');
+		if (!fs.existsSync(dogfooded)) {
+			return;
+		}
+		assert.strictEqual(
+			fs.readFileSync(dogfooded, 'utf8'),
+			agentSkillDocument(),
+			'the skill in this repository is out of date; run the install command again',
+		);
+	});
+
 	test('the question names the file that would be replaced', () => {
 		const question = confirmAgentSkillOverwrite('/repo/.github/skills/entire/SKILL.md');
 		assert.match(question.message, /Replace/);
