@@ -112,9 +112,14 @@ export function redactArguments(
 		return [...args];
 	}
 
-	return args.map((argument, index) =>
-		index > 0 && flags.includes(args[index - 1]) ? REDACTED_ARGUMENT : argument,
-	);
+	return args.map((argument, index) => {
+		// A value in the same argument as its flag, such as `--email=someone@example.com`.
+		const inline = flags.find(flag => argument.startsWith(`${flag}=`));
+		if (inline !== undefined) {
+			return `${inline}=${REDACTED_ARGUMENT}`;
+		}
+		return index > 0 && flags.includes(args[index - 1]) ? REDACTED_ARGUMENT : argument;
+	});
 }
 
 /** One invocation, and the bodies it produced. */

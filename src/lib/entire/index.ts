@@ -29,6 +29,27 @@ export {
 	isCheckpointId,
 } from './checkpoint';
 export {
+	DELETE_SCOPE_WORDS,
+	checkpointDeleteArguments,
+	classifyReadBack,
+	decodeDryRun,
+	decideDeletable,
+	deletionConfirmation,
+	planDeleteFlags,
+} from './checkpointDeletion';
+export type {
+	DeleteFlags,
+	DeleteMode,
+	DeletePlan,
+	DeleteScope,
+	DeletableDecision,
+	DeletableRefusal,
+	DeletionConfirmation,
+	DeletionConfirmationInput,
+	DryRunReading,
+	ReadBack,
+} from './checkpointDeletion';
+export {
 	endsWithLineSuffix,
 	fileArguments,
 	fileOperand,
@@ -239,6 +260,7 @@ export {
 	isApiPath,
 	isControlOperand,
 	isGrantee,
+	isGithubSourced,
 	isRepositoryName,
 	nameGrant,
 	repositoryPath,
@@ -272,9 +294,65 @@ export {
 	listArguments,
 	pickFlags,
 	readChoices,
+	readForgeValues,
 	repoListArguments,
 } from './controlPlaneFlags';
 export type { FlagPick, FlagWant, GrantScope } from './controlPlaneFlags';
+export {
+	ORG_CREATE_WANTS,
+	ORG_GET_WANTS,
+	ORG_INVITE_LIST_WANTS,
+	ORG_INVITE_REVOKE_WANTS,
+	ORG_INVITE_SEND_WANTS,
+	PROJECT_CREATE_WANTS,
+	PROJECT_GET_WANTS,
+	REPO_CLONE_WANTS,
+	REPO_MIRROR_DETACH_WANTS,
+	REPO_MIRROR_LIST_WANTS,
+	REPO_MIRROR_PLACEMENT_WANTS,
+	REPO_MIRROR_RESYNC_WANTS,
+	REPO_PROTECTION_WANTS,
+	REPO_REMOTE_ADD_WANTS,
+	REPO_VISIBILITY_WANTS,
+	cloneArguments,
+	decodeInvitations,
+	decodeMirrors,
+	decodeOrganisationDetail,
+	decodeProjectDetail,
+	decodeProtectionRules,
+	decodeRepoVisibility,
+	forgeOf,
+	invitationHolds,
+	isProtectionBranch,
+	isFolderPath,
+	invitationListArguments,
+	invitationRevokeArguments,
+	invitationSendArguments,
+	isEmailAddress,
+	isRemoteName,
+	mirrorAddArguments,
+	mirrorDetachArguments,
+	mirrorListArguments,
+	mirrorRemoveArguments,
+	mirrorResyncArguments,
+	organisationCreateArguments,
+	organisationGetArguments,
+	projectCreateArguments,
+	projectGetArguments,
+	protectionAddArguments,
+	protectionListArguments,
+	protectionRemoveArguments,
+	remoteAddArguments,
+	redactUrl,
+	repositoryReference,
+	visibilityGetArguments,
+} from './controlPlaneBreadth';
+export type {
+	Invitation,
+	MirrorPlacement,
+	ProtectionRule,
+	RepoVisibility,
+} from './controlPlaneBreadth';
 export {
 	apiConfirmation,
 	confirmationFor,
@@ -285,6 +363,14 @@ export {
 	shownTarget,
 } from './controlPlaneActions';
 export type { ControlAction, ControlConfirmation, ControlOutcome } from './controlPlaneActions';
+export {
+	AGENT_SKILL_DESCRIPTION,
+	AGENT_SKILL_NAME,
+	AGENT_SKILL_RELATIVE_PATH,
+	agentSkillDocument,
+	agentSkillPath,
+	confirmAgentSkillOverwrite,
+} from './agentSkill';
 export {
 	ACTIVITY_WANTS,
 	DISPATCH_WANTS,
@@ -361,7 +447,7 @@ export {
 	refusedForDependents,
 	versionOf,
 } from './pluginManagement';
-export { neutraliseLinks } from './safeText';
+export { neutraliseLinks, neutraliseLinksKeepingBrackets } from './safeText';
 export type { PluginChange, PluginCheckReading, PluginSubcommand, SearchRow, UpgradeTarget } from './pluginManagement';
 export { MCP_PROVIDER_ID, MCP_SERVER_LABEL, describeMcpUnavailable, describesMcpServer, mcpClientConfig } from './mcp';
 export type { McpLaunch } from './mcp';

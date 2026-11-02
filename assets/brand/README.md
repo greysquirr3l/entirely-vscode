@@ -8,4 +8,5 @@ The Entire name and logo are Entire's trademarks. They are used here, unmodified
 identify the integration. Entirely is an unofficial extension and is not affiliated with or
 endorsed by Entire.
 
-The file is the input to `scripts/generate-icon-font.py`. It is not packaged in the VSIX.
+The file is the source of `images/entirely-view.svg`, the icon the detail panel's tab
+carries. It is not packaged in the VSIX.

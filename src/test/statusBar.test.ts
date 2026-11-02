@@ -94,13 +94,13 @@ suite('Entire status bar', () => {
 		const bar = new StatusBar();
 		try {
 			const expected: [StatusDisplay, string][] = [
-				[{ kind: 'tracked' }, '$(entire-logo) Entire'],
-				[{ kind: 'active-session' }, '$(entire-logo) Entire $(pulse)'],
-				[{ kind: 'not-set-up' }, '$(entire-logo) Entire $(circle-slash)'],
-				[{ kind: 'not-a-repository' }, '$(entire-logo) Entire $(circle-outline)'],
-				[{ kind: 'invisible-to-context', context: 'someone' }, '$(entire-logo) Entire $(eye-closed)'],
-				[{ kind: 'context-error', detail: 'no saved login' }, '$(entire-logo) Entire $(error)'],
-				[{ kind: 'error', detail: 'boom' }, '$(entire-logo) Entire $(warning)'],
+				[{ kind: 'tracked' }, '$(robot) Entire'],
+				[{ kind: 'active-session' }, '$(robot) Entire $(pulse)'],
+				[{ kind: 'not-set-up' }, '$(robot) Entire $(circle-slash)'],
+				[{ kind: 'not-a-repository' }, '$(robot) Entire $(circle-outline)'],
+				[{ kind: 'invisible-to-context', context: 'someone' }, '$(robot) Entire $(eye-closed)'],
+				[{ kind: 'context-error', detail: 'no saved login' }, '$(robot) Entire $(error)'],
+				[{ kind: 'error', detail: 'boom' }, '$(robot) Entire $(warning)'],
 			];
 			for (const [display, text] of expected) {
 				bar.show(display);
@@ -123,7 +123,7 @@ suite('Entire status bar', () => {
 			});
 
 			assert.notStrictEqual(bar.text, calm, 'the warning looks different from the calm state');
-			assert.strictEqual(bar.text, '$(entire-logo) Entire $(warning)');
+			assert.strictEqual(bar.text, '$(robot) Entire $(warning)');
 			assert.match(bar.tooltip, /Entire is tracking this workspace/, 'the state can still be read by hovering');
 			assert.match(bar.tooltip, /will not appear on Entire/);
 		} finally {
@@ -144,8 +144,8 @@ suite('Entire status bar', () => {
 			});
 
 			assert.notStrictEqual(bar.text, calm);
-			assert.strictEqual(calm, '$(entire-logo) Entire $(pulse)');
-			assert.strictEqual(bar.text, '$(entire-logo) Entire $(pulse) $(warning)');
+			assert.strictEqual(calm, '$(robot) Entire $(pulse)');
+			assert.strictEqual(bar.text, '$(robot) Entire $(pulse) $(warning)');
 		} finally {
 			bar.dispose();
 		}

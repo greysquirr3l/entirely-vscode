@@ -143,6 +143,17 @@ The `--context` flag and the `ENTIRE_CONTEXT` variable are both passed when `ent
 | `entire repo delete`, `project delete`, `org delete` | The delete commands | Changes |
 | `entire repo grant add`, `project grant add`, `org grant add` | **Give Access** | Changes |
 | `entire repo grant remove`, `project grant remove`, `org grant remove` | **Remove Access** | Changes |
+| `entire org get`, `project get` | The detail of an organisation or a project | Read |
+| `entire repo visibility get`, `repo protection list` | A repository's visibility and its branch protection rules | Read |
+| `entire repo mirror list` | The clusters a repository is mirrored on | Read |
+| `entire org invite list` | An organisation's invitations | Read |
+| `entire org create`, `project create` | **Create Organisation**, **Create Project** | Changes |
+| `entire org invite send`, `org invite revoke` | **Invite to Organisation**, **Revoke Invitation** | Changes |
+| `entire repo protection add`, `repo protection remove` | **Add Protection Rule**, **Remove Protection Rule** | Changes |
+| `entire repo mirror add`, `repo mirror remove` | **Add Mirror**, **Remove Mirror** | Changes |
+| `entire repo mirror detach`, `repo mirror resync` | **Detach Mirror**, **Resync Mirror**. A detach previews itself with `--dry-run` first | Changes |
+| `entire repo clone` | **Clone Repository**, into a folder that is empty or new | Changes (writes to this machine) |
+| `entire repo remote add` | **Add Remote**, in this checkout's git configuration | Changes (writes to this machine) |
 | `entire api` | **Call the Entire API**. One call, path confined to `/api`, no retry | Changes unless GET |
 
 These were exercised against a fake CLI. They are not verified against a live Entire account. A change that times out is read back before it is reported. See [Control plane](/entirely/guides/control-plane/).

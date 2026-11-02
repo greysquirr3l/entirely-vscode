@@ -65,6 +65,23 @@ const WORD = '[A-Za-z][A-Za-z0-9-]*';
 const CHOICES = new RegExp(`(${WORD}(?:(?:\\s*,\\s*(?:or\\s+)?|\\s+or\\s+)${WORD})+)`);
 
 /**
+ * The values a forge flag takes, from a help line that names each one.
+ *
+ * The line reads "gh for GitHub mirrors ..., et for Entire-native
+ * repositories, or all for both", and each value is the word before its
+ * "for", so a CLI that names its forges differently is followed.
+ */
+export function readForgeValues(description: string): readonly string[] {
+	const values: string[] = [];
+	for (const match of description.matchAll(/\b([a-z][a-z0-9-]{0,4})\s+for\b/g)) {
+		if (!values.includes(match[1])) {
+			values.push(match[1]);
+		}
+	}
+	return values;
+}
+
+/**
  * The values a flag's help line says it takes, such as `reader, writer, admin`.
  *
  * A list introduced by "one of" is preferred, then one after a colon. A

@@ -14,3 +14,23 @@ export function neutraliseLinks(text: string): string {
 		.replace(/[[\]<>`]/g, '')
 		.replace(/\b(command|file|vscode|vscode-insiders|https?|ftp|mailto)\s*:/gi, '$1 :');
 }
+
+/**
+ * Makes text safe for a VS Code message that carries a path of the
+ * person's own.
+ *
+ * The same as `neutraliseLinks`, except that square brackets are kept: a
+ * path can hold them, and a path shown altered is a path the person
+ * cannot find.
+ *
+ * For a surface VS Code shows as plain text — a notification, or the
+ * message of a modal. A surface it renders as Markdown, such as the
+ * detail of a modal, takes `neutraliseLinks` instead: with the brackets
+ * kept, `[text](where)` can still form a link there.
+ */
+export function neutraliseLinksKeepingBrackets(text: string): string {
+	return text
+		.replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g, '')
+		.replace(/[<>]/g, '')
+		.replace(/\b(command|file|vscode|vscode-insiders|https?|ftp|mailto)\s*:/gi, '$1 :');
+}

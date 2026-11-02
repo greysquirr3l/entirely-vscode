@@ -169,6 +169,24 @@ The delete, visibility and access commands are hidden from the palette and live 
 | Entirely: Give Access | `entirely.grantAccess` | organisation, project, repository and access row context; hidden | Confirms | `grant add` on the row's scope. |
 | Entirely: Remove Access | `entirely.revokeAccess` | grant row context; hidden | Confirms | `grant remove` on the row's scope. |
 | Entirely: Call the Entire API | `entirely.runApiCall` | Control Plane view title | Confirms for non-GET | `entire api`: one call at a time, path confined to `/api`, no retry. A GET runs without a prompt. |
+| Entirely: Show Organisation | `entirely.showOrganisation` | organisation row context | Read | `entire org get`. |
+| Entirely: Show Project | `entirely.showProject` | project row context | Read | `entire project get`. |
+| Entirely: Show Repository Visibility | `entirely.showRepositoryVisibility` | repository row context | Read | `entire repo visibility get`. |
+| Entirely: List Protection Rules | `entirely.listProtectionRules` | repository row context | Read | `entire repo protection list`. |
+| Entirely: List Mirrors | `entirely.listMirrors` | repository row context | Read | `entire repo mirror list`. |
+| Entirely: List Organisation Invitations | `entirely.listInvitations` | organisation row context | Read | `entire org invite list`. |
+| Entirely: Create Organisation | `entirely.createOrganisation` | Control Plane view title; hidden | Confirms | `entire org create`, in its flag form. |
+| Entirely: Create Project | `entirely.createProject` | Control Plane view title; hidden | Confirms | `entire project create`, in its flag form. |
+| Entirely: Invite to Organisation | `entirely.inviteToOrganisation` | organisation row context | Confirms | `entire org invite send`. The address is never written to the log. |
+| Entirely: Revoke Invitation | `entirely.revokeInvitation` | organisation row context | Confirms | `entire org invite revoke`. |
+| Entirely: Add Protection Rule | `entirely.addProtectionRule` | repository row context | Confirms | `entire repo protection add`. Not offered for a GitHub mirror. |
+| Entirely: Remove Protection Rule | `entirely.removeProtectionRule` | repository row context | Confirms | `entire repo protection remove`. Not offered for a GitHub mirror. |
+| Entirely: Add Mirror | `entirely.addMirror` | repository row context | Confirms | `entire repo mirror add`, with the clusters named. |
+| Entirely: Remove Mirror | `entirely.removeMirror` | repository row context | Confirms | `entire repo mirror remove`. |
+| Entirely: Detach Mirror | `entirely.detachMirror` | repository row context | Confirms | `entire repo mirror detach`, after the CLI's own plan is shown. |
+| Entirely: Resync Mirror | `entirely.resyncMirror` | repository row context | Confirms | `entire repo mirror resync`. Not offered for a native repository. |
+| Entirely: Clone Repository | `entirely.cloneRepository` | repository row context | Confirms | `entire repo clone`, into a folder that is new or empty. |
+| Entirely: Add Remote | `entirely.addRemote` | repository row context | Confirms | `entire repo remote add`, in this checkout's git configuration. |
 
 ## Plugins, integrations and MCP
 
@@ -193,3 +211,12 @@ The delete, visibility and access commands are hidden from the palette and live 
 See [Plugins](/entirely/guides/plugins/) and [Integrations and MCP](/entirely/guides/integrations-and-mcp/). Plugin install, plugin management and the live MCP server are covered by tests against fake CLIs. They have not been verified against a live Entire account.
 
 The five capture-control commands (disable, remove, configure, clean and runner setup) are described in [Stop, configure and clean capture](/entirely/guides/capture-control/). They run once, as the login the modal names, with no retry, and their flags come from the CLI's help at the time you run them.
+
+## The agent skill
+
+| Palette title | Id | Where | Changes | What it does |
+| --- | --- | --- | --- | --- |
+| Entirely: Install the Agent Skill in This Repository | `entirely.installAgentSkill` | palette | Confirms before it replaces a file | Writes `.github/skills/entire/SKILL.md` into the repository that is open: one file that tells an agent working there what Entire already knows, and which commands only read. |
+
+The skill names the commands and the two flags that shape what an agent reads — `--json` and `--compact`. Every other flag comes from `entire agent-help <command>`, so the text stays true as the CLI changes. It does not list the commands that change something either: `entire agent-help` marks which ones those are, and the skill points at that list. A file that is already there is the person's, and it is replaced only after they are asked, and only after the question names it without claiming where it came from. A link in its place, or a folder that leads out of the repository, is refused. Nothing else in the repository is touched.
+

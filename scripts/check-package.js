@@ -42,9 +42,9 @@ const expected = new Set([
 	'LICENSE',
 	'SECURITY.md',
 	'dist/extension.js',
-	'assets/entire-icons.woff',
 	'images/logo.png',
 	'images/entirely-view.svg',
+	'images/codicon-robot.svg',
 ]);
 
 /** What a file path must not look like. */

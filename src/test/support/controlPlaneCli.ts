@@ -6,6 +6,7 @@ import type { ControlPlaneDependencies, ControlPlaneUi } from '../../commands/co
 import type { ApiSource } from '../../services/controlApi';
 import { ControlApiService } from '../../services/controlApi';
 import { ControlPlaneService } from '../../services/controlPlane';
+import type { CliInvocation } from '../../services/cli/invocation';
 import { CliLocator } from '../../services/cli/locator';
 import { CliRunner } from '../../services/cli/runner';
 import { makeTempDir } from './tempDir';
@@ -82,6 +83,85 @@ export const HELPS: Record<string, string> = {
 	repo_grant_remove: 'entire repo grant remove — Revoke a user\'s repo access\n',
 	project_grant_remove: 'entire project grant remove — Revoke a user\'s project access\n',
 	org_grant_remove: 'entire org grant remove — Revoke a grantee\'s org access\n',
+	org_get: `Flags:
+      --json             Output raw JSON instead of a table
+`,
+	org_create: `Flags:
+      --json            Output raw JSON instead of a table
+      --region string   Jurisdiction slug (defaults to the server's home jurisdiction)
+`,
+	org_invite_list: `Flags:
+      --json             Output raw JSON instead of a table
+      --status string    Filter by lifecycle state: pending, accepted, declined, revoked, expired (default "pending")
+`,
+	org_invite_send: `Flags:
+      --email string   Email address to invite
+      --json           Output raw JSON instead of a table
+      --role string    Role the invitation grants: one of owner, admin, member (default "member")
+`,
+	org_invite_revoke: `Flags:
+      --email string   Email address to revoke
+      --json           Output raw JSON instead of a table
+`,
+	project_get: `Flags:
+      --json             Output raw JSON instead of a table
+`,
+	project_create: `Flags:
+      --json                Output raw JSON instead of a table
+      --owner string        Owning org (name), or account (github:handle) (required; run in a terminal without --owner, --owner-type or --region to be asked instead)
+      --owner-type string   Owner kind: org or account (default "org")
+      --region string       Jurisdiction slug (defaults to the server's jurisdiction; the wizard suggests the owner's region)
+`,
+	repo_visibility_get: `Flags:
+      --json             Output raw JSON instead of a table
+      --project string   Owning project (name or ULID); required when <repo> is a bare name, redundant with a /et/<project>/<repo> path or a ULID
+`,
+	repo_protection_list: `Flags:
+      --json             Output raw JSON instead of a table
+      --project string   Owning project (name or ULID); required when <repo> is a bare name, redundant with a /et/<project>/<repo> path or a ULID
+`,
+	repo_protection_add: `Flags:
+      --json                     Output raw JSON instead of a table
+      --project string           Owning project (name or ULID); required when <repo> is a bare name, redundant with a /et/<project>/<repo> path or a ULID
+      --server-side-merge-only   Refuse every direct push; the branch moves only through a merge Entire performs. Omit to keep an existing rule's level; =false lowers it
+`,
+	repo_protection_remove: `Flags:
+      --json             Output raw JSON instead of a table
+      --project string   Owning project (name or ULID); required when <repo> is a bare name, redundant with a /et/<project>/<repo> path or a ULID
+`,
+	repo_mirror_list: `Flags:
+      --forge string   Which repositories to list: gh for GitHub mirrors and onboardable GitHub repos, et for Entire-native repos, or all for both (default "gh")
+      --json           Output raw JSON instead of a table
+      --name string    Filter by substring of the NAME column, e.g. acme/web or /gh/acme (case-insensitive)
+`,
+	repo_clone: `Flags:
+      --cluster string   Cluster host to clone from when the repo is readable on more than one (for /gh/ refs it may belong to another auth context)
+      --nearest          Time a connection to each cluster and clone from the fastest, instead of prompting
+`,
+	repo_mirror_add: `Flags:
+      --cluster strings   Cluster host(s) to mirror onto; repeat or comma-separate for several (a terminal offers a multi-select when omitted; other runs use aws-us-east-2.entire.io)
+      --no-wait            Return once the placement is registered, without waiting for the initial clone
+      --timeout duration   How long to wait for mirror request submission, placement, and clone readiness (0 waits indefinitely) (default 30m0s)
+`,
+	repo_mirror_remove: `Flags:
+      --cluster strings    Cluster host(s) to remove the mirror from; repeat or comma-separate for several (a terminal offers a multi-select when omitted)
+      --timeout duration   How long to wait for each placement to be torn down (0 waits indefinitely) (default 30m0s)
+`,
+	repo_mirror_detach: `Flags:
+      --dry-run            Print the preconditions and change nothing
+      --into string        Native repository to detach into, as /et/<project>/<repo> (required)
+      --json               Output raw JSON instead of a table
+      --no-wait            Return once the repository is native, without waiting for the rewire to complete
+      --timeout duration   How long to wait for the rewire to complete (0 waits indefinitely) (default 30m0s)
+  -y, --yes                Skip the confirmation prompt
+`,
+	repo_mirror_resync: `Flags:
+      --json   Output raw JSON instead of a table
+`,
+	repo_remote_add: `Flags:
+      --cluster string   Cluster host to use when the repo is on several
+      --override         Repoint <remote-name> when it already exists instead of refusing
+`,
 	api: `Flags:
   -F, --field stringArray       add a typed parameter in key=value format; true/false/null/numbers are converted (repeatable)
   -i, --include                 print the response status line and headers too
@@ -104,6 +184,18 @@ const MUTATIONS = [
 	'repo_grant_remove',
 	'project_grant_remove',
 	'org_grant_remove',
+	'org_create',
+	'org_invite_send',
+	'org_invite_revoke',
+	'project_create',
+	'repo_protection_add',
+	'repo_protection_remove',
+	'repo_mirror_add',
+	'repo_mirror_remove',
+	'repo_mirror_detach',
+	'repo_mirror_resync',
+	'repo_clone',
+	'repo_remote_add',
 ];
 
 export interface FakeControlOptions {
@@ -121,6 +213,12 @@ export interface FakeControlOptions {
 	silent?: readonly string[];
 	/** The response of `api`, by method. */
 	api?: Record<string, string>;
+	/** The directory the fake CLI creates when it is asked to clone. */
+	cloneDir?: string;
+	/** A directory the clone makes without a work tree in it. */
+	cloneWithoutWorkTree?: string;
+	/** The remote the fake CLI adds to the checkout's git configuration. */
+	remoteName?: string;
 	noCli?: boolean;
 }
 
@@ -131,6 +229,8 @@ export interface FakeControlCli {
 	calls(): string[];
 	/** The calls whose arguments start with the words. */
 	callsTo(words: string): string[];
+	/** The invocations the runner recorded, as the output channel would see them. */
+	recorded(): readonly CliInvocation[];
 }
 
 /** A stand-in `entire` whose state is a set of files, so a test sets exactly what the CLI says. */
@@ -168,6 +268,15 @@ export function fakeControlCli(options: FakeControlOptions = {}): FakeControlCli
 	for (const [method, text] of Object.entries(options.api ?? {})) {
 		fs.writeFileSync(path.join(state, 'out', `api.${method}`), text);
 	}
+	if (options.cloneDir !== undefined) {
+		fs.writeFileSync(path.join(state, 'clone'), options.cloneDir);
+	}
+	if (options.cloneWithoutWorkTree !== undefined) {
+		fs.writeFileSync(path.join(state, 'clone-plain'), options.cloneWithoutWorkTree);
+	}
+	if (options.remoteName !== undefined) {
+		fs.writeFileSync(path.join(state, 'remote'), options.remoteName);
+	}
 
 	const script = [
 		'#!/bin/sh',
@@ -204,10 +313,21 @@ export function fakeControlCli(options: FakeControlOptions = {}): FakeControlCli
 		'esac',
 		'case "$mutations" in',
 		'\t*" $words "*)',
-		'\t\tif [ -f "$S/fail/$words" ]; then cat "$S/fail/$words" >&2; exit 1; fi',
-		'\t\tif [ -f "$S/fail/$words.nocascade" ] && ! echo "$*" | grep -q -- "--cascade"; then cat "$S/fail/$words.nocascade" >&2; exit 1; fi',
-		'\t\tif [ ! -f "$S/silent/$words" ]; then : > "$S/done/$words"; fi',
-		'\t\techo "done"; exit 0 ;;',
+		// A dry run changes nothing, so it is answered like a reading.
+		'\t\tcase "$*" in',
+		'\t\t*--dry-run*)',
+		'\t\t\tif [ -f "$S/fail/$words" ]; then cat "$S/fail/$words" >&2; exit 1; fi',
+		'\t\t\tif [ -f "$S/out/$words" ]; then cat "$S/out/$words"; exit 0; fi',
+		'\t\t\t: ;;',
+		'\t\t*)',
+		'\t\t\tif [ -f "$S/fail/$words" ]; then cat "$S/fail/$words" >&2; exit 1; fi',
+		'\t\t\tif [ -f "$S/fail/$words.nocascade" ] && ! echo "$*" | grep -q -- "--cascade"; then cat "$S/fail/$words.nocascade" >&2; exit 1; fi',
+		'\t\t\tif [ ! -f "$S/silent/$words" ]; then : > "$S/done/$words"; fi',
+		'\t\t\tif [ -f "$S/clone" ]; then mkdir -p "$S/../$(cat "$S/clone")/.git"; fi',
+		'\t\t\tif [ -f "$S/clone-plain" ]; then mkdir -p "$S/../$(cat "$S/clone-plain")"; fi',
+		'\t\t\tif [ -f "$S/remote" ]; then mkdir -p "$S/../.git"; printf \'[remote "%s"]\\n\\turl = entire://aws-us-east-2.entire.io/gh/octocat/hello-world\\n\' "$(cat "$S/remote")" >> "$S/../.git/config"; fi',
+		'\t\t\techo "done"; exit 0 ;;',
+		'\t\tesac ;;',
 		'esac',
 		'key="$words"; [ -n "$target" ] && key="${words}_${tkey}"',
 		'for m in "$S"/done/*; do',
@@ -227,7 +347,16 @@ export function fakeControlCli(options: FakeControlOptions = {}): FakeControlCli
 
 	const runner = new CliRunner(new CliLocator({ homeDir: dir, env: { PATH: '' } }));
 	const calls = (): string[] => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('\n').filter(Boolean) : []);
-	return { runner, dir, calls, callsTo: words => calls().filter(line => line.split('|')[1]?.startsWith(words)) };
+	// The invocations as the output channel would see them, with whatever the runner redacted.
+	const invocations: CliInvocation[] = [];
+	runner.setSink({ report: invocation => invocations.push(invocation) });
+	return {
+		runner,
+		dir,
+		calls,
+		callsTo: words => calls().filter(line => line.split('|')[1]?.startsWith(words)),
+		recorded: () => invocations,
+	};
 }
 
 export function serviceFor(cli: FakeControlCli, context: string | undefined = undefined): ControlPlaneService {
@@ -253,6 +382,8 @@ export const ALICE: AccountContext = {
 export interface UiScript {
 	confirms?: boolean[];
 	picks?: (string | undefined)[];
+	/** The answers to the questions that take any number of values, one list per question. */
+	manys?: readonly (readonly string[])[];
 	asks?: (string | undefined)[];
 	project?: Project;
 }
@@ -269,6 +400,7 @@ export type FakeUi = ControlPlaneUi & {
 export function fakeUi(script: UiScript = {}): FakeUi {
 	const confirms = [...(script.confirms ?? [])];
 	const picks = [...(script.picks ?? [])];
+	const manys = [...(script.manys ?? [])];
 	const asks = [...(script.asks ?? [])];
 	const ui: FakeUi = {
 		confirmations: [],
@@ -284,6 +416,10 @@ export function fakeUi(script: UiScript = {}): FakeUi {
 		async pick(title, values) {
 			ui.picked.push({ title, values });
 			return picks.shift();
+		},
+		async pickMany(title, values) {
+			ui.picked.push({ title, values });
+			return manys.shift() ?? [];
 		},
 		async ask(options) {
 			ui.asked.push(options.title);
@@ -303,7 +439,7 @@ export function fakeUi(script: UiScript = {}): FakeUi {
 		async warn(message) {
 			ui.warned.push(message);
 		},
-		async showApiResult(heading, body) {
+		async showResult(heading, body) {
 			ui.shown.push({ heading, body });
 		},
 	};

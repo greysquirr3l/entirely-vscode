@@ -25,12 +25,13 @@ Entirely (this extension)
 
 | Surface | What it shows |
 |---|---|
-| **Status bar** | Whether the workspace is tracked by Entire, and whether an agent session is live right now: `$(entire-logo) Entire` followed by a codicon for the state |
+| **Status bar** | Whether the workspace is tracked by Entire, and whether an agent session is live right now: `$(robot) Entire` followed by a codicon for the state |
 | **Sessions view** | Every session Entire tracks for the repository, across all worktrees, not just the open folder. It can also appear in the Explorer |
 | **Session detail** | The selected session in full, ended ones included: agent, model, tokens, files touched and tool calls, with the transcript opening in a read-only editor |
 | **Detail panel** | Whatever you select in Sessions, Trails or Activity, by click or by keyboard, opens in one panel beside your code without taking focus: a session in full, a trail or a change with its gate, a commit, an activity session line or a repository. It is reused by every selection, caches what it loaded, and opens the same detail as a read-only document |
 | **Session actions** | Stop, attach, adopt and resume a session from the palette or its context menu, each only when you ask |
 | **Checkpoint history** | Recorded checkpoints, opening straight into the native diff editor |
+| **Checkpoint deletion** | Delete one checkpoint from the Checkpoints view or the palette: the scope is chosen first, the CLI's own dry-run is shown before anything is deleted, and a deletion that reaches a remote is not confirmed until the full checkpoint id has been typed |
 | **Why this line** | Which agent edit introduced the line under the cursor, and why |
 | **File blame** | `entire blame` for the active file: every line marked as attributed, recorded but not synced, or not attributed to any recorded change |
 | **Trails view** | The trails of the project this repository belongs to. A trail's changes are read when you expand it, and a badge counts the changes that await an approval among the open trails it has read |
@@ -49,6 +50,7 @@ Entirely (this extension)
 | **Capture control** | Turns capture off, removes Entire, edits the repository's Entire settings, cleans session data and sets up trail runners — each previewed where the CLI offers a preview, confirmed in a modal that names the folder and the login, run once and checked by a fresh read. Tested only against a fake CLI (see below) |
 | **Agent integrations** | Lists the agents the CLI supports, and installs or removes one after you confirm what it will touch; more than one can be installed |
 | **Hook bridge** | Reports the editor's own agent activity to the compatible `copilot-cli` integration; other integrations record their own activity |
+| **Agent skill** | Writes one file into the repository — `.github/skills/entire/SKILL.md` — that tells an agent working there what Entire already knows: why a line exists, what a previous agent did, and what a checkpoint changed. A file that is already there is replaced only after you are asked |
 | **Terminal PATH repair** | Puts the Entire CLI on the integrated terminal's PATH, through the editor's own settings — no shell profile, no shell command |
 | **BYOK models** | Works with whatever model Copilot Chat is using (hosted, BYOK or local) without the extension knowing the model exists |
 | **Doctor** | A copyable diagnostic report: CLI version, repository state, effective settings, last error. Also reads the CLI's log and hook traces, writes a diagnostic bundle to a file you choose, and migrates checkpoints to git refs (see below) |
@@ -56,11 +58,43 @@ Entirely (this extension)
 If the CLI is missing, the extension degrades to a clear message with a link
 to the install instructions rather than failing obscurely.
 
+## What is supported, and what is not
+
+The CLI does a great deal, and the extension does not do all of it. This is
+the whole of it, by area. Command by command, with the evidence for each
+line, it is in [docs/coverage.md](docs/coverage.md): 142 commands and flags,
+127 supported, 15 deliberately left out, and none missing.
+
+| Area | Supported | Not supported |
+|---|---|---|
+| Sessions | The session tree, the workspace's own session, session detail and transcripts, token usage, stopping, attaching, adopting and resuming a session, and importing past agent history | — |
+| Checkpoints | The checkpoint tree, filtering and search, where checkpoints are uploaded to, the token profile, why a line exists, blame, and deleting a checkpoint with every copy of it | — |
+| Trails and changes | Listing, creating, updating and watching a trail; approving, merging, checking out, linking and unlinking; comments, findings and their suggestions | `trail resume` — **Resume Session** already resumes a branch's session in a terminal |
+| Activity | The activity view, the recap and a generated dispatch | — |
+| The control plane | Organisations, projects, repositories, clusters, who has access, invitations, branch protection, mirrors, cloning and git remotes, as reads and as changes, and one controlled call to the Entire API | — |
+| Plugins | The index, search, a plugin's details, install, upgrade, remove and a health check; the MCP server and the plugins Entire documents, offered to the editor's agent | `plugin browse` — an interactive picker; **Search Plugin Index** lists the same names and installs them |
+| Agents | The integrations the CLI supports, installing or removing one, and reporting the editor's own agent activity to a compatible integration | — |
+| Capture | Turning capture on and off, removing Entire, editing the repository's settings, cleaning session data and setting up trail runners | — |
+| Review and experts | The token profile over committed history, who has touched a path, the review profiles, what a review would run, and a confirmed review in a terminal | `review --configure`, `--edit`, `--agents` and `--models` need a terminal; `--set-*` writes a profile; `--trust-target` approves code the person did not write |
+| Accounts | Signing in and out, the saved logins, and a login pinned to one workspace | `auth switch` changes the machine's login for every tool; `auth token` prints a credential, which is never shown or stored |
+| Diagnostics | The CLI's own report, its log, its hook traces, a diagnostic bundle written where you choose, and the move to per-checkpoint git refs | — |
+| The CLI's own surface | `agent-help`, which every flag is read from at run time, and `version`, which the extension checks before it uses anything | `help`, `completion` and `global-flags` have no place in the editor, and `labs` only lists commands that each have their own row |
+
+Nothing is left out by accident. A command that is neither supported nor
+excluded fails the build, and where the extension chose not to do something,
+the reason is written down in its row.
+
+The reads were run against the real CLI. Several of the changes — the ones
+that write to a real project, the mirrors, the protection rules, the clone
+and the remote — were tested against a fake CLI only, and each of them says
+so where it is described.
+
 ## Views
 
 Entirely adds an **Entirely for Entire** container to the activity bar, with
-Entire's symbol as its icon. Four views are open by default and five start
-collapsed. Commands that show a collapsed view expand it.
+VS Code's own robot icon — the one it uses for agents — as its icon. Four
+views are open by default and five start collapsed. Commands that show a
+collapsed view expand it.
 
 | View | Default | Holds |
 |---|---|---|
@@ -75,7 +109,7 @@ collapsed. Commands that show a collapsed view expand it.
 | Account | Collapsed | The login the CLI is using |
 | Entirely Sessions (Explorer) | Hidden | The sessions tree, in the Explorer, when `entirely.showSessionsInExplorer` is on |
 
-The status bar item reads `$(entire-logo) Entire` plus a state codicon:
+The status bar item reads `$(robot) Entire` plus a state codicon:
 `$(pulse)` for a running session, `$(warning)` for a checkpoint problem or an
 unreadable CLI, `$(circle-slash)` when the workspace is not set up,
 `$(circle-outline)` for a folder that is not a repository, `$(eye-closed)` when
@@ -93,9 +127,9 @@ list and the setting names are the surface a user actually touches, so they
 are the most likely thing to change.
 
 What the extension covers of the Entire CLI, what it leaves out on purpose,
-and what is still a gap is tracked command by command in
-[docs/coverage.md](docs/coverage.md). The changes in each version are in the
-[changelog](CHANGELOG.md).
+and what is still a gap is summarised [above](#what-is-supported-and-what-is-not)
+and tracked command by command in [docs/coverage.md](docs/coverage.md). The
+changes in each version are in the [changelog](CHANGELOG.md).
 
 ## Screenshots
 
@@ -273,6 +307,37 @@ confirmation says it cannot list the files in advance and Entirely shows the CLI
 list afterwards.
 `entirely.lifecycleActionTimeout` sets how long an install or removal may take.
 
+## The agent skill
+
+**Entirely: Install the Agent Skill in This Repository** writes one file into the
+repository you have open: `.github/skills/entire/SKILL.md`. An agent working there
+picks it up, and it tells that agent what Entire already knows — why a line exists,
+what a previous agent did, what a checkpoint changed, and whether the task at hand
+was done before.
+
+```markdown
+entire why <file>:<line>          why a line is the way it is
+entire search "<your own words>"  whether this has been done before
+entire checkpoint explain <id>    what that checkpoint changed
+entire session info               what that session did
+```
+
+The skill names the commands and the two flags that shape what an agent reads —
+`--json` and `--compact`. Every other flag comes from `entire agent-help <command>`,
+so the text stays true as the CLI changes rather than going stale with it. Everything it points at only reads; the commands that change something
+are the person's, and the skill says to suggest them rather than run them.
+It does not list them: `entire agent-help` marks which ones they are, and
+that list is the one the skill points at, so it cannot go stale.
+
+It also says not to run `entire hooks` by hand when the editor has the compatible
+integration installed, because the editor already reports that activity and a second
+report would be a duplicate.
+
+The file is yours. Read it before you commit it, keep it out of the way if you would
+rather not have it, and delete it whenever you like: nothing else in the repository is
+touched. A file that is already there is replaced only after you are asked, and the
+question names the file.
+
 ## Stopping, configuring and cleaning capture
 
 Five commands change what Entire does in the open repository. None of them runs on its
@@ -447,6 +512,27 @@ and, if the CLI offers one, a backend. A read runs as typed; any other method is
 confirmed first. The response opens in a document and is not written to the
 `Entire` output channel. The call runs once and is never retried, and no view or
 background task can reach it.
+
+Opening an organisation, a project or a repository shows what the CLI knows
+about it: the identifiers and regions, a repository's visibility, its branch
+protection rules, where it is mirrored, and an organisation's invitations. A row
+that cannot be read says why instead of showing nothing.
+
+From the same view you can create an organisation and a project, invite someone
+to an organisation and revoke that invitation, protect a branch and remove the
+rule, place a repository on clusters and take it off them, turn a GitHub mirror
+into a repository of Entire's own, ask the CLI to fetch a mirror again, clone a
+repository onto this machine, and point a git remote at Entire. Each asks first
+in a dialog that names what it affects and the login it acts as.
+
+Where a change belongs to GitHub, the extension says so and does not offer it:
+the protection of a GitHub mirror is GitHub's, and a repository of Entire's own
+has no upstream to fetch from. A detach shows the CLI's own plan before it asks,
+and the plan's conditions are met or nothing is detached. A clone is written
+only into a folder that does not exist or is empty, and the remote it adds is
+never given a name that is already taken unless you say so, with the address it
+would replace shown first. An invitation is sent by Entire to the address you
+give, and that address is never written to the output channel.
 
 Flags and the values they take (roles, visibility, backends) are read from
 `entire agent-help` for each command, never from a list in the extension. A CLI
@@ -848,7 +934,7 @@ MIT
 Entire and the Entire symbol are trademarks of Entire Inc. Entirely uses the
 symbol unmodified, only to identify the integration. Entirely is not affiliated
 with or endorsed by Entire. See [assets/brand/README.md](assets/brand/README.md)
-and [docs/icon-font.md](docs/icon-font.md).
+and [docs/icons.md](docs/icons.md).
 
 ## Issues
 

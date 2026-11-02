@@ -21,6 +21,11 @@ import {
 	type LifecycleDependencies,
 } from './sessionLifecycle';
 import { importHistory, type ImportDependencies } from './historyImport';
+import {
+	checkpointFromTarget,
+	deleteCheckpoint,
+	type CheckpointDeletionDependencies,
+} from './checkpointDeletion';
 import { manageAgents, type AgentDependencies } from './agentIntegrations';
 import { openTranscript, selectSession, setOwnSessionFilter } from './sessionDetail';
 import {
@@ -88,6 +93,8 @@ export interface CommandDependencies {
 	readonly agentIntegrations: AgentDependencies;
 	/** Imports past agent history as read-only checkpoints. */
 	readonly historyImport: ImportDependencies;
+	/** Deletes one checkpoint, with its consequences confirmed and verified. */
+	readonly checkpointDeletion: CheckpointDeletionDependencies;
 	/** The trails of the workspace, as the CLI knows them. */
 	readonly trails: TrailService;
 	/** The trails section of the view. */
@@ -273,6 +280,17 @@ export function registerCommands(context: vscode.ExtensionContext, deps: Command
 
 		vscode.commands.registerCommand('entirely.stopSession', async (target?: SessionItemNode) => {
 			await stopSession(deps.lifecycle, target?.session);
+		}),
+
+		// A checkpoint is deleted one at a time, and only after the user
+		// has been told what the deletion would reach. The command reads
+		// the checkpoint list itself, so the same flow works from the
+		// palette as from the tree.
+		vscode.commands.registerCommand('entirely.deleteCheckpoint', async (target?: unknown) => {
+			await deleteCheckpoint(
+				deps.checkpointDeletion,
+				checkpointFromTarget(target, id => deps.checkpoints.find(id)),
+			);
 		}),
 
 		vscode.commands.registerCommand('entirely.attachSession', async (target?: SessionItemNode) => {

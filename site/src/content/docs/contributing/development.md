@@ -47,7 +47,7 @@ src/
     entire/
   test/               Mocha tests; test/support holds the fake CLIs
 site/                 This documentation site (separate project)
-docs/                 coverage.md, icon-font.md and notes
+docs/                 coverage.md, icons.md and notes
 ```
 
 ## Rules the code follows

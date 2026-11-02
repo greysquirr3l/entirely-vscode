@@ -1,13 +1,19 @@
 import * as vscode from 'vscode';
 
 import {
+	forgeOf,
+	isGithubSourced,
 	nameGrant,
 	repositoryPath,
+	repositoryReference,
 	type AccessGrant,
 	type ControlCluster,
 	type ControlRepository,
 	type GrantScope,
+	type Invitation,
+	type MirrorPlacement,
 	type Organisation,
+	type ProtectionRule,
 	type Project,
 } from '../lib/entire';
 import type { ControlPlaneSource, Read } from '../services/controlPlane';
@@ -21,6 +27,10 @@ export type ControlNode =
 	| { readonly kind: 'access'; readonly scope: GrantScope; readonly target: string; readonly label: string }
 	| { readonly kind: 'grant'; readonly scope: GrantScope; readonly target: string; readonly label: string; readonly grant: AccessGrant }
 	| { readonly kind: 'cluster'; readonly cluster: ControlCluster }
+	| { readonly kind: 'detail'; readonly label: string; readonly value: string }
+	| { readonly kind: 'invitation'; readonly invitation: Invitation }
+	| { readonly kind: 'protection'; readonly rule: ProtectionRule }
+	| { readonly kind: 'placement'; readonly placement: MirrorPlacement }
 	| { readonly kind: 'message'; readonly text: string };
 
 const GROUP_LABELS = { projects: 'Projects', organisations: 'Organisations', clusters: 'Clusters' } as const;
@@ -75,20 +85,73 @@ export class ControlPlaneProvider implements vscode.TreeDataProvider<ControlNode
 				return this.groupChildren(node.group);
 
 			case 'project': {
+				const detail = await this.source.project(node.project.id);
 				const repositories = await this.source.repositories(node.project);
 				const nodes = asNodes(repositories, 'repositories', list =>
 					list.map((repository): ControlNode => ({ kind: 'repository', repository })),
 				);
-				return [...nodes, { kind: 'access', scope: 'project', target: node.project.id, label: node.project.name }];
+				return [
+					...detailNodes(detail, project => [
+						['Identifier', project.id],
+						['Owner', project.ownerName],
+						['Owner kind', project.ownerType],
+						['Region', project.region],
+					]),
+					...nodes,
+					// The access of a project of mirrors is GitHub's, and is read
+					// there rather than changed here.
+					...(isGithubSourced(node.project)
+						? [
+								{
+									kind: 'message' as const,
+									text:
+										'The access of this project is a read-only projection of what GitHub grants. ' +
+										'Give and take access on GitHub.',
+								},
+							]
+						: [
+								{
+									kind: 'access' as const,
+									scope: 'project' as const,
+									target: node.project.id,
+									label: node.project.name,
+								},
+							]),
+				];
 			}
 
 			case 'repository': {
 				const path = repositoryPath(node.repository);
-				return path === undefined ? [] : this.grantNodes('repo', path, path);
+				const reference = repositoryReference(node.repository);
+				if (path === undefined || reference === undefined) {
+					return [{ kind: 'message', text: 'This repository has no address on Entire, so nothing more can be read for it.' }];
+				}
+				// The CLI reads these two by the repository's ULID: it refuses a
+				// `/gh/` reference for them and asks for the id instead.
+				const detail = await this.source.visibility(node.repository.id);
+				const protection = await this.source.protection(node.repository.id);
+				const mirrors = await this.source.mirrors(reference);
+				const github = forgeOf(reference) === 'gh';
+				return [
+					...visibilityNodes(detail, github),
+					...protectionNodes(protection, github),
+					...placementNodes(mirrors),
+					...(await this.grantNodes('repo', path, path)),
+				];
 			}
 
-			case 'organisation':
-				return this.grantNodes('org', node.organisation.name, node.organisation.name);
+			case 'organisation': {
+				const detail = await this.source.organisation(node.organisation.name);
+				const invitations = await this.source.invitations(node.organisation.name);
+				return [
+					...detailNodes(detail, organisation => [
+						['Identifier', organisation.id],
+						['Region', organisation.region],
+					]),
+					...invitationNodes(invitations),
+					...(await this.grantNodes('org', node.organisation.name, node.organisation.name)),
+				];
+			}
 
 			case 'access':
 				return this.grantNodes(node.scope, node.target, node.label);
@@ -104,10 +167,22 @@ export class ControlPlaneProvider implements vscode.TreeDataProvider<ControlNode
 				return asNodes(await this.source.projects(), 'projects', list =>
 					list.map((project): ControlNode => ({ kind: 'project', project })),
 				);
-			case 'organisations':
-				return asNodes(await this.source.organisations(), 'organisations', list =>
-					list.map((organisation): ControlNode => ({ kind: 'organisation', organisation })),
-				);
+			case 'organisations': {
+				const read = await this.source.organisations();
+				if (!read.ok) {
+					return [{ kind: 'message', text: `Could not read the organisations: ${read.detail}.` }];
+				}
+				if (read.value.length === 0) {
+					return [
+						{
+							kind: 'message',
+							text:
+								'This login sees no organisations. A personal account has no account-wide membership, so an organisation is how a team gets a home on Entire.',
+						},
+					];
+				}
+				return read.value.map((organisation): ControlNode => ({ kind: 'organisation', organisation }));
+			}
 			case 'clusters':
 				return asNodes(await this.source.clusters(), 'clusters', list =>
 					list.map((cluster): ControlNode => ({ kind: 'cluster', cluster })),
@@ -150,7 +225,8 @@ export class ControlPlaneProvider implements vscode.TreeDataProvider<ControlNode
 					project.canCreateRepository === false ? 'You cannot create repositories in it.' : undefined,
 				]);
 				item.iconPath = new vscode.ThemeIcon('project');
-				item.contextValue = 'entirely.cpProject';
+				// A project of GitHub mirrors holds no access of its own.
+				item.contextValue = isGithubSourced(project) ? 'entirely.cpMirroredProject' : 'entirely.cpProject';
 				return item;
 			}
 			case 'repository': {
@@ -168,7 +244,12 @@ export class ControlPlaneProvider implements vscode.TreeDataProvider<ControlNode
 					repository.canManage === false ? 'You cannot manage this repository.' : undefined,
 				]);
 				item.iconPath = new vscode.ThemeIcon(repository.visibility === 'public' ? 'repo' : 'lock');
-				item.contextValue = path === undefined ? 'entirely.cpRepositoryMirror' : 'entirely.cpRepository';
+				item.contextValue =
+					path === undefined
+						? 'entirely.cpRepositoryMirror'
+						: isGithubSourced({ id: repository.projectId, name: repository.project })
+							? 'entirely.cpMirroredRepository'
+							: 'entirely.cpRepository';
 				return item;
 			}
 			case 'organisation': {
@@ -209,6 +290,44 @@ export class ControlPlaneProvider implements vscode.TreeDataProvider<ControlNode
 				item.contextValue = 'entirely.cpCluster';
 				return item;
 			}
+			case 'detail': {
+				const item = new vscode.TreeItem(node.label, vscode.TreeItemCollapsibleState.None);
+				item.description = node.value;
+				item.tooltip = `${node.label}: ${node.value}`;
+				item.iconPath = new vscode.ThemeIcon('symbol-field');
+				item.contextValue = 'entirely.cpDetail';
+				return item;
+			}
+			case 'invitation': {
+				const { invitation } = node;
+				const label = invitation.email ?? invitation.id ?? 'Invitation';
+				const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
+				item.description = [invitation.role, invitation.status].filter((part): part is string => part !== undefined).join(' · ');
+				item.tooltip = invitation.raw;
+				item.iconPath = new vscode.ThemeIcon('mail');
+				item.contextValue = 'entirely.cpInvitation';
+				return item;
+			}
+			case 'protection': {
+				const { rule } = node;
+				const label = rule.id ?? rule.kind ?? 'Protection rule';
+				const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
+				item.description = rule.level ?? rule.kind;
+				item.tooltip = rule.raw;
+				item.iconPath = new vscode.ThemeIcon('shield');
+				item.contextValue = 'entirely.cpProtection';
+				return item;
+			}
+			case 'placement': {
+				const { placement } = node;
+				const label = placement.cluster ?? placement.clusterSlug ?? placement.repo;
+				const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
+				item.description = [placement.status, placement.cloneUrl].filter((part): part is string => part !== undefined).join(' · ');
+				item.tooltip = placement.repo;
+				item.iconPath = new vscode.ThemeIcon('server-environment');
+				item.contextValue = 'entirely.cpPlacement';
+				return item;
+			}
 			case 'message': {
 				const item = new vscode.TreeItem(node.text, vscode.TreeItemCollapsibleState.None);
 				item.iconPath = new vscode.ThemeIcon('info');
@@ -224,6 +343,67 @@ export class ControlPlaneProvider implements vscode.TreeDataProvider<ControlNode
 
 function tooltip(lines: readonly (string | undefined)[]): string {
 	return lines.filter((line): line is string => line !== undefined).join('\n');
+}
+
+/** The detail rows of a read, or one row that says why it could not be read. */
+function detailNodes<T extends { readonly id: string }>(
+	read: Read<T>,
+	rows: (value: T) => readonly (readonly [string, string | undefined])[],
+): ControlNode[] {
+	if (!read.ok) {
+		return [{ kind: 'message', text: `Could not read the detail: ${read.detail}.` }];
+	}
+	const detail = rows(read.value).filter((row): row is readonly [string, string] => row[1] !== undefined);
+	return detail.map(([label, value]) => ({ kind: 'detail', label, value }));
+}
+
+/** The visibility of a repository, and where that visibility is kept. */
+function visibilityNodes(read: Read<{ readonly visibility?: string }>, github: boolean): ControlNode[] {
+	if (!read.ok) {
+		return [{ kind: 'message', text: `Could not read the visibility: ${read.detail}.` }];
+	}
+	if (github) {
+		return [{ kind: 'detail', label: 'Visibility', value: 'kept on GitHub' }];
+	}
+	return read.value.visibility === undefined
+		? []
+		: [{ kind: 'detail', label: 'Visibility', value: read.value.visibility }];
+}
+
+/** The protection rules of a repository, and where that protection is kept. */
+function protectionNodes(read: Read<readonly ProtectionRule[]>, github: boolean): ControlNode[] {
+	if (!read.ok) {
+		return [{ kind: 'message', text: `Could not read the protection: ${read.detail}.` }];
+	}
+	if (github) {
+		return [{ kind: 'detail', label: 'Protection', value: 'kept on GitHub' }];
+	}
+	if (read.value.length === 0) {
+		return [{ kind: 'detail', label: 'Protection', value: 'none' }];
+	}
+	return read.value.map((rule): ControlNode => ({ kind: 'protection', rule }));
+}
+
+/** The mirror placements of a repository. */
+function placementNodes(read: Read<readonly MirrorPlacement[]>): ControlNode[] {
+	if (!read.ok) {
+		return [{ kind: 'message', text: `Could not read the mirrors: ${read.detail}.` }];
+	}
+	if (read.value.length === 0) {
+		return [{ kind: 'detail', label: 'Mirrored on', value: 'no cluster' }];
+	}
+	return read.value.map((placement): ControlNode => ({ kind: 'placement', placement }));
+}
+
+/** The open invitations of an organisation. */
+function invitationNodes(read: Read<readonly Invitation[]>): ControlNode[] {
+	if (!read.ok) {
+		return [{ kind: 'message', text: `Could not read the invitations: ${read.detail}.` }];
+	}
+	if (read.value.length === 0) {
+		return [];
+	}
+	return read.value.map((invitation): ControlNode => ({ kind: 'invitation', invitation }));
 }
 
 /** A listing as nodes, or one line that says why it is not one. */

@@ -48,8 +48,10 @@ import { BlameService } from './services/blameService';
 import { TrailService } from './services/trailService';
 import { WhyService } from './services/whyService';
 import { EditorLifecycleUi } from './commands/lifecycleUi';
+import { EditorCheckpointDeletionUi } from './commands/checkpointDeletionUi';
 import { CliDoctorService } from './services/cliDoctor';
 import { SessionLifecycleService } from './services/sessionLifecycle';
+import { CheckpointDeletionService } from './services/checkpointDeletion';
 import { launchInTerminal } from './services/resumeTerminal';
 import { EditorImportUi } from './commands/importUi';
 import { HistoryImportService } from './services/historyImport';
@@ -62,6 +64,7 @@ import { GENERATED_SCHEME, GeneratedDocuments } from './providers/generatedDocum
 import { ActivityService } from './services/activity';
 import { DispatchService } from './services/dispatch';
 import { registerPluginCommands } from './commands/pluginCommands';
+import { registerAgentSkill } from './commands/agentSkillCommands';
 import { registerIntegrations } from './commands/integrationCommands';
 import { registerPluginManagementCommands } from './commands/pluginManagementCommands';
 import { readPluginCheck } from './services/pluginManagement';
@@ -228,9 +231,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	context.subscriptions.push(panel);
 	registerSelectionCommands(context, { selection, documents: generated, panel });
 
+	const checkpointSource = createCheckpointSource(runner, workspaceRoot);
+	const checkpointDetail = createCheckpointDetailSource(runner, workspaceRoot);
+	const checkpointDeletion = new CheckpointDeletionService({
+		runner,
+		workspaceRoot,
+		timeoutSeconds: () => readExtensionSettings().checkpointDeletionTimeout,
+	});
+
 	const checkpoints = new CheckpointsProvider(
-		createCheckpointSource(runner, workspaceRoot),
-		createCheckpointDetailSource(runner, workspaceRoot),
+		checkpointSource,
+		checkpointDetail,
 		() => readExtensionSettings().refreshInterval,
 		tokenUsage,
 	);
@@ -472,6 +483,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		},
 	});
 
+	// The skill that tells an agent in the repository what Entire already
+	// knows. It is one file in the repository, and the person can read it,
+	// see it in the diff, and delete it.
+	registerAgentSkill(context);
+
 	// The token profile, who has touched code, and the multi-agent review.
 	// Each is run by choosing the command; a review also asks first.
 	registerGeneratedLinks(context);
@@ -597,6 +613,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			},
 			running: { active: false },
 		},
+		checkpointDeletion: {
+			checkpoints: checkpointSource,
+			detail: checkpointDetail,
+			deletion: checkpointDeletion,
+			acting: async () => (await accounts.refresh(workspaceRoot())).acting,
+			ui: new EditorCheckpointDeletionUi(),
+			refresh: async () => {
+				await checkpoints.refresh();
+			},
+		},
 		lifecycle: {
 			watching: new Set<string>(),
 			signal: resumeWatches.signal,
@@ -628,7 +654,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		trailChanges,
 		runner,
 		accounts,
-		checkpointDetail: createCheckpointDetailSource(runner, workspaceRoot),
+		checkpointDetail,
 		recorder,
 		output,
 	});

@@ -42,9 +42,41 @@ Roles come from the CLI's help, never from a list in the extension. For reposito
 | **Entirely: Delete Organisation** | Organisation | Deletes it. Its members lose the access it gave them. |
 | **Entirely: Give Access** | Project, repository, organisation, or Access node | Asks for a grantee and a role. |
 | **Entirely: Remove Access** | A person under Access | Removes their direct access. |
+| **Entirely: Show Organisation** | Organisation | Shows what the CLI knows about it. |
+| **Entirely: Show Project** | Project | Shows what the CLI knows about it. |
+| **Entirely: Show Repository Visibility** | Repository | Shows whether it is public or private. |
+| **Entirely: List Protection Rules** | Repository | Shows its branch protection rules. |
+| **Entirely: List Mirrors** | Repository | Shows the clusters it is mirrored on. |
+| **Entirely: List Organisation Invitations** | Organisation | Shows the invitations it has sent. |
+| **Entirely: Create Organisation** | Command Palette | Asks for a name and, if the CLI lists them, a region. |
+| **Entirely: Create Project** | Command Palette | Asks for a name, an owner and, if the CLI lists them, an owner kind. |
+| **Entirely: Invite to Organisation** | Organisation | Asks for an address and a role, and sends the invitation. |
+| **Entirely: Revoke Invitation** | Organisation | Asks for the address whose invitation to revoke. |
+| **Entirely: Add Protection Rule** | Repository | Asks for a branch and a level. |
+| **Entirely: Remove Protection Rule** | Repository | Asks for the branch whose rule to remove. |
+| **Entirely: Add Mirror** | Repository | Asks which clusters to place it on. |
+| **Entirely: Remove Mirror** | Repository | Asks which placements to take it off. |
+| **Entirely: Detach Mirror** | Repository | Shows the CLI's own plan, then asks. |
+| **Entirely: Resync Mirror** | Repository | Asks the CLI to fetch the mirror again. |
+| **Entirely: Clone Repository** | Repository | Asks for a folder to clone into. |
+| **Entirely: Add Remote** | Repository | Asks for the name the remote is given. |
 | **Entirely: Call the Entire API** | Command Palette | Sends one `entire api` request. |
 
 The commands are in the item context menus. Create, grant and the other management actions are in the "manage" group, and the deletions are in a separate destructive group.
+
+### What belongs to GitHub
+
+Some of what the CLI holds is GitHub's, and Entirely says so rather than offering to change it.
+
+- The access of a project of GitHub mirrors is a read-only projection of what GitHub grants. The view says so, **Give Access** and **Remove Access** are not offered there, and a refusal from the CLI is reported in plain words.
+- The branch protection of a GitHub mirror is the upstream's. **Add Protection Rule** and **Remove Protection Rule** are not offered for one, and the rules of a mirror are read with the CLI's own words.
+- A repository of Entire's own has no upstream, so there is nothing to fetch again: **Resync Mirror** is not offered for one.
+
+### Mirrors, clones and remotes
+
+- **Detach Mirror** runs the CLI's own `--dry-run` first and shows the plan. If the plan's conditions are not met, nothing is detached and the extension says what to clear first.
+- **Clone Repository** asks for a parent folder, and the confirmation names the full path the clone is written to and the cluster it comes from. A folder that exists and holds something is refused before anything runs, and a clone that fails part way leaves what it made, named by path.
+- **Add Remote** never takes a name that is already used unless you ask it to, after it has shown the address that name points at with its credentials removed. It changes this checkout's git configuration only; nothing on Entire changes.
 
 ### The confirmation
 
@@ -76,6 +108,15 @@ Exit status alone does not decide. After a change, Entirely reads the relevant l
 | Change visibility | The repository is listed with the new visibility. |
 | Give access | The grantee is listed with the role you chose. |
 | Remove access | The grantee was matched to a **direct** grant in a listing read before the request, and is gone from a listing read after. |
+| Create organisation or project | The listing now holds it, under the name the CLI gave it. |
+| Send an invitation | The organisation lists it, with the role it was sent for. |
+| Revoke an invitation | The address was listed before the request and is not listed after. |
+| Add or remove a protection rule | The repository's rules now hold it, or no longer do. |
+| Add or remove a mirror | The placements now hold it, or no longer do. |
+| Detach a mirror | The repository is no longer listed as a mirror. |
+| Resync a mirror | The mirror is still listed, and the sync is reported as queued. |
+| Clone a repository | The folder holds a git work tree. |
+| Add a remote | This checkout's git configuration holds the remote, with an address. |
 
 Outcomes are reported in plain terms:
 
@@ -90,6 +131,8 @@ If a change times out, Entirely reads the listing back. It reports done only if 
 ## Mirrored repositories and GitHub access
 
 A repository that mirrors a GitHub repository has no Entire path, and the CLI's delete and edit commands refuse it. The view shows it with the tooltip "is a mirror and is managed upstream". It has no children, and delete, visibility and grant commands decline with a message. Visibility "follows the repository it mirrors".
+
+A repository of Entire's own can be protected, mirrored, detached, cloned and given a remote. A mirror of a GitHub repository can be mirrored again, detached, cloned and given a remote, but not protected: that protection is GitHub's.
 
 Access on a GitHub-mirrored project can't be changed through these commands. The CLI refuses with "Project access on a GitHub-mirrored project is a read-only projection of GitHub; grants are managed by the source". Treat the Access lists there as read-only. A personal GitHub account has no account-wide membership, so a repository collaborator can't be given project access this way. See [Accounts and contexts](/entirely/concepts/accounts-and-contexts/).
 

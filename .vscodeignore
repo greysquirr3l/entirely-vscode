@@ -29,14 +29,15 @@ docs/**
 site/**
 
 # The README screenshots and logo are read from the repository by the
-# marketplace page. The package carries only the extension icon and the
-# activity bar icon (images/logo.png, images/entirely-view.svg).
+# marketplace page. The package carries only the extension icon, the
+# activity bar icon and the detail panel icon (images/logo.png,
+# images/codicon-robot.svg, images/entirely-view.svg).
 images/hero.png
 images/sessions.png
 images/output.png
 
-# The vendored brand symbol is only the font generator's input; the
-# package carries the built font and images/entirely-view.svg.
+# The vendored brand symbol is only the source of images/entirely-view.svg;
+# the package carries the icon, not the artwork it was built from.
 assets/brand/**
 
 # Local scratch: research notes, source artwork and the scratch copy of the
