@@ -93,9 +93,10 @@ export function agentSkillDocument(): string {
 		'',
 		"## What is yours, and what is the person's",
 		'',
-		'Everything in this skill only reads. The commands that change something — the ones under',
-		'`org`, `repo`, `project`, `plugin`, `clean`, `disable`, `enable`, `login` — belong to the',
-		'person. Suggest them, in plain words, and let them run them.',
+		'Everything in this skill only reads. The commands that change something belong to the',
+		'person: `entire agent-help` lists them under "the user\'s — suggest, don\'t run", and that',
+		'list is the one to go by, not this file. Suggest them, in plain words, and let them run',
+		'them.',
 		'',
 		'Nothing else is needed to record your work. A checkpoint is written for the commit that',
 		'carries it, so there is nothing to save and nothing to submit.',
@@ -116,9 +117,9 @@ export function agentSkillPath(repositoryRoot: string): string {
  */
 export function confirmAgentSkillOverwrite(target: string): ControlConfirmation {
 	return {
-		message: 'Replace the Entire agent skill?',
+		message: 'Replace the file at the skill\'s path?',
 		detail:
-			`${target} already holds an Entire agent skill, and it is not the one this extension writes. ` +
+			`${target} already holds a file, and it is not the one this extension writes. ` +
 			'Replacing it overwrites that file and nothing else. The repository is not changed in any other way.',
 		action: 'Replace',
 	};

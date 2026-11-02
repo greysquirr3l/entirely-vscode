@@ -114,6 +114,44 @@ suite("Entire's agent skill", () => {
 		assert.match(ui.warnings[0], /Open the repository/);
 	});
 
+	test('a link at the file\'s place is refused, and nothing is written through it', async () => {
+		const root = makeTempDir('entire-skill-');
+		try {
+			const outside = path.join(root, 'outside.md');
+			fs.writeFileSync(outside, 'mine\n', 'utf8');
+			const target = agentSkillPath(root);
+			fs.mkdirSync(path.dirname(target), { recursive: true });
+			fs.symlinkSync(outside, target);
+
+			const ui = fakeUi();
+			assert.strictEqual(await installAgentSkill({ ui, repositoryRoot: () => root }), 'failed');
+			assert.strictEqual(fs.readFileSync(outside, 'utf8'), 'mine\n', 'the link was followed');
+			assert.match(ui.warnings[0], /link/);
+		} finally {
+			removeTempDir(root);
+		}
+	});
+
+	test('a folder that leads out of the repository is refused', async () => {
+		for (const linked of ['.github', path.join('.github', 'skills')]) {
+			const root = makeTempDir('entire-skill-');
+			const outside = makeTempDir('entire-outside-');
+			try {
+				const link = path.join(root, linked);
+				fs.mkdirSync(path.dirname(link), { recursive: true });
+				fs.symlinkSync(outside, link);
+
+				const ui = fakeUi();
+				assert.strictEqual(await installAgentSkill({ ui, repositoryRoot: () => root }), 'failed');
+				assert.deepStrictEqual(fs.readdirSync(outside), [], 'a folder was created outside the repository');
+				assert.match(ui.warnings[0], /outside the repository/);
+			} finally {
+				removeTempDir(root);
+				removeTempDir(outside);
+			}
+		}
+	});
+
 	test('the skill in this repository is the one this extension writes', () => {
 		const dogfooded = path.resolve(__dirname, '..', '..', '.github', 'skills', AGENT_SKILL_NAME, 'SKILL.md');
 		if (!fs.existsSync(dogfooded)) {
@@ -130,5 +168,22 @@ suite("Entire's agent skill", () => {
 		const question = confirmAgentSkillOverwrite('/repo/.github/skills/entire/SKILL.md');
 		assert.match(question.message, /Replace/);
 		assert.ok(question.detail.includes('/repo/.github/skills/entire/SKILL.md'));
+		assert.match(question.detail, /overwrites that file and nothing else/);
+	});
+
+	test('the question claims nothing about where the file came from', () => {
+		const question = confirmAgentSkillOverwrite('/repo/.github/skills/entire/SKILL.md');
+		assert.doesNotMatch(question.detail, /already holds an Entire agent skill/);
+	});
+
+	test('the skill leaves the list of changing commands to the CLI', () => {
+		const document = agentSkillDocument();
+		assert.ok(document.includes('entire agent-help'), 'the skill does not point at the CLI');
+		for (const command of ['org', 'repo', 'project', 'plugin', 'clean', 'disable', 'enable', 'login']) {
+			assert.ok(
+				!document.includes(`\`${command}\``),
+				`the skill lists ${command} as the person's to run, and the list will go stale`,
+			);
+		}
 	});
 });

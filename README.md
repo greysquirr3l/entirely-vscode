@@ -326,6 +326,8 @@ The skill names the commands and the two flags that shape what an agent reads â€
 `--json` and `--compact`. Every other flag comes from `entire agent-help <command>`,
 so the text stays true as the CLI changes rather than going stale with it. Everything it points at only reads; the commands that change something
 are the person's, and the skill says to suggest them rather than run them.
+It does not list them: `entire agent-help` marks which ones they are, and
+that list is the one the skill points at, so it cannot go stale.
 
 It also says not to run `entire hooks` by hand when the editor has the compatible
 integration installed, because the editor already reports that activity and a second

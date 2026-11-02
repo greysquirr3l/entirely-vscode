@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -7,6 +8,7 @@ import {
 	confirmAgentSkillOverwrite,
 	type ControlConfirmation,
 } from '../lib/entire';
+import { openRegularFile } from '../services/openRegularFile';
 
 /** What the install asks of the editor. */
 export interface AgentSkillUi {
@@ -47,35 +49,66 @@ export async function installAgentSkill(deps: AgentSkillDependencies): Promise<A
 	}
 	const target = agentSkillPath(root);
 	const document = agentSkillDocument();
-	try {
-		const existing = await fs.lstat(target);
-		if (existing.isSymbolicLink()) {
-			await ui.warn(`${target} is a link, so it was not written.`);
+
+	// The file is opened once and read from that handle, so a link at its
+	// place cannot be swapped for something else between the check and
+	// the read.
+	const existing = await openRegularFile(target);
+	switch (existing.kind) {
+		case 'ok': {
+			let text: string;
+			try {
+				text = await existing.handle.readFile({ encoding: 'utf8' });
+			} catch (error) {
+				await ui.warn(`${target} could not be read: ${message(error)}.`);
+				return 'failed';
+			} finally {
+				await existing.handle.close().catch(() => undefined);
+			}
+			if (text === document) {
+				await ui.inform(`The Entire agent skill is already in ${target}. Nothing was changed.`);
+				return 'present';
+			}
+			if (!(await ui.confirm(confirmAgentSkillOverwrite(target)))) {
+				await ui.inform(`${target} was left as it is.`);
+				return 'cancelled';
+			}
+			break;
+		}
+		case 'link':
+			await ui.warn(`${target} is a link, so it was left alone.`);
 			return 'failed';
-		}
-		if ((await fs.readFile(target, 'utf8')) === document) {
-			await ui.inform(`The Entire agent skill is already in ${target}. Nothing was changed.`);
-			return 'present';
-		}
-		if (!(await ui.confirm(confirmAgentSkillOverwrite(target)))) {
-			await ui.inform(`${target} was left as it is.`);
-			return 'cancelled';
-		}
-	} catch (error) {
-		if (!isAbsent(error)) {
-			await ui.warn(`${target} could not be read: ${message(error)}.`);
+		case 'not-file':
+			await ui.warn(`${target} is not a file, so it was left alone.`);
 			return 'failed';
-		}
+		case 'error':
+			await ui.warn(`${target} could not be read: ${existing.detail}.`);
+			return 'failed';
+		case 'absent':
+			break;
 	}
+
+	const folder = path.dirname(target);
+	// The folders are made one at a time, and a folder that is a link is
+	// never descended into: a repository whose `.github` leads out of it
+	// must not gain folders outside itself.
+	if (!(await makeFolders(root, folder))) {
+		await ui.warn(`${folder} leads outside the repository, so the skill was not written.`);
+		return 'failed';
+	}
+	if (!(await inside(root, folder))) {
+		await ui.warn(`${folder} leads outside the repository, so the skill was not written.`);
+		return 'failed';
+	}
+	// The file is written beside the target and renamed over it, so a
+	// failure leaves the original as it was and a link in its place is
+	// replaced rather than followed.
+	const temporary = `${target}.${crypto.randomBytes(6).toString('hex')}.tmp`;
 	try {
-		const folder = path.dirname(target);
-		await fs.mkdir(folder, { recursive: true });
-		if (!(await inside(root, folder))) {
-			await ui.warn(`${folder} leads outside the repository, so the skill was not written.`);
-			return 'failed';
-		}
-		await fs.writeFile(target, document, 'utf8');
+		await fs.writeFile(temporary, document, { encoding: 'utf8', flag: 'wx', mode: 0o644 });
+		await fs.rename(temporary, target);
 	} catch (error) {
+		await fs.rm(temporary, { force: true });
 		await ui.warn(`${target} could not be written: ${message(error)}.`);
 		return 'failed';
 	}
@@ -85,9 +118,59 @@ export async function installAgentSkill(deps: AgentSkillDependencies): Promise<A
 	return 'installed';
 }
 
-/** Whether an error means the file is not there. */
-function isAbsent(error: unknown): boolean {
-	return typeof error === 'object' && error !== null && (error as { code?: string }).code === 'ENOENT';
+/**
+ * Makes the folders a path needs, one at a time.
+ *
+ * Each folder that is already there is looked at without following a
+ * link: a folder that is a link is refused rather than descended into,
+ * because a link can lead anywhere, and a link that leads out of the
+ * repository is how a write would end up outside it. Each folder that is
+ * missing is made on its own and looked at again, so a link that appears
+ * in place of the folder is caught before anything is written into it.
+ */
+async function makeFolders(root: string, folder: string): Promise<boolean> {
+	const relative = path.relative(root, folder);
+	if (relative.startsWith('..') || path.isAbsolute(relative)) {
+		return false;
+	}
+	let current = root;
+	for (const part of relative.split(path.sep).filter(part => part.length > 0)) {
+		current = path.join(current, part);
+		const existing = await lstat(current);
+		if (existing === 'link') {
+			return false;
+		}
+		if (existing === 'folder') {
+			continue;
+		}
+		if (existing !== 'absent') {
+			return false;
+		}
+		try {
+			await fs.mkdir(current);
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+				return false;
+			}
+		}
+		if ((await lstat(current)) !== 'folder') {
+			return false;
+		}
+	}
+	return true;
+}
+
+/** What a folder's place holds, looked at without following a link. */
+async function lstat(folder: string): Promise<'folder' | 'link' | 'other' | 'absent'> {
+	try {
+		const info = await fs.lstat(folder);
+		if (info.isSymbolicLink()) {
+			return 'link';
+		}
+		return info.isDirectory() ? 'folder' : 'other';
+	} catch (error) {
+		return (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'absent' : 'other';
+	}
 }
 
 /** Whether a folder is inside the repository it is meant to belong to. */

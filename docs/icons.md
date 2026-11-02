@@ -22,7 +22,8 @@ product icon, so the extension adds no font to the editor.
   Only `width` and `height` are set to 24px; the `viewBox` and the paths are untouched.
 - `images/codicon-robot.svg` is the `robot` icon from VS Code's codicons
   (<https://github.com/microsoft/vscode-codicons>), the shape VS Code itself draws for
-  agents. Only the rendered size and the fill differ from that file.
+  agents. Only the rendered size and the fill differ from that file. The codicons are
+  Microsoft's, under the MIT licence, and the file is a plain path with no script in it.
 
 The Entire name and logo are Entire's trademarks. They are used here, unmodified, only to
 identify the integration. Entirely is an unofficial extension and is not affiliated with or
