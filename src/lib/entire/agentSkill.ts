@@ -117,9 +117,12 @@ export function agentSkillPath(repositoryRoot: string): string {
  */
 export function confirmAgentSkillOverwrite(target: string): ControlConfirmation {
 	return {
-		message: 'Replace the file at the skill\'s path?',
+		// The path is in the message, which VS Code shows as plain text.
+		// The detail is rendered as Markdown, and a path in it would be
+		// read as Markdown rather than as a path.
+		message: `Replace the file at ${target}?`,
 		detail:
-			`${target} already holds a file, and it is not the one this extension writes. ` +
+			'A file is already there, and it is not the one this extension writes. ' +
 			'Replacing it overwrites that file and nothing else. The repository is not changed in any other way.',
 		action: 'Replace',
 	};

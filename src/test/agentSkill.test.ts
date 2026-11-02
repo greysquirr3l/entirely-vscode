@@ -9,6 +9,8 @@ import {
 	agentSkillDocument,
 	agentSkillPath,
 	confirmAgentSkillOverwrite,
+	neutraliseLinks,
+	neutraliseLinksKeepingBrackets,
 	type ControlConfirmation,
 } from '../lib/entire';
 import { installAgentSkill, type AgentSkillUi } from '../commands/agentSkill';
@@ -132,6 +134,36 @@ suite("Entire's agent skill", () => {
 		}
 	});
 
+	test('a file in the way is refused, and says so', async () => {
+		const root = makeTempDir('entire-skill-');
+		try {
+			fs.writeFileSync(path.join(root, '.github'), 'not a folder\n', 'utf8');
+
+			const ui = fakeUi();
+			assert.strictEqual(await installAgentSkill({ ui, repositoryRoot: () => root }), 'failed');
+			assert.match(ui.warnings[0], /not a folder/);
+			assert.doesNotMatch(ui.warnings[0], /outside the repository/);
+		} finally {
+			removeTempDir(root);
+		}
+	});
+
+	test('a link inside the repository is refused, and says so', async () => {
+		const root = makeTempDir('entire-skill-');
+		const inside = makeTempDir('entire-inside-');
+		try {
+			fs.mkdirSync(path.join(root, '.github'), { recursive: true });
+			fs.symlinkSync(inside, path.join(root, '.github', 'skills'));
+
+			const ui = fakeUi();
+			assert.strictEqual(await installAgentSkill({ ui, repositoryRoot: () => root }), 'failed');
+			assert.match(ui.warnings[0], /is a link/);
+		} finally {
+			removeTempDir(root);
+			removeTempDir(inside);
+		}
+	});
+
 	test('a folder that leads out of the repository is refused', async () => {
 		for (const linked of ['.github', path.join('.github', 'skills')]) {
 			const root = makeTempDir('entire-skill-');
@@ -144,7 +176,7 @@ suite("Entire's agent skill", () => {
 				const ui = fakeUi();
 				assert.strictEqual(await installAgentSkill({ ui, repositoryRoot: () => root }), 'failed');
 				assert.deepStrictEqual(fs.readdirSync(outside), [], 'a folder was created outside the repository');
-				assert.match(ui.warnings[0], /outside the repository/);
+				assert.match(ui.warnings[0], /is a link/);
 			} finally {
 				removeTempDir(root);
 				removeTempDir(outside);
@@ -167,8 +199,39 @@ suite("Entire's agent skill", () => {
 	test('the question names the file that would be replaced', () => {
 		const question = confirmAgentSkillOverwrite('/repo/.github/skills/entire/SKILL.md');
 		assert.match(question.message, /Replace/);
-		assert.ok(question.detail.includes('/repo/.github/skills/entire/SKILL.md'));
+		assert.ok(question.message.includes('/repo/.github/skills/entire/SKILL.md'), 'the file is not named');
 		assert.match(question.detail, /overwrites that file and nothing else/);
+	});
+
+	test('the path is kept whole in a message', () => {
+		const path = '/Users/me/Repo [copy]/.github/skills/entire/SKILL.md';
+		const question = confirmAgentSkillOverwrite(path);
+		assert.ok(question.message.includes(path), 'the path was altered');
+		assert.ok(
+			!question.detail.includes(path),
+			'the path is in the detail, which VS Code renders as Markdown',
+		);
+	});
+
+	test('a plain-text surface keeps the brackets a path can hold', () => {
+		const path = '/Users/me/Repo [copy]/SKILL.md';
+		assert.ok(
+			neutraliseLinksKeepingBrackets(`written to ${path}`).includes(path),
+			'the path was altered on the way to the screen',
+		);
+	});
+
+	test('a plain-text surface still cannot carry a link', () => {
+		const text = neutraliseLinksKeepingBrackets('<command:a> command:c [y](https://e)');
+		assert.ok(!/[<>]/.test(text) && !/command:/i.test(text) && !/https:/i.test(text), text);
+	});
+
+	test('a Markdown surface takes the strict treatment, so a path is kept out of it', () => {
+		const path = '/Users/me/Repo [copy]/SKILL.md';
+		assert.ok(
+			!neutraliseLinks(path).includes(path),
+			'the strict treatment alters a bracketed path, so such a path cannot ride in the detail',
+		);
 	});
 
 	test('the question claims nothing about where the file came from', () => {

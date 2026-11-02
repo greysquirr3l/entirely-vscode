@@ -447,7 +447,7 @@ export {
 	refusedForDependents,
 	versionOf,
 } from './pluginManagement';
-export { neutraliseLinks } from './safeText';
+export { neutraliseLinks, neutraliseLinksKeepingBrackets } from './safeText';
 export type { PluginChange, PluginCheckReading, PluginSubcommand, SearchRow, UpgradeTarget } from './pluginManagement';
 export { MCP_PROVIDER_ID, MCP_SERVER_LABEL, describeMcpUnavailable, describesMcpServer, mcpClientConfig } from './mcp';
 export type { McpLaunch } from './mcp';
