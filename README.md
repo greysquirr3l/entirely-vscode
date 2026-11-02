@@ -122,7 +122,7 @@ it, so a BYOK or local model works the same as a hosted one.
 
 ## Status
 
-**Version 0.4.0.** Before 1.0, minor versions may change things. The command
+**Version 0.5.0.** Before 1.0, minor versions may change things. The command
 list and the setting names are the surface a user actually touches, so they
 are the most likely thing to change.
 
@@ -904,7 +904,7 @@ for the people using the extension.
 
 ### Releasing
 
-A release is a tag. Push a tag such as `v0.4.0` and the `Release` workflow builds the
+A release is a tag. Push a tag such as `v0.5.0` and the `Release` workflow builds the
 package, checks what is in it, publishes it to the Visual Studio Marketplace,
 and then makes a GitHub release with the `.vsix` attached. It does not publish to
 Open VSX.

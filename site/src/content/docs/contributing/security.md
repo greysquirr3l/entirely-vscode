@@ -9,7 +9,7 @@ The full policy is [SECURITY.md](https://github.com/greysquirr3l/entirely-vscode
 
 ## Supported versions
 
-Entirely is pre-1.0. Only the latest release gets security fixes. At the time of writing that is 0.4.x.
+Entirely is pre-1.0. Only the latest release gets security fixes. At the time of writing that is 0.5.x.
 
 ## Reporting a vulnerability
 

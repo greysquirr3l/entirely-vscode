@@ -239,12 +239,12 @@ suite("Entire's agent skill", () => {
 		assert.doesNotMatch(question.detail, /already holds an Entire agent skill/);
 	});
 
-	test('the skill names the extension and where it is published', () => {
+	test('the skill names the extension that reports the agent\'s activity, and links nothing', () => {
 		const document = agentSkillDocument();
 		assert.ok(document.includes('Entirely'), 'the extension is not named');
 		assert.ok(
-			document.includes('https://marketplace.visualstudio.com/items?itemName=greysquirr3l.entirely'),
-			'the link to the published extension is not in the skill',
+			!document.includes('https://'),
+			'the skill carries a link, and a link in a file copied into another repository goes stale',
 		);
 	});
 
