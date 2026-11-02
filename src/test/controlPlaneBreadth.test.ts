@@ -77,6 +77,21 @@ function cliWith(extra: Parameters<typeof fakeControlCli>[0] = {}): FakeControlC
 	return fakeControlCli({ ...extra, out: { ...READS, ...(extra.out ?? {}) } });
 }
 
+/**
+ * True when the text names the host, and the whole of it.
+ *
+ * A plain search would match `example.com` inside
+ * `example.com.attacker.net` and inside `evil.example.com`, which are
+ * other hosts altogether. The text is split on everything that cannot be
+ * part of a host name, the dots kept, and the host is then looked for as
+ * one whole piece.
+ */
+function namesHost(text: string, host: string): boolean {
+	return text
+		.split(/[^\w.-]+/)
+		.some(piece => piece.replace(/\.+$/, '') === host);
+}
+
 suite('Control plane breadth, the addresses the CLI takes', () => {
 	test('a repository is named by the forge its provider names', () => {
 		assert.strictEqual(
@@ -104,6 +119,13 @@ suite('Control plane breadth, the addresses the CLI takes', () => {
 		assert.ok(!isProtectionBranch(''));
 		assert.ok(!isProtectionBranch('-force'));
 		assert.ok(!isProtectionBranch('two words'));
+	});
+
+	test('a host inside a longer name is not the host', () => {
+		assert.ok(namesHost('the cluster aws-us-east-2.entire.io is ready', 'aws-us-east-2.entire.io'));
+		assert.ok(namesHost('it points at https://example.com/et/widgets/web.git', 'example.com'));
+		assert.ok(!namesHost('aws-us-east-2.entire.io.attacker.net', 'aws-us-east-2.entire.io'));
+		assert.ok(!namesHost('evil-aws-us-east-2.entire.io', 'aws-us-east-2.entire.io'));
 	});
 });
 
@@ -181,7 +203,7 @@ suite('Control plane breadth, the readings', () => {
 		});
 		const ui = fakeUi();
 		assert.strictEqual(await listMirrors(depsFor(cli, ui), WEB), 'done');
-		assert.match(ui.shown[0].body, /aws-us-east-2\.entire\.io/);
+		assert.ok(namesHost(ui.shown[0].body, 'aws-us-east-2.entire.io'), 'the cluster is named');
 	});
 
 	test('says why a reading failed rather than showing nothing', async () => {
@@ -414,7 +436,7 @@ suite('Control plane breadth, the changes', () => {
 		const question = ui.confirmations[0];
 		assert.match(question.message, /Clone \/et\/widgets\/web/);
 		assert.match(question.detail, new RegExp(path.join(cli.dir, 'copies', 'web')));
-		assert.match(question.detail, /aws-us-east-2\.entire\.io/);
+		assert.ok(namesHost(question.detail, 'aws-us-east-2.entire.io'), 'the cluster is named');
 	});
 
 	test('a clone that leaves no work tree behind is not reported as done', async () => {
@@ -442,7 +464,10 @@ suite('Control plane breadth, the changes', () => {
 		);
 		const ui = fakeUi({ asks: ['entire'], confirms: [false] });
 		assert.strictEqual(await addRemote(depsFor(cli, ui), WEB), 'cancelled');
-		assert.ok(ui.informed.some(line => /https:\/\/example\.com/.test(line)), 'the address is shown without its credentials');
+		assert.ok(
+			ui.informed.some(line => namesHost(line, 'example.com')),
+			'the address is shown without its credentials',
+		);
 		assert.ok(!ui.informed.join(' ').includes('secret'), 'the password is not shown');
 		assert.strictEqual(cli.callsTo('repo remote add').length, 0);
 	});
@@ -456,7 +481,7 @@ suite('Control plane breadth, the changes', () => {
 		});
 		const ui = fakeUi({ asks: ['entire'] });
 		await addRemote(depsFor(cli, ui), WEB);
-		assert.match(ui.confirmations[0].detail, /aws-us-east-2\.entire\.io/);
+		assert.ok(namesHost(ui.confirmations[0].detail, 'aws-us-east-2.entire.io'), 'the cluster is named');
 		assert.match(cli.callsTo('repo remote add')[0], /--cluster=aws-us-east-2\.entire\.io/);
 	});
 
