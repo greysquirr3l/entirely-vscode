@@ -239,6 +239,15 @@ suite("Entire's agent skill", () => {
 		assert.doesNotMatch(question.detail, /already holds an Entire agent skill/);
 	});
 
+	test('the skill names the extension that reports the agent\'s activity', () => {
+		const document = agentSkillDocument();
+		assert.ok(document.includes('Entirely'), 'the extension is not named');
+		assert.ok(
+			!document.includes('marketplace.visualstudio.com'),
+			'the skill carries no link to a published listing',
+		);
+	});
+
 	test('the skill leaves the list of changing commands to the CLI', () => {
 		const document = agentSkillDocument();
 		assert.ok(document.includes('entire agent-help'), 'the skill does not point at the CLI');
